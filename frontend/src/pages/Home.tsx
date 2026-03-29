@@ -1,0 +1,302 @@
+import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Sprout, Award } from 'lucide-react'
+import { categoryApi, productApi } from '../services/api'
+import { PageLayout } from '../components/layout'
+import { ProductGrid } from '../components/product'
+import type { Category, Product } from '../types'
+
+// Helper: Map category slugs to emoji and colors
+const getCategoryStyle = (slug?: string) => {
+  const styleMap: Record<string, { emoji: string; from: string; to: string }> = {
+    'seasonal-vegetables': { emoji: '🥦', from: '#2d8f3c', to: '#1e5e2a' },
+    'farm-fresh-fruits': { emoji: '🍊', from: '#d97d3c', to: '#a85a2a' },
+    'whole-grains': { emoji: '🌾', from: '#9b8b5c', to: '#6b6a42' },
+    'dairy-milk': { emoji: '🥛', from: '#d4a574', to: '#a07c4f' },
+    'spices-seasonings': { emoji: '🧂', from: '#8b5a3c', to: '#5c3d27' },
+    'organics-pulses': { emoji: '🫘', from: '#6b4423', to: '#4a2f1a' },
+    'cold-pressed-oils': { emoji: '🫒', from: '#8b7355', to: '#5c4a38' },
+  }
+  return styleMap[slug || ''] || { emoji: '🌿', from: '#5a7f5a', to: '#3d5342' }
+}
+
+const HomePage: React.FC = () => {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [featured, setFeatured] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      categoryApi.getAll(),
+      productApi.getFeatured(8)
+    ])
+      .then(([cats, prods]) => {
+        setCategories(cats || [])
+        setFeatured(prods || [])
+      })
+      .catch((err) => {
+        console.error('API ERROR:', err)
+        setCategories([])
+        setFeatured([])
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const homeCategories = categories.filter(c => c.showOnHome)
+  const displayCategories = (homeCategories.length > 0 ? homeCategories : categories).slice(0, 5)
+
+  return (
+    <PageLayout>
+      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-forest-950">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_30%_50%,rgba(46,139,50,0.18)_0%,transparent_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_60%_at_80%_30%,rgba(21,86,32,0.12)_0%,transparent_70%)]" />
+        <div className="absolute top-20 right-[15%] w-64 h-64 rounded-full bg-forest-800/20 blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-[30%] w-48 h-48 rounded-full bg-forest-700/15 blur-2xl animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+
+        <div className="relative max-w-7xl mx-auto px-6 sm:px-10 py-20 w-full">
+          <div className="max-w-3xl">
+            <div className="flex items-center gap-2.5 mb-6 animate-fade-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-forest-700/30 border border-forest-600/30 rounded-full">
+                <Sprout className="w-3.5 h-3.5 text-forest-300" />
+                <span className="text-xs font-label font-semibold text-forest-200 tracking-widest uppercase">100% Certified Organic</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full">
+                <span className="text-xs font-label font-medium text-stone-300 tracking-wider">Farm-Fresh · No Pesticides</span>
+              </div>
+            </div>
+
+            <h1 className="font-display text-6xl sm:text-7xl lg:text-8xl font-semibold text-white leading-[0.92] tracking-tight mb-6 animate-fade-up" style={{ animationDelay: '0.2s', opacity: 0 }}>
+              Pure Organic,<br />
+              <span className="text-forest-300 italic">Straight from</span><br />
+              the Farm
+            </h1>
+
+            <p className="text-stone-300 text-lg font-body leading-relaxed max-w-xl mb-10 animate-fade-up" style={{ animationDelay: '0.3s', opacity: 0 }}>
+              Connect directly with 500+ certified organic farmers. No chemicals, no preservatives — just nature's finest delivered to your door.
+            </p>
+
+            <div className="flex flex-wrap gap-4 animate-fade-up" style={{ animationDelay: '0.4s', opacity: 0 }}>
+              <Link to="/products" className="inline-flex items-center gap-2.5 px-7 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 tracking-wide">
+                Shop Now <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link to="/farmers" className="inline-flex items-center gap-2.5 px-7 py-4 border border-white/20 text-white font-label font-medium text-sm rounded-2xl hover:bg-white/8 active:scale-[0.98] transition-all duration-200 tracking-wide">
+                Meet Our Farmers
+              </Link>
+            </div>
+
+            <div className="flex gap-10 mt-14 animate-fade-up" style={{ animationDelay: '0.5s', opacity: 0 }}>
+              {[['500+', 'Certified Farmers'], ['2,000+', 'Organic Products'], ['50k+', 'Happy Families']].map(([n, l]) => (
+                <div key={l}>
+                  <div className="font-display text-3xl font-semibold text-white">{n}</div>
+                  <div className="text-xs font-label text-stone-400 tracking-wide mt-0.5">{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-cream to-transparent" />
+      </section>
+
+      {/* ── CATEGORY BANNERS ─────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 sm:px-10 -mt-16 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {displayCategories.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-sm text-stone-400">No categories available</div>
+          ) : (
+            displayCategories.map((cat) => {
+              const { emoji, from, to } = getCategoryStyle(cat.slug)
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/products?categoryId=${cat.id}`}
+                  className="group relative overflow-hidden rounded-3xl p-6 flex items-center gap-4 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300"
+                  style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+                >
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 to-transparent" />
+                  <span className="text-4xl flex-shrink-0">{emoji}</span>
+                  <div className="relative z-10">
+                    <p className="font-label font-semibold text-white text-base leading-tight">{cat.name}</p>
+                    <p className="text-white/60 text-xs font-body mt-0.5">{cat.description || `${cat.productCount} products`}</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-white/40 ml-auto group-hover:translate-x-1 group-hover:text-white/70 transition-all duration-200 flex-shrink-0" />
+                </Link>
+              )
+            })
+          )}
+        </div>
+      </section>
+
+      {/* ── CATEGORIES GRID ──────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 sm:px-10 py-16">
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <p className="section-label mb-2">Browse</p>
+            <h2 className="font-display text-4xl font-semibold text-stone-900">Shop by Category</h2>
+          </div>
+          <Link to="/products" className="hidden sm:flex items-center gap-1.5 text-sm font-label font-medium text-forest-600 hover:text-forest-800 transition-colors">
+            View all <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-stone-100 rounded-3xl h-28 animate-pulse" />)}
+          </div>
+        ) : categories.length === 0 ? (
+          <p className="text-stone-400 font-body text-sm py-8">No categories yet — seed data needed.</p>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {categories.map((cat, i) => (
+              <Link
+                key={cat.id}
+                to={`/products?categoryId=${cat.id}`}
+                className="group flex flex-col items-center gap-2.5 py-5 px-3 bg-white rounded-3xl shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 animate-fade-up"
+                style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
+              >
+                {/* ── FIXED: renders image path correctly, falls back to emoji ── */}
+                <div className="w-12 h-12 rounded-2xl bg-forest-50 group-hover:bg-forest-100 flex items-center justify-center transition-colors duration-200 overflow-hidden">
+                  <CategoryIcon iconUrl={cat.iconUrl} name={cat.name} />
+                </div>
+                <span className="text-[11px] font-label font-semibold text-stone-700 group-hover:text-forest-700 text-center leading-tight transition-colors">{cat.name}</span>
+                <span className="text-[10px] text-stone-400 font-body">{cat.productCount} items</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── FEATURED PRODUCTS ────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 sm:px-10 pb-16">
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <p className="section-label mb-2">Handpicked</p>
+            <h2 className="font-display text-4xl font-semibold text-stone-900">Featured This Season</h2>
+          </div>
+          <Link to="/products?isFeatured=true" className="hidden sm:flex items-center gap-1.5 text-sm font-label font-medium text-forest-600 hover:text-forest-800 transition-colors">
+            See all <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+        <ProductGrid products={featured} loading={loading} />
+      </section>
+
+      {/* ── TRUST SECTION ────────────────────────────────────────────────────── */}
+      <section className="bg-white border-y border-stone-100 py-16">
+        <div className="max-w-7xl mx-auto px-6 sm:px-10">
+          <div className="text-center mb-12">
+            <p className="section-label mb-3">Why VerdeCrop</p>
+            <h2 className="font-display text-4xl font-semibold text-stone-900">Committed to purity & trust</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: Award, title: 'Certified Organic', desc: 'Every product third-party certified pesticide-free by licensed bodies', color: 'text-forest-600', bg: 'bg-forest-50' },
+              { icon: Truck, title: 'Farm to Doorstep', desc: 'Direct from farm — no middlemen, maximum freshness guaranteed', color: 'text-blue-600', bg: 'bg-blue-50' },
+              { icon: Shield, title: 'Quality Guaranteed', desc: 'Not satisfied? Full refund within 24 hours, no questions asked', color: 'text-amber-600', bg: 'bg-amber-50' },
+              { icon: Star, title: '50k+ Families Trust Us', desc: 'Loved by health-conscious households across 20+ cities in India', color: 'text-purple-600', bg: 'bg-purple-50' },
+            ].map(({ icon: Icon, title, desc, color, bg }) => (
+              <div key={title} className="group flex flex-col items-center text-center p-7 rounded-3xl hover:bg-stone-50 transition-colors duration-200 cursor-default">
+                <div className={`w-14 h-14 ${bg} rounded-2xl flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-200`}>
+                  <Icon className={`w-7 h-7 ${color}`} strokeWidth={1.6} />
+                </div>
+                <h3 className="font-label font-semibold text-stone-900 mb-2">{title}</h3>
+                <p className="text-sm font-body text-stone-500 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ─────────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 sm:px-10 py-20">
+        <div className="text-center mb-12">
+          <p className="section-label mb-3">Real Stories</p>
+          <h2 className="font-display text-4xl font-semibold text-stone-900">What our families say</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            { name: 'Priya Sharma', city: 'Bangalore', text: 'Finally found organic produce I can actually trust. My kids love the fresh vegetables and I love knowing exactly which farm they came from.', rating: 5 },
+            { name: 'Rajesh Kumar', city: 'Delhi', text: 'The quality is exceptional — you can taste the difference immediately. The farmer connection feature is brilliant, I know exactly who grew my food.', rating: 5 },
+            { name: 'Anita Menon', city: 'Mumbai', text: 'VerdeCrop has completely changed how my family eats. Same-day delivery, zero pesticides, and the farmers are so passionate about what they grow.', rating: 5 },
+          ].map((t, i) => (
+            <div key={t.name} className="card p-7 animate-fade-up" style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'both' }}>
+              <div className="flex gap-1 mb-5">
+                {Array.from({ length: t.rating }).map((_, j) => <Star key={j} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
+              </div>
+              <blockquote className="font-display text-xl text-stone-700 leading-relaxed mb-6 italic">"{t.text}"</blockquote>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-forest-100 flex items-center justify-center font-label font-bold text-forest-700">
+                  {t.name[0]}
+                </div>
+                <div>
+                  <p className="text-sm font-label font-semibold text-stone-800">{t.name}</p>
+                  <p className="text-xs text-stone-400 font-body">{t.city}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FARMER CTA ───────────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 sm:px-10 pb-20">
+        <div className="relative bg-forest-950 rounded-4xl overflow-hidden p-10 md:p-16 flex flex-col md:flex-row items-center gap-10">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_80%_at_0%_50%,rgba(46,139,50,0.2)_0%,transparent_70%)]" />
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+          <div className="flex-1 relative z-10">
+            <div className="flex items-center gap-2 mb-4">
+              <Leaf className="w-4 h-4 text-forest-300" />
+              <span className="text-xs font-label font-semibold text-forest-300 tracking-widest uppercase">For Organic Farmers</span>
+            </div>
+            <h2 className="font-display text-4xl md:text-5xl font-semibold text-white leading-tight mb-4">
+              Sell directly to<br />50,000+ families
+            </h2>
+            <p className="text-stone-400 font-body text-base leading-relaxed max-w-md">
+              Join VerdeCrop and reach health-conscious consumers who pay fair prices for quality organic produce. Zero commission on your first 100 orders.
+            </p>
+          </div>
+          <div className="relative z-10 flex flex-col items-center gap-3 flex-shrink-0">
+            <Link to="/farmers/register" className="inline-flex items-center gap-2.5 px-8 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 whitespace-nowrap">
+              Start Selling Free <ArrowRight className="w-4 h-4" />
+            </Link>
+            <p className="text-xs text-stone-500 font-body text-center">No setup fee · Instant approval · 24/7 support</p>
+          </div>
+        </div>
+      </section>
+    </PageLayout>
+  )
+}
+
+// ── Shared helper: renders category icon correctly regardless of format ────────
+// Handles: emoji (1-2 chars), image path (/icons/x.png), full URL (https://...), empty
+export const CategoryIcon: React.FC<{ iconUrl?: string | null; name?: string; className?: string }> = ({
+  iconUrl, name = '', className = 'w-6 h-6'
+}) => {
+  if (!iconUrl) return <span className="text-2xl">🌿</span>
+
+  // It's an emoji (1–2 unicode characters)
+  const isEmoji = [...iconUrl].length <= 2
+  if (isEmoji) return <span className="text-2xl">{iconUrl}</span>
+
+  // It's an image path or URL
+  return (
+    <img
+      src={iconUrl.startsWith('http') ? iconUrl : iconUrl}
+      alt={name}
+      className={`${className} object-contain`}
+      onError={(e) => {
+        // If image fails to load, fall back to a plant emoji
+        const target = e.currentTarget
+        target.style.display = 'none'
+        const span = document.createElement('span')
+        span.textContent = '🌿'
+        span.className = 'text-2xl'
+        target.parentNode?.appendChild(span)
+      }}
+    />
+  )
+}
+
+export default HomePage

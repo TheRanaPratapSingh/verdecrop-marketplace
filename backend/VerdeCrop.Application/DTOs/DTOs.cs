@@ -1,0 +1,174 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+
+namespace VerdeCrop.Application.DTOs
+{
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    public record SendOtpRequest([Required] string Identifier, string Purpose = "login");
+    public record VerifyOtpRequest([Required] string Identifier, [Required] string Code, string? Name = null);
+    public record AuthResponse(string AccessToken, string RefreshToken, UserDto User);
+    public record RefreshTokenRequest([Required] string Token);
+    public record LogoutRequest([Required] string RefreshToken);
+
+    // ── User ──────────────────────────────────────────────────────────────────
+    public record UserDto(int Id, string Name, string? Email, string? Phone, string Role, string? AvatarUrl, bool IsActive);
+    public record UpdateProfileRequest(string Name, string? Email, string? Phone);
+    public record UpdateFcmTokenRequest([Required] string Token);
+
+    // ── Address ───────────────────────────────────────────────────────────────
+    public record AddressDto(int Id, string Label, string FullName, string Phone, string Street, string City, string State, string PinCode, bool IsDefault);
+    public record CreateAddressRequest(
+        [Required] string Label, [Required] string FullName, [Required] string Phone,
+        [Required] string Street, [Required] string City, [Required] string State,
+        [Required] string PinCode, bool IsDefault = false);
+
+    // ── Category ──────────────────────────────────────────────────────────────
+    public record CategoryDto(int Id, string Name, string Slug, string? Description, string? IconUrl, int DisplayOrder, int ProductCount);
+
+    public record CreateCategoryRequest(
+        [Required] string Name,
+        string? Description,
+        string? IconUrl,
+        int DisplayOrder = 0,
+        bool IsActive = true);
+
+    public record UpdateCategoryRequest(
+        string? Name,
+        string? Description,
+        string? IconUrl,
+        int? DisplayOrder,
+        bool? IsActive);
+
+    // ── Farmer ────────────────────────────────────────────────────────────────
+    public record FarmerDto(int Id, int UserId, string FarmName, string? Description, string Location, string State,
+        string? CertificationNumber, bool IsApproved, decimal TotalSales, decimal Rating, int ReviewCount,
+        string OwnerName, string? AvatarUrl);
+
+    public record RegisterFarmerRequest(
+        [Required] string FarmName, string? Description,
+        [Required] string Location, [Required] string State, [Required] string PinCode,
+        string? CertificationNumber, string? BankAccountNumber, string? BankIfsc);
+
+    // ── Product ───────────────────────────────────────────────────────────────
+    public record ProductListDto(
+        int Id, string Name, string Slug,
+        int CategoryId, string CategoryName,
+        int FarmerId, string FarmerName,
+        decimal Price, decimal? OriginalPrice, string Unit,
+        int StockQuantity, string? ImageUrl,
+        bool IsOrganic, bool IsFeatured,
+        decimal Rating, int ReviewCount, bool IsActive);
+
+    public record ProductDetailDto(
+        int Id, string Name, string Slug, string? Description,
+        int CategoryId, string CategoryName,
+        int FarmerId, string FarmerName, string FarmLocation,
+        decimal Price, decimal? OriginalPrice, string Unit,
+        decimal MinOrderQty, int StockQuantity,
+        string? ImageUrl, List<string> ImageUrls,
+        bool IsOrganic, bool IsFeatured,
+        decimal Rating, int ReviewCount, bool IsActive,
+        List<ReviewDto> Reviews);
+
+    public record ProductQueryParams(
+        string? Search, int? CategoryId, int? FarmerId,
+        decimal? MinPrice, decimal? MaxPrice,
+        bool? IsOrganic, bool? IsFeatured, bool? InStock,
+        string SortBy = "newest", int Page = 1, int PageSize = 20);
+
+    // ── FIX: Added ImageUrl, ImageUrls, IsFeatured — were missing, causing images/description not to save
+    public record CreateProductRequest(
+        [Required] string Name,
+        string? Description,
+        [Required] int CategoryId,
+        [Required][Range(0.01, double.MaxValue)] decimal Price,
+        decimal? OriginalPrice,
+        [Required] string Unit,
+        decimal MinOrderQty,
+        [Required] int StockQuantity,
+        bool IsOrganic = true,
+        bool? IsFeatured = null,
+        string? ImageUrl = null,
+        List<string>? ImageUrls = null
+    );
+
+    // ── FIX: Added CategoryId, ImageUrl, ImageUrls — were missing, updates couldn't change these fields
+    public record UpdateProductRequest(
+        string? Name,
+        string? Description,
+        int? CategoryId,
+        decimal? Price,
+        decimal? OriginalPrice,
+        string? Unit,
+        decimal? MinOrderQty,
+        int? StockQuantity,
+        bool? IsOrganic,
+        bool? IsFeatured,
+        bool? IsActive,
+        string? ImageUrl,
+        List<string>? ImageUrls
+    );
+
+    // ── Cart ──────────────────────────────────────────────────────────────────
+    public record CartDto(int Id, List<CartItemDto> Items, decimal Subtotal, decimal ItemCount);
+    public record CartItemDto(int Id, int ProductId, string ProductName, string? ImageUrl, decimal Price, decimal Quantity, string Unit, decimal Total);
+    public record AddToCartRequest([Required] int ProductId, [Required] decimal Quantity);
+    public record UpdateCartItemRequest([Required] decimal Quantity);
+
+    // ── Order ─────────────────────────────────────────────────────────────────
+    public record OrderListDto(int Id, string OrderNumber, string Status, string PaymentStatus, decimal TotalAmount,
+        int ItemCount, DateTime CreatedAt, string? EstimatedDelivery);
+
+    public record OrderDetailDto(int Id, string OrderNumber, string Status, string PaymentStatus,
+        string PaymentMethod, decimal Subtotal, decimal DeliveryCharge, decimal DiscountAmount,
+        decimal TaxAmount, decimal TotalAmount, string? CouponCode, string? Notes,
+        DateTime CreatedAt, DateTime? EstimatedDelivery, DateTime? DeliveredAt,
+        AddressDto Address, List<OrderItemDto> Items, List<OrderStatusHistoryDto> StatusHistory);
+
+    public record OrderItemDto(int Id, int ProductId, string ProductName, string? ImageUrl,
+        decimal Quantity, string Unit, decimal UnitPrice, decimal TotalPrice);
+
+    public record OrderStatusHistoryDto(int Id, string Status, string? Note, DateTime CreatedAt);
+
+    public record PlaceOrderRequest(
+        [Required] int AddressId,
+        [Required] string PaymentMethod,
+        string? CouponCode,
+        string? Notes);
+
+    public record ApplyCouponRequest([Required] string Code, [Required] decimal OrderAmount);
+    public record CouponResponseDto(string Code, string DiscountType, decimal DiscountValue, decimal DiscountAmount, decimal FinalAmount);
+
+    // ── Payment ───────────────────────────────────────────────────────────────
+    public record CreateRazorpayOrderRequest([Required] int OrderId);
+    public record RazorpayOrderResponse(string RazorpayOrderId, decimal Amount, string Currency, string KeyId);
+    public record VerifyRazorpayRequest([Required] string RazorpayOrderId, [Required] string RazorpayPaymentId, [Required] string RazorpaySignature, [Required] int OrderId);
+    public record CreateStripeIntentRequest([Required] int OrderId);
+    public record StripeIntentResponse(string ClientSecret, string PaymentIntentId);
+
+    // ── Review ────────────────────────────────────────────────────────────────
+    public record ReviewDto(int Id, int UserId, string UserName, string? UserAvatar, int Rating, string? Comment, bool IsVerifiedPurchase, DateTime CreatedAt);
+    public record CreateReviewRequest([Required] int ProductId, [Required] int OrderId, [Required][Range(1, 5)] int Rating, string? Comment);
+
+    // ── Notification ──────────────────────────────────────────────────────────
+    public record NotificationDto(int Id, string Title, string Body, string Type, string? ActionUrl, bool IsRead, DateTime CreatedAt);
+
+    // ── Admin ─────────────────────────────────────────────────────────────────
+    public record DashboardStatsDto(int TotalUsers, int TotalFarmers, int TotalProducts, int TotalOrders,
+        decimal TotalRevenue, decimal MonthlyRevenue, int PendingOrders, int PendingFarmerApprovals,
+        List<RevenueDataPoint> RevenueChart);
+    public record RevenueDataPoint(string Label, decimal Revenue, int Orders);
+
+    // ── Pagination ────────────────────────────────────────────────────────────
+    public record PagedResult<T>(List<T> Items, int TotalCount, int Page, int PageSize, int TotalPages);
+
+    // ── Generic API Response ──────────────────────────────────────────────────
+    public record ApiResponse<T>(bool Success, string? Message, T? Data, object? Errors = null);
+    public static class ApiResponse
+    {
+        public static ApiResponse<T> Ok<T>(T data, string? message = null) => new(true, message, data);
+        public static ApiResponse<T> Fail<T>(string message, T? data = default) => new(false, message, data);
+        public static ApiResponse<object> Fail(string message) => new(false, message, null);
+    }
+}

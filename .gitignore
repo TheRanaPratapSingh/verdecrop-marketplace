@@ -1,0 +1,21 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+appsettings.Development.json
+firebase-credentials.json
+logs/
+
+# Node
+node_modules/
+dist/
+.env.local
+.env.production
+
+# Docker
+.env
+
+# OS
+.DS_Store
+Thumbs.db

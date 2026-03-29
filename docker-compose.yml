@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: verdecrop_db
+    environment:
+      SA_PASSWORD: "VerdeCrop@2024!"
+      ACCEPT_EULA: "Y"
+    ports: ["1433:1433"]
+    volumes: [sqldata:/var/opt/mssql]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P VerdeCrop@2024! -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: verdecrop_redis
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+
+  api:
+    build: { context: ./backend, dockerfile: Dockerfile }
+    container_name: verdecrop_api
+    ports: ["5000:80"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=VerdeCropDB;User Id=SA;Password=VerdeCrop@2024!;TrustServerCertificate=True;"
+      ConnectionStrings__Redis: "redis:6379"
+      Jwt__SecretKey: "${JWT_SECRET}"
+      Razorpay__KeyId: "${RAZORPAY_KEY_ID}"
+      Razorpay__KeySecret: "${RAZORPAY_KEY_SECRET}"
+      Stripe__SecretKey: "${STRIPE_SECRET_KEY}"
+      SendGrid__ApiKey: "${SENDGRID_API_KEY}"
+      Twilio__AccountSid: "${TWILIO_ACCOUNT_SID}"
+      Twilio__AuthToken: "${TWILIO_AUTH_TOKEN}"
+      Twilio__FromNumber: "${TWILIO_FROM_NUMBER}"
+      Azure__BlobStorage__ConnectionString: "${AZURE_BLOB_CONNECTION_STRING}"
+      Environment: "Production"
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  web:
+    build: { context: ./frontend, dockerfile: Dockerfile }
+    container_name: verdecrop_web
+    ports: ["3000:80"]
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  sqldata:
+  redisdata:
