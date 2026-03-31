@@ -101,6 +101,58 @@ namespace VerdeCrop.Infrastructure.Services
         }
     }
 
+    // ── Wishlist Service ─────────────────────────────────────────────────────
+    public class WishlistService : IWishlistService
+    {
+        private readonly IUnitOfWork _uow;
+        public WishlistService(IUnitOfWork uow) { _uow = uow; }
+
+        public async Task<List<ProductListDto>> GetWishlistAsync(int userId)
+        {
+            var items = await _uow.WishlistItems.Query()
+                .Include(w => w.Product).ThenInclude(p => p.Category)
+                .Include(w => w.Product).ThenInclude(p => p.Farmer)
+                .Where(w => w.UserId == userId && w.Product.IsActive)
+                .Select(w => new ProductListDto(
+                    w.Product.Id, w.Product.Name, w.Product.Slug,
+                    w.Product.CategoryId, w.Product.Category != null ? w.Product.Category.Name : "",
+                    w.Product.FarmerId, w.Product.Farmer != null ? w.Product.Farmer.FarmName : "",
+                    w.Product.Price, w.Product.OriginalPrice, w.Product.Unit,
+                    w.Product.StockQuantity, w.Product.ImageUrl,
+                    w.Product.IsOrganic, w.Product.IsFeatured,
+                    w.Product.Rating, w.Product.ReviewCount, w.Product.IsActive))
+                .ToListAsync();
+
+            return items;
+        }
+
+        public async Task<bool> AddAsync(int userId, int productId)
+        {
+            var product = await _uow.Products.GetByIdAsync(productId);
+            if (product == null || !product.IsActive) return false;
+
+            var exists = await _uow.WishlistItems.ExistsAsync(w => w.UserId == userId && w.ProductId == productId);
+            if (exists) return true;
+
+            await _uow.WishlistItems.AddAsync(new WishlistItem
+            {
+                UserId = userId,
+                ProductId = productId
+            });
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RemoveAsync(int userId, int productId)
+        {
+            var item = await _uow.WishlistItems.FirstOrDefaultAsync(w => w.UserId == userId && w.ProductId == productId);
+            if (item == null) return false;
+            await _uow.WishlistItems.DeleteAsync(item);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+    }
+
     // ── User Service ──────────────────────────────────────────────────────────
     public class UserService : IUserService
     {
@@ -199,7 +251,7 @@ namespace VerdeCrop.Infrastructure.Services
                 Street = req.Street,
                 City = req.City,
                 State = req.State,
-                PinCode = req.PinCode,
+                PinCode = req.PinCode ?? "",
                 IsDefault = req.IsDefault
             };
             await _uow.Addresses.AddAsync(addr);
@@ -272,6 +324,15 @@ namespace VerdeCrop.Infrastructure.Services
         {
             var user = await _uow.Users.GetByIdAsync(userId);
             if (user == null) return null;
+
+            var existingProfile = await _uow.FarmerProfiles.Query()
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(x => x.UserId == userId);
+            if (existingProfile != null)
+            {
+                return ToDto(existingProfile);
+            }
+
             var profile = new FarmerProfile
             {
                 UserId = userId,
@@ -279,7 +340,7 @@ namespace VerdeCrop.Infrastructure.Services
                 Description = req.Description,
                 Location = req.Location,
                 State = req.State,
-                PinCode = req.PinCode,
+                PinCode = req.PinCode ?? "",
                 CertificationNumber = req.CertificationNumber,
                 BankAccountNumber = req.BankAccountNumber,
                 BankIfsc = req.BankIfsc
@@ -289,6 +350,70 @@ namespace VerdeCrop.Infrastructure.Services
             await _uow.Users.UpdateAsync(user);
             await _uow.SaveChangesAsync();
             return await GetByIdAsync(profile.Id);
+        }
+
+        public async Task<FarmerDto?> CreateAdminAsync(string ownerName, RegisterFarmerRequest req)
+        {
+            // create a new user for the farmer
+            var user = new User { Name = ownerName ?? "", Role = "farmer", IsActive = true };
+            await _uow.Users.AddAsync(user);
+            await _uow.SaveChangesAsync();
+
+            var profile = new FarmerProfile
+            {
+                UserId = user.Id,
+                FarmName = req.FarmName,
+                Description = req.Description,
+                Location = req.Location,
+                State = req.State,
+                PinCode = req.PinCode,
+                CertificationNumber = req.CertificationNumber,
+                BankAccountNumber = req.BankAccountNumber,
+                BankIfsc = req.BankIfsc,
+                IsApproved = req.IsApproved ?? false
+            };
+            await _uow.FarmerProfiles.AddAsync(profile);
+            await _uow.SaveChangesAsync();
+            return await GetByIdAsync(profile.Id);
+        }
+
+        public async Task<FarmerDto?> UpdateAsync(int farmerId, RegisterFarmerRequest req)
+        {
+            var f = await _uow.FarmerProfiles.Query().Include(x => x.User).FirstOrDefaultAsync(x => x.Id == farmerId);
+            if (f == null) return null;
+            f.FarmName = req.FarmName ?? f.FarmName;
+            f.Description = req.Description;
+            f.Location = req.Location ?? f.Location;
+            f.State = req.State ?? f.State;
+            f.PinCode = req.PinCode ?? f.PinCode;
+            f.CertificationNumber = req.CertificationNumber ?? f.CertificationNumber;
+            f.BankAccountNumber = req.BankAccountNumber ?? f.BankAccountNumber;
+            f.BankIfsc = req.BankIfsc ?? f.BankIfsc;
+            if (req.IsApproved.HasValue) f.IsApproved = req.IsApproved.Value;
+            await _uow.FarmerProfiles.UpdateAsync(f);
+            if (!string.IsNullOrEmpty(req.OwnerName) && f.User != null)
+            {
+                f.User.Name = req.OwnerName;
+                await _uow.Users.UpdateAsync(f.User);
+            }
+            await _uow.SaveChangesAsync();
+            return await GetByIdAsync(f.Id);
+        }
+
+        public async Task<bool> DeleteAsync(int farmerId)
+        {
+            var f = await _uow.FarmerProfiles.GetByIdAsync(farmerId);
+            if (f == null) return false;
+            await _uow.FarmerProfiles.DeleteAsync(f);
+            // optionally demote user role back to 'user' if exists
+            var user = await _uow.Users.GetByIdAsync(f.UserId);
+            if (user != null)
+            {
+                user.Role = "user";
+                await _uow.Users.UpdateAsync(user);
+            }
+            await _uow.SaveChangesAsync();
+            return true;
         }
 
         public async Task<bool> ApproveAsync(int farmerId, bool approve)
@@ -303,7 +428,8 @@ namespace VerdeCrop.Infrastructure.Services
 
         private static FarmerDto ToDto(FarmerProfile f) => new(
             f.Id, f.UserId, f.FarmName, f.Description, f.Location, f.State,
-            f.CertificationNumber, f.IsApproved, f.TotalSales, f.Rating, f.ReviewCount,
+            f.PinCode, f.CertificationNumber, f.BankAccountNumber, f.BankIfsc,
+            f.IsApproved, f.TotalSales, f.Rating, f.ReviewCount,
             f.User?.Name ?? "", f.User?.AvatarUrl);
     }
 

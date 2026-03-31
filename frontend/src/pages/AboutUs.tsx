@@ -6,8 +6,8 @@ import { Link } from 'react-router-dom'
 export const AboutUsPage: React.FC = () => (
   <PageLayout>
     <div className="max-w-5xl mx-auto px-6 py-16">
-      <h1 className="text-4xl font-display font-bold text-forest-900 mb-4">About VerdeCrop</h1>
-      <p className="text-gray-600 font-body leading-relaxed mb-6">VerdeCrop is India's community-driven organic marketplace connecting responsible farmers with health-conscious families. We believe in transparency, fair pricing, and farm-to-door delivery of sustainably grown produce.</p>
+      <h1 className="text-4xl font-display font-bold text-forest-900 mb-4">About Graamo</h1>
+      <p className="text-gray-600 font-body leading-relaxed mb-6">Graamo is India's community-driven organic marketplace connecting responsible farmers with health-conscious families. We believe in transparency, fair pricing, and farm-to-door delivery of sustainably grown produce.</p>
       <div className="grid gap-6 md:grid-cols-2">
         <div className="bg-white rounded-2xl shadow-card p-6">
           <h2 className="text-xl font-semibold text-forest-900 mb-2">Our Mission</h2>

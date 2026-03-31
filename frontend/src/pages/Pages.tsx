@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Package, MapPin, CreditCard, CheckCircle, Clock, Truck, Home, Bell,
   Heart, Trash2, ShoppingCart, Plus, Edit2, Save, X, ChevronRight,
@@ -12,6 +12,7 @@ import { Button, Input, Modal, Spinner, Badge, StatusBadge, StarRating, EmptySta
 import type { Order, Address, Notification } from '../types'
 import toast from 'react-hot-toast'
 import { resolveAssetUrl } from '../lib/image'
+import { trackEvent } from '../lib/analytics'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CHECKOUT PAGE
@@ -56,6 +57,11 @@ export const CheckoutPage: React.FC = () => {
     try {
       const res = await orderApi.applyCoupon(couponCode, subtotal)
       setDiscount(res.discountAmount)
+      trackEvent('coupon_applied', {
+        coupon_code: couponCode.trim(),
+        discount_amount: res.discountAmount,
+        subtotal,
+      })
       toast.success(`Coupon applied! You save ₹${res.discountAmount.toFixed(0)}`)
     } catch { toast.error('Invalid or expired coupon') }
     finally { setCouponLoading(false) }
@@ -72,6 +78,14 @@ export const CheckoutPage: React.FC = () => {
         notes: notes || undefined
       })
 
+      trackEvent('place_order', {
+        order_id: order.id,
+        order_number: order.orderNumber,
+        payment_method: paymentMethod,
+        total_amount: order.totalAmount,
+        item_count: order.items.length,
+      })
+
       if (paymentMethod === 'razorpay') {
         const rpOrder = await paymentApi.createRazorpayOrder(order!.id)
         const razorpay = new (window as any).Razorpay({
@@ -79,7 +93,7 @@ export const CheckoutPage: React.FC = () => {
           amount: rpOrder.amount * 100,
           currency: rpOrder.currency,
           order_id: rpOrder.razorpayOrderId,
-          name: 'VerdeCrop',
+          name: 'Graamo',
           description: `Order #${order!.orderNumber}`,
           handler: async (response: any) => {
             await paymentApi.verifyRazorpay({
@@ -88,16 +102,28 @@ export const CheckoutPage: React.FC = () => {
               razorpaySignature: response.razorpay_signature,
               orderId: order!.id
             })
+            trackEvent('payment_success', {
+              order_id: order.id,
+              payment_method: 'razorpay',
+              total_amount: order.totalAmount,
+            })
             navigate(`/orders/${order!.id}?success=1`)
           },
           theme: { color: '#267d39' }
         })
         razorpay.open()
       } else {
+        trackEvent('payment_success', {
+          order_id: order.id,
+          payment_method: paymentMethod,
+          total_amount: order.totalAmount,
+        })
         navigate(`/orders/${order!.id}?success=1`)
       }
-    } catch { toast.error('Failed to place order. Please try again.') }
-    finally { setPlacingOrder(false) }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg ?? 'Failed to place order. Please try again.')
+    } finally { setPlacingOrder(false) }
   }
 
   const steps = [
@@ -280,51 +306,101 @@ export const OrdersPage: React.FC = () => {
 
   return (
     <PageLayout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-2xl font-display font-bold text-gray-900 mb-6">My Orders</h1>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-display font-bold text-gray-900 tracking-tight">My Orders</h1>
+          <p className="text-sm text-gray-500 font-body mt-1">{orders.length} order{orders.length !== 1 ? 's' : ''} placed</p>
+        </div>
+
         {orders.length === 0 ? (
           <EmptyState icon={<Package className="w-12 h-12 text-gray-300" />} title="No orders yet"
             description="Start shopping and your orders will appear here."
             action={<Link to="/products"><Button>Shop Now</Button></Link>} />
         ) : (
           <div className="space-y-4">
-            {orders.map(order => (
-              <Link key={order.id} to={`/orders/${order.id}`}>
-                <Card hover className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="text-sm font-bold text-gray-900 font-body">{order.orderNumber}</p>
-                      <p className="text-xs text-gray-500 font-body mt-0.5">
-                        {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {' · '}{order.itemCount} item{(order.itemCount ?? 0) > 1 ? 's' : ''}
-                      </p>
+            {orders.map(order => {
+              const idx = STATUS_STEPS.indexOf(order.status)
+              const cancelled = order.status === 'cancelled'
+              const delivered = order.status === 'delivered'
+              const accentColor = cancelled ? 'border-l-red-400' : delivered ? 'border-l-leaf-500' : 'border-l-amber-400'
+
+              return (
+                <Link key={order.id} to={`/orders/${order.id}`} className="block group">
+                  <div className={`bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-200 border-l-4 ${accentColor} overflow-hidden`}>
+
+                    {/* Top row */}
+                    <div className="px-5 pt-4 pb-3 flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-gray-900 font-body tracking-wide">{order.orderNumber}</p>
+                          <StatusBadge status={order.status} />
+                        </div>
+                        <p className="text-xs text-gray-500 font-body mt-1">
+                          {new Date(order.createdAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                          <span className="mx-1.5 text-gray-300">·</span>
+                          {order.itemCount} item{(order.itemCount ?? 0) > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-lg font-bold text-gray-900 font-body leading-tight">₹{order.totalAmount.toFixed(0)}</p>
+                        <p className="text-[11px] text-gray-400 font-body mt-0.5">Total paid</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-base font-bold text-gray-900 font-body">₹{order.totalAmount.toFixed(0)}</p>
-                      <StatusBadge status={order.status} />
+
+                    {/* Divider */}
+                    <div className="mx-5 border-t border-gray-100" />
+
+                    {/* Mini tracker */}
+                    <div className="px-5 py-3.5">
+                      {cancelled ? (
+                        <div className="flex items-center gap-2 text-red-500">
+                          <X className="w-4 h-4 flex-shrink-0" />
+                          <span className="text-xs font-semibold font-body">Order Cancelled</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          {STATUS_STEPS.map((s, i) => {
+                            const reached = i <= idx
+                            const Icon = STATUS_ICONS[s]
+                            return (
+                              <React.Fragment key={s}>
+                                <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                                    reached
+                                      ? 'bg-forest-700 text-white shadow-sm'
+                                      : 'bg-white text-red-400 border-2 border-red-300'
+                                  }`}>
+                                    <Icon className="w-3 h-3" />
+                                  </div>
+                                  <span className={`text-[9px] font-body capitalize text-center leading-tight ${
+                                    reached ? 'text-forest-800 font-semibold' : 'text-red-400'
+                                  }`}>{s}</span>
+                                </div>
+                                {i < STATUS_STEPS.length - 1 && (
+                                  <div className="flex-1 h-0.5 mb-3 rounded-full overflow-hidden bg-red-200">
+                                    <div className={`h-full bg-forest-700 rounded-full transition-all duration-500 ${i < idx ? 'w-full' : 'w-0'}`} />
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
+
+                    {/* Footer CTA */}
+                    <div className="px-5 pb-3.5 flex items-center justify-end">
+                      <span className="text-xs font-semibold text-leaf-600 font-body group-hover:text-leaf-700 flex items-center gap-1 transition-colors">
+                        View Details <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </span>
+                    </div>
+
                   </div>
-                  {/* Mini tracker */}
-                  <div className="flex items-center gap-1 mt-3">
-                    {STATUS_STEPS.map((s, i) => {
-                      const idx = STATUS_STEPS.indexOf(order.status)
-                      const done = i <= idx && order.status !== 'cancelled'
-                      const Icon = STATUS_ICONS[s]
-                      return (
-                        <React.Fragment key={s}>
-                          <div className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors ${done ? 'bg-leaf-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                            <Icon className="w-3 h-3" />
-                          </div>
-                          {i < STATUS_STEPS.length - 1 && (
-                            <div className={`flex-1 h-0.5 ${i < idx ? 'bg-leaf-500' : 'bg-gray-200'}`} />
-                          )}
-                        </React.Fragment>
-                      )
-                    })}
-                  </div>
-                </Card>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
@@ -334,15 +410,30 @@ export const OrdersPage: React.FC = () => {
 
 export const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState(false)
+  const [now, setNow] = useState(Date.now())
   const navigate = useNavigate()
 
   useEffect(() => {
     if (!id) return
     orderApi.getById(Number(id)).then(o => { setOrder(o); setLoading(false) }).catch(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!id) return
+    if (searchParams.get('success') === '1') {
+      toast.success('Order placed successfully!')
+      navigate(`/orders/${id}`, { replace: true })
+    }
+  }, [id, navigate, searchParams])
 
   const handleCancel = async () => {
     if (!order || !confirm('Cancel this order?')) return
@@ -351,106 +442,202 @@ export const OrderDetailPage: React.FC = () => {
       await orderApi.cancel(order.id)
       setOrder({ ...order, status: 'cancelled' })
       toast.success('Order cancelled')
-    } catch { toast.error('Could not cancel order') }
-    finally { setCancelling(false) }
+    } catch {
+      toast.error('Could not cancel order')
+    } finally {
+      setCancelling(false)
+    }
   }
 
   if (loading) return <PageLayout><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageLayout>
   if (!order) return <PageLayout><EmptyState title="Order not found" action={<Link to="/orders"><Button>My Orders</Button></Link>} /></PageLayout>
 
   const currentIdx = STATUS_STEPS.indexOf(order.status)
+  const cancelDeadline = new Date(order.createdAt).getTime() + 5 * 60 * 1000
+  const canCancelOrder = order.status === 'pending' && now <= cancelDeadline
+  const cancelMinutesLeft = Math.max(0, Math.ceil((cancelDeadline - now) / 60000))
+  const deliveryDate = order.estimatedDelivery
+    ? new Date(order.estimatedDelivery).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : null
 
   return (
     <PageLayout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate('/orders')} className="p-2 hover:bg-gray-100 rounded-xl transition">
-            <ChevronRight className="w-5 h-5 text-gray-500 rotate-180" />
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-4">
+
+        {/* ── Header ── */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/orders')}
+            aria-label="Back to orders"
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all group"
+          >
+            <ChevronRight className="w-4 h-4 text-gray-500 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
           </button>
-          <div>
-            <h1 className="text-xl font-display font-bold text-gray-900">{order.orderNumber}</h1>
-            <p className="text-sm text-gray-500 font-body">{new Date(order.createdAt).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl font-display font-bold text-gray-900 tracking-tight">{order.orderNumber}</h1>
+              <StatusBadge status={order.status} />
+            </div>
+            <p className="text-sm text-gray-500 font-body mt-0.5">
+              {new Date(order.createdAt).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
           </div>
-          <StatusBadge status={order.status} />
         </div>
 
-        {/* Tracker */}
+        {/* ── Status Tracker ── */}
         {order.status !== 'cancelled' && (
-          <Card className="p-6 mb-5">
-            <div className="flex items-start gap-2">
-              {STATUS_STEPS.map((s, i) => {
-                const done = i <= currentIdx
-                const Icon = STATUS_ICONS[s]
-                return (
-                  <React.Fragment key={s}>
-                    <div className="flex flex-col items-center gap-1.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${done ? 'bg-leaf-600 text-white shadow-sm' : 'bg-gray-100 text-gray-400'}`}>
-                        <Icon className="w-4 h-4" />
+          <div className="bg-white rounded-2xl shadow-card overflow-hidden">
+            <div className="bg-gradient-to-r from-forest-50 to-sage-50 px-5 pt-5 pb-6">
+              <div className="flex items-start">
+                {STATUS_STEPS.map((s, i) => {
+                  const reached = i <= currentIdx
+                  const Icon = STATUS_ICONS[s]
+                  return (
+                    <React.Fragment key={s}>
+                      <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                          reached
+                            ? 'bg-forest-700 text-white shadow-sm'
+                            : 'bg-white text-red-400 border-2 border-red-300'
+                        }`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className={`text-[10px] font-body text-center capitalize leading-tight select-none ${
+                          reached ? 'text-forest-800 font-semibold' : 'text-red-400 font-medium'
+                        }`}>{s}</span>
                       </div>
-                      <span className={`text-[10px] font-body text-center capitalize ${done ? 'text-leaf-700 font-semibold' : 'text-gray-400'}`}>{s}</span>
-                    </div>
-                    {i < STATUS_STEPS.length - 1 && (
-                      <div className={`flex-1 h-0.5 mt-4 ${i < currentIdx ? 'bg-leaf-500' : 'bg-gray-200'}`} />
-                    )}
-                  </React.Fragment>
-                )
-              })}
-            </div>
-            {order.estimatedDelivery && order.status !== 'delivered' && (
-              <p className="text-xs text-gray-500 font-body mt-4 text-center">Expected delivery: <strong className="text-gray-700">{order.estimatedDelivery}</strong></p>
-            )}
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-          {/* Items */}
-          <Card className="p-5 sm:col-span-2">
-            <h3 className="font-display font-semibold text-gray-800 mb-3">Items ({order.items.length})</h3>
-            <div className="space-y-3">
-              {order.items.map(item => (
-                <div key={item.id} className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
-                    {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-lg">🌿</div>}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800 font-body">{item.productName}</p>
-                    <p className="text-xs text-gray-500 font-body">{item.quantity} {item.unit} × ₹{item.unitPrice}</p>
-                  </div>
-                  <p className="text-sm font-bold font-body">₹{item.totalPrice.toFixed(0)}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Address */}
-          <Card className="p-5">
-            <h3 className="font-display font-semibold text-gray-800 mb-2 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-leaf-600" /> Delivery Address</h3>
-            <p className="text-sm font-medium text-gray-700 font-body">{order.address.fullName}</p>
-            <p className="text-sm text-gray-500 font-body">{order.address.street}</p>
-            <p className="text-sm text-gray-500 font-body">{order.address.city}, {order.address.state} – {order.address.pinCode}</p>
-          </Card>
-
-          {/* Bill */}
-          <Card className="p-5">
-            <h3 className="font-display font-semibold text-gray-800 mb-3 flex items-center gap-1.5"><CreditCard className="w-4 h-4 text-leaf-600" /> Bill Summary</h3>
-            <div className="space-y-1.5 text-sm font-body">
-              {[['Subtotal', `₹${order.subtotal.toFixed(0)}`], ['Delivery', order.deliveryCharge === 0 ? 'Free' : `₹${order.deliveryCharge}`],
-                ...(order.discountAmount > 0 ? [['Discount', `-₹${order.discountAmount.toFixed(0)}`]] : []),
-                ['Tax', `₹${order.taxAmount.toFixed(0)}`]].map(([l, v]) => (
-                <div key={l} className="flex justify-between text-gray-600"><span>{l}</span><span>{v}</span></div>
-              ))}
-              <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-100">
-                <span>Total</span><span>₹{order.totalAmount.toFixed(0)}</span>
+                      {i < STATUS_STEPS.length - 1 && (
+                        <div className="flex-1 h-0.5 mt-5 mx-0.5 rounded-full overflow-hidden bg-red-200">
+                          <div className={`h-full bg-forest-700 rounded-full transition-all duration-700 ${i < currentIdx ? 'w-full' : 'w-0'}`} />
+                        </div>
+                      )}
+                    </React.Fragment>
+                  )
+                })}
               </div>
             </div>
-          </Card>
+            {deliveryDate && order.status !== 'delivered' && (
+              <div className="flex items-center justify-center gap-2 px-5 py-3 border-t border-gray-100">
+                <Truck className="w-4 h-4 text-forest-700 flex-shrink-0" />
+                <p className="text-sm text-gray-600 font-body">
+                  Expected by <strong className="text-gray-900">{deliveryDate}</strong>
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Items ── */}
+        <div className="bg-white rounded-2xl shadow-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 bg-leaf-50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Package className="w-3.5 h-3.5 text-leaf-600" />
+            </div>
+            <h3 className="font-display font-semibold text-gray-800">Items</h3>
+            <span className="ml-0.5 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-body font-medium">{order.items.length}</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {order.items.map(item => (
+              <div key={item.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0 group">
+                <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 ring-1 ring-gray-200 group-hover:ring-leaf-200 transition-all">
+                  {item.imageUrl
+                    ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 font-body truncate">{item.productName}</p>
+                  <p className="text-xs text-gray-500 font-body mt-0.5">{item.quantity} {item.unit} × ₹{item.unitPrice}</p>
+                </div>
+                <p className="text-sm font-bold text-gray-900 font-body">₹{item.totalPrice.toFixed(0)}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
+        {/* ── Address + Bill ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Delivery Address */}
+          <div className="bg-white rounded-2xl shadow-card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 bg-leaf-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-3.5 h-3.5 text-leaf-600" />
+              </div>
+              <h3 className="font-display font-semibold text-gray-800">Delivery Address</h3>
+            </div>
+            <div className="space-y-0.5 pl-9">
+              <p className="text-sm font-semibold text-gray-900 font-body">{order.address.fullName}</p>
+              <p className="text-sm text-gray-500 font-body leading-snug">{order.address.street}</p>
+              <p className="text-sm text-gray-500 font-body">{order.address.city}, {order.address.state}</p>
+              <p className="text-sm font-medium text-gray-600 font-body">{order.address.pinCode}</p>
+            </div>
+          </div>
+
+          {/* Bill Summary */}
+          <div className="bg-white rounded-2xl shadow-card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 bg-leaf-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-3.5 h-3.5 text-leaf-600" />
+              </div>
+              <h3 className="font-display font-semibold text-gray-800">Bill Summary</h3>
+            </div>
+            <div className="space-y-2 text-sm font-body pl-9">
+              <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>₹{order.subtotal.toFixed(0)}</span></div>
+              <div className="flex justify-between text-gray-600">
+                <span>Delivery</span>
+                <span className={order.deliveryCharge === 0 ? 'text-leaf-600 font-medium' : ''}>
+                  {order.deliveryCharge === 0 ? 'Free' : `₹${order.deliveryCharge}`}
+                </span>
+              </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between text-leaf-600 font-medium"><span>Discount</span><span>−₹{order.discountAmount.toFixed(0)}</span></div>
+              )}
+              <div className="flex justify-between text-gray-600"><span>Tax</span><span>₹{order.taxAmount.toFixed(0)}</span></div>
+              <div className="flex justify-between font-bold text-gray-900 border-t border-gray-100 pt-2.5 mt-1">
+                <span className="text-[15px]">Total</span>
+                <span className="text-[15px]">₹{order.totalAmount.toFixed(0)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Payment strip ── */}
+        <div className="bg-white rounded-2xl shadow-card px-5 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-gray-600 font-body">
+            <CreditCard className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span>Paid via <span className="font-semibold text-gray-800">
+              {order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1)}
+            </span></span>
+          </div>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full font-body capitalize ${
+            order.paymentStatus === 'paid'    ? 'bg-green-50 text-green-700' :
+            order.paymentStatus === 'pending' ? 'bg-amber-50 text-amber-700' :
+            order.paymentStatus === 'failed'  ? 'bg-red-50 text-red-600' :
+            'bg-gray-100 text-gray-600'
+          }`}>
+            {order.paymentStatus}
+          </span>
+        </div>
+
+        {/* ── Cancel ── */}
         {order.status === 'pending' && (
-          <Button variant="danger" loading={cancelling} onClick={handleCancel}>
-            <X className="w-4 h-4" /> Cancel Order
-          </Button>
+          <div className="space-y-2 pt-1">
+            {canCancelOrder ? (
+              <>
+                <Button variant="danger" loading={cancelling} onClick={handleCancel} className="w-full sm:w-auto">
+                  <X className="w-4 h-4" /> Cancel Order
+                </Button>
+                <p className="text-xs text-gray-500 font-body">
+                  You can cancel for the next {cancelMinutesLeft} minute{cancelMinutesLeft === 1 ? '' : 's'}.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 font-body bg-gray-50 rounded-xl px-4 py-3">
+                This order can only be cancelled within 5 minutes of placing it.
+              </p>
+            )}
+          </div>
         )}
+
       </div>
     </PageLayout>
   )

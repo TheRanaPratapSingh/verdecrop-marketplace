@@ -83,7 +83,7 @@ namespace VerdeCrop.Domain.Entities
         public string? Description { get; set; }
         public string Location { get; set; } = "";
         public string State { get; set; } = "";
-        public string PinCode { get; set; } = "";
+        public string? PinCode { get; set; }
         public string? CertificationNumber { get; set; }
         public string? BankAccountNumber { get; set; }
         public string? BankIfsc { get; set; }

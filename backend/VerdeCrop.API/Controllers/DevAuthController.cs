@@ -10,8 +10,8 @@ using VerdeCrop.Infrastructure.Data;
 namespace VerdeCrop.API.Controllers
 {
     /// <summary>
-    /// Development-only auth controller that bypasses ALL external services.
-    /// OTP is always 123456. Removed on Release build.
+    /// Development-only auth controller that still uses the real OTP/email services.
+    /// Removed on Release build.
     /// </summary>
     [ApiController]
     [Route("api/auth")]
@@ -20,63 +20,64 @@ namespace VerdeCrop.API.Controllers
         private readonly AppDbContext _db;
         private readonly IJwtService _jwt;
         private readonly IConfiguration _config;
+        private readonly IOtpService _otp;
+        private readonly IEmailService _email;
+        private readonly ISmsService _sms;
 
-        public DevAuthController(AppDbContext db, IJwtService jwt, IConfiguration config)
+        public DevAuthController(AppDbContext db, IJwtService jwt, IConfiguration config, IOtpService otp, IEmailService email, ISmsService sms)
         {
-            _db = db; _jwt = jwt; _config = config;
+            _db = db; _jwt = jwt; _config = config; _otp = otp; _email = email; _sms = sms;
         }
 
         // POST /api/auth/send-otp
         [HttpPost("send-otp")]
         public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest req)
         {
-            // Invalidate any existing OTP
-            var old = await _db.OtpCodes
-                .Where(o => o.Identifier == req.Identifier && !o.IsUsed)
-                .ToListAsync();
-            old.ForEach(o => o.IsUsed = true);
-
-            // Store new OTP (always 123456 in dev)
-            _db.OtpCodes.Add(new OtpCode
+            // Delegate to OTP service which handles throttling and storage. In dev the generated OTP will be
+            // printed to console by the service consumer if desired.
+            try
             {
-                Identifier = req.Identifier,
-                Code = "123456",
-                Purpose = req.Purpose,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(10),
-                IsUsed = false,
-                CreatedAt = DateTime.UtcNow
-            });
-            await _db.SaveChangesAsync();
+                var code = await _otp.GenerateOtpAsync(req.Identifier, req.Purpose);
+                if (req.Identifier.Contains('@'))
+                    await _email.SendOtpEmailAsync(req.Identifier, code, req.Purpose);
+                else
+                    await _sms.SendOtpSmsAsync(req.Identifier, code);
 
-            Console.WriteLine($"[DEV] OTP for {req.Identifier} = 123456");
-            return Ok(new { success = true, message = "OTP sent (dev: use 123456)", data = true });
+                return Ok(new { success = true, message = "OTP sent successfully", data = true });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(429, new { success = false, message = ex.Message });
+            }
         }
 
         // POST /api/auth/verify-otp
         [HttpPost("verify-otp")]
         public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest req)
         {
-            if (req.Code != "123456")
-                return Unauthorized(new { success = false, message = "Invalid OTP (dev: use 123456)" });
+            var valid = await ValidateLoginOrRegisterOtpAsync(req.Identifier, req.Code);
+            if (!valid) return Unauthorized(new { success = false, message = "Invalid or expired OTP" });
 
-            var isEmail = req.Identifier.Contains('@');
+            var normalizedEmail = string.IsNullOrWhiteSpace(req.Email) ? (req.Identifier.Contains('@') ? req.Identifier : null) : req.Email.Trim();
+            var normalizedPhone = string.IsNullOrWhiteSpace(req.Phone) ? (!req.Identifier.Contains('@') ? req.Identifier : null) : req.Phone.Trim();
 
-            // Find or create user
-            User? user;
-            if (isEmail)
-                user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Identifier && !u.IsDeleted);
-            else
-                user = await _db.Users.FirstOrDefaultAsync(u => u.Phone == req.Identifier && !u.IsDeleted);
+            User? user = null;
+            if (!string.IsNullOrWhiteSpace(normalizedEmail))
+                user = await _db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail && !u.IsDeleted);
+            if (user == null && !string.IsNullOrWhiteSpace(normalizedPhone))
+                user = await _db.Users.FirstOrDefaultAsync(u => u.Phone == normalizedPhone && !u.IsDeleted);
+            if (user == null)
+                user = await _db.Users.FirstOrDefaultAsync(u => (u.Email == req.Identifier || u.Phone == req.Identifier) && !u.IsDeleted);
 
             if (user == null)
             {
                 user = new User
                 {
-                    Name = req.Name ?? req.Identifier.Split('@')[0],
-                    Email = isEmail ? req.Identifier : null,
-                    Phone = isEmail ? null : req.Identifier,
-                    IsEmailVerified = isEmail,
-                    IsPhoneVerified = !isEmail,
+                    Name = req.Name ?? normalizedEmail ?? normalizedPhone ?? req.Identifier,
+                    Email = normalizedEmail,
+                    Phone = normalizedPhone,
+                    IsEmailVerified = !string.IsNullOrWhiteSpace(normalizedEmail),
+                    IsPhoneVerified = !string.IsNullOrWhiteSpace(normalizedPhone),
                     Role = "user",
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow
@@ -86,6 +87,40 @@ namespace VerdeCrop.API.Controllers
 
                 _db.Carts.Add(new Cart { UserId = user.Id, CreatedAt = DateTime.UtcNow });
                 await _db.SaveChangesAsync();
+
+                await SendRegistrationSuccessEmailAsync(user, !string.IsNullOrWhiteSpace(user.Email));
+            }
+            else
+            {
+                var updated = false;
+                var hasFarmerProfile = await _db.FarmerProfiles.AnyAsync(f => f.UserId == user.Id);
+                var expectedRole = hasFarmerProfile ? "farmer" : user.Role;
+                if (!string.Equals(user.Role, expectedRole, StringComparison.OrdinalIgnoreCase))
+                {
+                    user.Role = expectedRole;
+                    updated = true;
+                }
+                if (!string.IsNullOrWhiteSpace(req.Name) && user.Name != req.Name)
+                {
+                    user.Name = req.Name;
+                    updated = true;
+                }
+                if (string.IsNullOrWhiteSpace(user.Email) && !string.IsNullOrWhiteSpace(normalizedEmail))
+                {
+                    user.Email = normalizedEmail;
+                    user.IsEmailVerified = true;
+                    updated = true;
+                }
+                if (string.IsNullOrWhiteSpace(user.Phone) && !string.IsNullOrWhiteSpace(normalizedPhone))
+                {
+                    user.Phone = normalizedPhone;
+                    user.IsPhoneVerified = true;
+                    updated = true;
+                }
+                if (updated)
+                    await _db.SaveChangesAsync();
+
+                await SendLoginWelcomeEmailAsync(user);
             }
 
             var accessToken = _jwt.GenerateAccessToken(user);
@@ -105,6 +140,36 @@ namespace VerdeCrop.API.Controllers
                 user.Role, user.AvatarUrl, user.IsActive);
 
             return Ok(new { success = true, data = new { accessToken, refreshToken, user = userDto } });
+        }
+
+        private async Task<bool> ValidateLoginOrRegisterOtpAsync(string identifier, string code)
+        {
+            if (await _otp.ValidateOtpAsync(identifier, code, "login")) return true;
+            return await _otp.ValidateOtpAsync(identifier, code, "register");
+        }
+
+        private async Task SendRegistrationSuccessEmailAsync(User user, bool isEmail)
+        {
+            if (!isEmail || string.IsNullOrWhiteSpace(user.Email)) return;
+            try
+            {
+                await _email.SendWelcomeEmailAsync(user.Email, user.Name);
+            }
+            catch
+            {
+            }
+        }
+
+        private async Task SendLoginWelcomeEmailAsync(User user)
+        {
+            if (string.IsNullOrWhiteSpace(user.Email)) return;
+            try
+            {
+                await _email.SendLoginWelcomeEmailAsync(user.Email, user.Name);
+            }
+            catch
+            {
+            }
         }
 
         // POST /api/auth/refresh

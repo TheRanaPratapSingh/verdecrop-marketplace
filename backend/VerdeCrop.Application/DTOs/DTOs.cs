@@ -6,7 +6,7 @@ namespace VerdeCrop.Application.DTOs
 {
     // ── Auth ──────────────────────────────────────────────────────────────────
     public record SendOtpRequest([Required] string Identifier, string Purpose = "login");
-    public record VerifyOtpRequest([Required] string Identifier, [Required] string Code, string? Name = null);
+    public record VerifyOtpRequest([Required] string Identifier, [Required] string Code, string? Name = null, string? Email = null, string? Phone = null);
     public record AuthResponse(string AccessToken, string RefreshToken, UserDto User);
     public record RefreshTokenRequest([Required] string Token);
     public record LogoutRequest([Required] string RefreshToken);
@@ -42,13 +42,22 @@ namespace VerdeCrop.Application.DTOs
 
     // ── Farmer ────────────────────────────────────────────────────────────────
     public record FarmerDto(int Id, int UserId, string FarmName, string? Description, string Location, string State,
-        string? CertificationNumber, bool IsApproved, decimal TotalSales, decimal Rating, int ReviewCount,
+        string? PinCode, string? CertificationNumber, string? BankAccountNumber, string? BankIfsc,
+        bool IsApproved, decimal TotalSales, decimal Rating, int ReviewCount,
         string OwnerName, string? AvatarUrl);
 
     public record RegisterFarmerRequest(
-        [Required] string FarmName, string? Description,
-        [Required] string Location, [Required] string State, [Required] string PinCode,
-        string? CertificationNumber, string? BankAccountNumber, string? BankIfsc);
+        [Required] string FarmName,
+        string? OwnerName,
+        string? Description,
+        [Required] string Location,
+        [Required] string State,
+        string? PinCode,
+        string? CertificationNumber,
+        string? BankAccountNumber,
+        string? BankIfsc,
+        bool? IsApproved = null
+    );
 
     // ── Product ───────────────────────────────────────────────────────────────
     public record ProductListDto(

@@ -2,8 +2,9 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import type {
   AuthResponse, User, Category, Farmer, Product, Cart,
   Address, Order, Review, Notification, PagedResult,
-  ApiResponse, DashboardStats
+  ApiResponse, DashboardStats, WishlistItem
 } from '../types'
+import { useAuthStore } from '../store'
 
 const BASE_URL = '/api'
 
@@ -52,10 +53,13 @@ api.interceptors.response.use(
       }
       try {
         const res = await axios.post(`${BASE_URL}/auth/refresh`, { token: refreshToken })
-        const { accessToken, refreshToken: newRefresh } = res.data.data
+        const { accessToken, refreshToken: newRefresh, user } = res.data.data
         localStorage.setItem('accessToken', accessToken)
         localStorage.setItem('refreshToken', newRefresh)
         api.defaults.headers.common.Authorization = `Bearer ${accessToken}`
+        if (user) {
+          useAuthStore.getState().setUser(user)
+        }
         processQueue(null, accessToken)
         return api(original)
       } catch (refreshErr) {
@@ -78,8 +82,8 @@ const unwrap = <T>(promise: Promise<{ data: ApiResponse<T> }>) =>
 export const authApi = {
   sendOtp: (identifier: string, purpose = 'login') =>
     unwrap<boolean>(api.post('/auth/send-otp', { identifier, purpose })),
-  verifyOtp: (identifier: string, code: string, name?: string) =>
-    unwrap<AuthResponse>(api.post('/auth/verify-otp', { identifier, code, name })),
+  verifyOtp: (identifier: string, code: string, name?: string, email?: string, phone?: string) =>
+    unwrap<AuthResponse>(api.post('/auth/verify-otp', { identifier, code, name, email, phone })),
   refresh: (token: string) =>
     unwrap<AuthResponse>(api.post('/auth/refresh', { token })),
   logout: (refreshToken: string) =>
@@ -104,6 +108,12 @@ export const userApi = {
     unwrap<PagedResult<User>>(api.get('/users', { params })),
   setActive: (id: number, isActive: boolean) =>
     unwrap<boolean>(api.put(`/users/${id}/active`, isActive)),
+}
+
+export const wishlistApi = {
+  getAll: () => unwrap<WishlistItem[]>(api.get('/wishlist')),
+  add: (productId: number) => unwrap<boolean>(api.post(`/wishlist/${productId}`, {})),
+  remove: (productId: number) => unwrap<boolean>(api.delete(`/wishlist/${productId}`)),
 }
 
 // ── Categories ─────────────────────────────────────────────────────────────────
@@ -159,6 +169,8 @@ export const cartApi = {
 export const orderApi = {
   getAll: (params?: { page?: number; pageSize?: number }) =>
     unwrap<PagedResult<Order>>(api.get('/orders', { params })),
+  getSellerOrders: (params?: { page?: number; pageSize?: number; status?: string }) =>
+    unwrap<PagedResult<Order>>(api.get('/orders/seller', { params })),
   getById: (id: number) => unwrap<Order>(api.get(`/orders/${id}`)),
   place: (data: { addressId: number; paymentMethod: string; couponCode?: string; notes?: string }) =>
     unwrap<Order>(api.post('/orders', data)),
@@ -202,5 +214,3 @@ export const notificationApi = {
 export const adminApi = {
   getDashboard: () => unwrap<DashboardStats>(api.get('/admin/dashboard')),
 }
-
-export default api

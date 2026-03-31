@@ -84,6 +84,10 @@ namespace VerdeCrop.Application.Interfaces
         Task<FarmerDto?> GetByIdAsync(int id);
         Task<FarmerDto?> GetByUserIdAsync(int userId);
         Task<FarmerDto?> RegisterAsync(int userId, RegisterFarmerRequest req);
+        // Admin create: create a new user with role 'farmer' and attach farmer profile
+        Task<FarmerDto?> CreateAdminAsync(string ownerName, RegisterFarmerRequest req);
+        Task<FarmerDto?> UpdateAsync(int farmerId, RegisterFarmerRequest req);
+        Task<bool> DeleteAsync(int farmerId);
         Task<bool> ApproveAsync(int farmerId, bool approve);
     }
 
@@ -110,9 +114,17 @@ namespace VerdeCrop.Application.Interfaces
         Task<bool> ClearCartAsync(int userId);
     }
 
+    public interface IWishlistService
+    {
+        Task<List<ProductListDto>> GetWishlistAsync(int userId);
+        Task<bool> AddAsync(int userId, int productId);
+        Task<bool> RemoveAsync(int userId, int productId);
+    }
+
     public interface IOrderService
     {
         Task<PagedResult<OrderListDto>> GetUserOrdersAsync(int userId, int page, int pageSize);
+        Task<PagedResult<OrderDetailDto>> GetSellerOrdersAsync(int sellerUserId, int page, int pageSize, string? status);
         Task<OrderDetailDto?> GetByIdAsync(int orderId, int userId, string role);
         Task<OrderDetailDto?> PlaceOrderAsync(int userId, PlaceOrderRequest req);
         Task<bool> UpdateStatusAsync(int orderId, string status, string? note, int updatedBy);
@@ -167,7 +179,10 @@ namespace VerdeCrop.Application.Interfaces
 
     public interface IEmailService
     {
+        Task SendEmailAsync(string to, string subject, string htmlBody);
         Task SendOtpEmailAsync(string email, string otp, string purpose);
+        Task SendWelcomeEmailAsync(string email, string name);
+        Task SendLoginWelcomeEmailAsync(string email, string name);
         Task SendOrderConfirmationAsync(string email, string orderNumber, decimal amount);
     }
 

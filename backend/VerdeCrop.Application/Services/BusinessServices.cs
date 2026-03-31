@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using VerdeCrop.Application.DTOs;
@@ -31,14 +32,6 @@ namespace VerdeCrop.Application.Services
         {
             var otp = await _otpSvc.GenerateOtpAsync(req.Identifier, req.Purpose);
 
-            var isDev = _config["Environment"] == "Development"
-                        || _config["ASPNETCORE_ENVIRONMENT"] == "Development";
-            if (isDev)
-            {
-                Console.WriteLine($"[DEV] OTP for {req.Identifier}: {otp}");
-                return true;
-            }
-
             var isEmail = req.Identifier.Contains('@');
             if (isEmail)
                 await _email.SendOtpEmailAsync(req.Identifier, otp, req.Purpose);
@@ -49,32 +42,103 @@ namespace VerdeCrop.Application.Services
 
         public async Task<AuthResponse?> VerifyOtpAsync(VerifyOtpRequest req)
         {
-            var valid = await _otpSvc.ValidateOtpAsync(req.Identifier, req.Code, "login");
+            var valid = await ValidateLoginOrRegisterOtpAsync(req.Identifier, req.Code);
             if (!valid) return null;
 
-            var isEmail = req.Identifier.Contains('@');
-            User? user = isEmail
-                ? await _uow.Users.FirstOrDefaultAsync(u => u.Email == req.Identifier)
-                : await _uow.Users.FirstOrDefaultAsync(u => u.Phone == req.Identifier);
+            var normalizedEmail = string.IsNullOrWhiteSpace(req.Email) ? (req.Identifier.Contains('@') ? req.Identifier : null) : req.Email.Trim();
+            var normalizedPhone = string.IsNullOrWhiteSpace(req.Phone) ? (!req.Identifier.Contains('@') ? req.Identifier : null) : req.Phone.Trim();
+
+            User? user = null;
+            if (!string.IsNullOrWhiteSpace(normalizedEmail))
+                user = await _uow.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+            if (user == null && !string.IsNullOrWhiteSpace(normalizedPhone))
+                user = await _uow.Users.FirstOrDefaultAsync(u => u.Phone == normalizedPhone);
+            if (user == null)
+                user = await _uow.Users.FirstOrDefaultAsync(u => u.Email == req.Identifier || u.Phone == req.Identifier);
 
             if (user == null)
             {
                 user = new User
                 {
-                    Name = req.Name ?? req.Identifier,
-                    Email = isEmail ? req.Identifier : null,
-                    Phone = isEmail ? null : req.Identifier,
-                    IsEmailVerified = isEmail,
-                    IsPhoneVerified = !isEmail,
+                    Name = req.Name ?? normalizedEmail ?? normalizedPhone ?? req.Identifier,
+                    Email = normalizedEmail,
+                    Phone = normalizedPhone,
+                    IsEmailVerified = !string.IsNullOrWhiteSpace(normalizedEmail),
+                    IsPhoneVerified = !string.IsNullOrWhiteSpace(normalizedPhone),
                     Role = "user"
                 };
                 await _uow.Users.AddAsync(user);
                 var cart = new Cart { User = user };
                 await _uow.Carts.AddAsync(cart);
                 await _uow.SaveChangesAsync();
+                await SendRegistrationSuccessEmailAsync(user, !string.IsNullOrWhiteSpace(user.Email));
+            }
+            else
+            {
+                var updated = false;
+                var hasFarmerProfile = await _uow.FarmerProfiles.Query().AnyAsync(f => f.UserId == user.Id);
+                var expectedRole = hasFarmerProfile ? "farmer" : user.Role;
+                if (!string.Equals(user.Role, expectedRole, StringComparison.OrdinalIgnoreCase))
+                {
+                    user.Role = expectedRole;
+                    updated = true;
+                }
+                if (!string.IsNullOrWhiteSpace(req.Name) && user.Name != req.Name)
+                {
+                    user.Name = req.Name;
+                    updated = true;
+                }
+                if (string.IsNullOrWhiteSpace(user.Email) && !string.IsNullOrWhiteSpace(normalizedEmail))
+                {
+                    user.Email = normalizedEmail;
+                    user.IsEmailVerified = true;
+                    updated = true;
+                }
+                if (string.IsNullOrWhiteSpace(user.Phone) && !string.IsNullOrWhiteSpace(normalizedPhone))
+                {
+                    user.Phone = normalizedPhone;
+                    user.IsPhoneVerified = true;
+                    updated = true;
+                }
+                if (updated)
+                {
+                    await _uow.Users.UpdateAsync(user);
+                    await _uow.SaveChangesAsync();
+                }
+                await SendLoginWelcomeEmailAsync(user);
             }
 
             return await BuildAuthResponseAsync(user);
+        }
+
+        private async Task<bool> ValidateLoginOrRegisterOtpAsync(string identifier, string code)
+        {
+            if (await _otpSvc.ValidateOtpAsync(identifier, code, "login")) return true;
+            return await _otpSvc.ValidateOtpAsync(identifier, code, "register");
+        }
+
+        private async Task SendRegistrationSuccessEmailAsync(User user, bool isEmail)
+        {
+            if (!isEmail || string.IsNullOrWhiteSpace(user.Email)) return;
+            try
+            {
+                await _email.SendWelcomeEmailAsync(user.Email, user.Name);
+            }
+            catch
+            {
+            }
+        }
+
+        private async Task SendLoginWelcomeEmailAsync(User user)
+        {
+            if (string.IsNullOrWhiteSpace(user.Email)) return;
+            try
+            {
+                await _email.SendLoginWelcomeEmailAsync(user.Email, user.Name);
+            }
+            catch
+            {
+            }
         }
 
         public async Task<AuthResponse?> RefreshTokenAsync(string refreshToken)
@@ -365,10 +429,22 @@ namespace VerdeCrop.Application.Services
     {
         private readonly IUnitOfWork _uow;
         private readonly INotificationService _notifications;
+        private readonly IEmailService _email;
+        private readonly ICacheService _cache;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _config;
 
-        public OrderService(IUnitOfWork uow, INotificationService notifications)
+        public OrderService(
+            IUnitOfWork uow,
+            INotificationService notifications,
+            IEmailService email,
+            ICacheService cache,
+            Microsoft.Extensions.Configuration.IConfiguration config)
         {
-            _uow = uow; _notifications = notifications;
+            _uow = uow;
+            _notifications = notifications;
+            _email = email;
+            _cache = cache;
+            _config = config;
         }
 
         public async Task<OrderDetailDto?> PlaceOrderAsync(int userId, PlaceOrderRequest req)
@@ -381,6 +457,9 @@ namespace VerdeCrop.Application.Services
 
             var address = await _uow.Addresses.FirstOrDefaultAsync(a => a.Id == req.AddressId && a.UserId == userId);
             if (address == null) return null;
+
+            var user = await _uow.Users.GetByIdAsync(userId);
+            if (user == null) return null;
 
             foreach (var item in cart.Items)
                 if (item.Product.StockQuantity < item.Quantity) return null;
@@ -414,6 +493,7 @@ namespace VerdeCrop.Application.Services
                 OrderNumber = "VC" + DateTime.UtcNow.ToString("yyyyMMdd") + new Random().Next(1000, 9999),
                 UserId = userId,
                 AddressId = req.AddressId,
+                Status = "pending",
                 PaymentMethod = req.PaymentMethod,
                 PaymentStatus = "pending",
                 Subtotal = subtotal,
@@ -436,6 +516,13 @@ namespace VerdeCrop.Application.Services
             };
 
             await _uow.Orders.AddAsync(order);
+            await _uow.OrderStatusHistories.AddAsync(new OrderStatusHistory
+            {
+                Order = order,
+                Status = "pending",
+                Note = "Order placed",
+                UpdatedByUserId = userId
+            });
 
             foreach (var item in cart.Items)
             {
@@ -445,8 +532,25 @@ namespace VerdeCrop.Application.Services
             }
 
             await _uow.SaveChangesAsync();
-            await _notifications.SendAsync(userId, "Order Placed! 🎉",
-                $"Order #{order.OrderNumber} confirmed. Expected delivery in 3 days.", "order");
+
+            try
+            {
+                await _notifications.SendAsync(userId, "Order Placed! 🎉",
+                    $"Order #{order.OrderNumber} confirmed. Expected delivery in 3 days.", "order");
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                var emailOrder = await LoadOrderForNotificationsAsync(order.Id);
+                if (emailOrder != null)
+                    await SendOrderPlacementEmailsAsync(emailOrder);
+            }
+            catch
+            {
+            }
 
             return await GetByIdAsync(order.Id, userId, "user");
         }
@@ -465,46 +569,133 @@ namespace VerdeCrop.Application.Services
                 (int)Math.Ceiling((double)total / pageSize));
         }
 
+        public async Task<PagedResult<OrderDetailDto>> GetSellerOrdersAsync(int sellerUserId, int page, int pageSize, string? status)
+        {
+            var farmerProfile = await _uow.FarmerProfiles.FirstOrDefaultAsync(f => f.UserId == sellerUserId);
+            if (farmerProfile == null)
+                return new PagedResult<OrderDetailDto>(new List<OrderDetailDto>(), 0, page, pageSize, 0);
+
+            var query = _uow.Orders.Query()
+                .Include(o => o.User)
+                .Include(o => o.Address)
+                .Include(o => o.Items).ThenInclude(i => i.Product)
+                .Include(o => o.StatusHistory)
+                .Where(o => o.Items.Any(i => i.Product.FarmerId == farmerProfile.Id));
+
+            if (!string.IsNullOrWhiteSpace(status))
+                query = query.Where(o => o.Status == status);
+
+            query = query.OrderByDescending(o => o.CreatedAt);
+            var total = await query.CountAsync();
+            var orders = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+            var items = orders.Select(o => ToSellerDetailDto(o, farmerProfile.Id)).ToList();
+            return new PagedResult<OrderDetailDto>(items, total, page, pageSize, (int)Math.Ceiling((double)total / pageSize));
+        }
+
         public async Task<OrderDetailDto?> GetByIdAsync(int orderId, int userId, string role)
         {
             var query = _uow.Orders.Query()
+                .Include(o => o.User)
                 .Include(o => o.Address)
                 .Include(o => o.Items).ThenInclude(i => i.Product)
                 .Include(o => o.StatusHistory);
 
-            var order = role == "admin"
-                ? await query.FirstOrDefaultAsync(o => o.Id == orderId)
-                : await query.FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
+            if (role == "admin")
+            {
+                var adminOrder = await query.FirstOrDefaultAsync(o => o.Id == orderId);
+                return adminOrder == null ? null : ToDetailDto(adminOrder);
+            }
 
-            return order == null ? null : ToDetailDto(order);
+            if (role == "farmer")
+            {
+                var farmerProfile = await _uow.FarmerProfiles.FirstOrDefaultAsync(f => f.UserId == userId);
+                if (farmerProfile == null) return null;
+                var farmerOrder = await query.FirstOrDefaultAsync(o => o.Id == orderId && o.Items.Any(i => i.Product.FarmerId == farmerProfile.Id));
+                return farmerOrder == null ? null : ToSellerDetailDto(farmerOrder, farmerProfile.Id);
+            }
+
+            var userOrder = await query.FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
+            return userOrder == null ? null : ToDetailDto(userOrder);
         }
 
         public async Task<bool> UpdateStatusAsync(int orderId, string status, string? note, int updatedBy)
         {
-            var order = await _uow.Orders.GetByIdAsync(orderId);
+            var order = await _uow.Orders.Query()
+                .Include(o => o.Items).ThenInclude(i => i.Product)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
             if (order == null) return false;
-            order.Status = status;
-            if (status == "delivered") { order.DeliveredAt = DateTime.UtcNow; order.PaymentStatus = "paid"; }
+
+            var updater = await _uow.Users.GetByIdAsync(updatedBy);
+            if (updater == null) return false;
+
+            if (updater.Role == "farmer")
+            {
+                var farmerProfile = await _uow.FarmerProfiles.FirstOrDefaultAsync(f => f.UserId == updatedBy);
+                if (farmerProfile == null || !order.Items.Any(i => i.Product.FarmerId == farmerProfile.Id))
+                    return false;
+            }
+            else if (updater.Role != "admin")
+            {
+                return false;
+            }
+
+            var normalizedStatus = NormalizeOrderStatus(status);
+            if (normalizedStatus == null) return false;
+            if (!CanTransition(order.Status, normalizedStatus)) return false;
+
+            order.Status = normalizedStatus;
+            if (normalizedStatus == "delivered")
+            {
+                order.DeliveredAt = DateTime.UtcNow;
+                order.PaymentStatus = "paid";
+            }
+
             await _uow.Orders.UpdateAsync(order);
             await _uow.OrderStatusHistories.AddAsync(new OrderStatusHistory
             {
                 OrderId = orderId,
-                Status = status,
+                Status = normalizedStatus,
                 Note = note,
                 UpdatedByUserId = updatedBy
             });
             await _uow.SaveChangesAsync();
+            await _cache.DeleteAsync(GetReminderCacheKey(orderId));
             await _notifications.SendAsync(order.UserId, "Order Update",
-                $"Your order #{order.OrderNumber} is now {status}.", "order");
+                $"Your order #{order.OrderNumber} is now {normalizedStatus}.", "order");
             return true;
         }
 
         public async Task<bool> CancelAsync(int orderId, int userId)
         {
-            var order = await _uow.Orders.GetByIdAsync(orderId);
+            var order = await _uow.Orders.Query()
+                .Include(o => o.Items).ThenInclude(i => i.Product)
+                .Include(o => o.User)
+                .Include(o => o.Address)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
             if (order == null || order.UserId != userId) return false;
-            if (order.Status is "shipped" or "delivered") return false;
-            return await UpdateStatusAsync(orderId, "cancelled", "Cancelled by user", userId);
+            if (order.Status is "shipped" or "delivered" or "cancelled") return false;
+            if (DateTime.UtcNow > order.CreatedAt.AddMinutes(5)) return false;
+
+            order.Status = "cancelled";
+            await _uow.Orders.UpdateAsync(order);
+            await _uow.OrderStatusHistories.AddAsync(new OrderStatusHistory
+            {
+                OrderId = orderId,
+                Status = "cancelled",
+                Note = "Cancelled by user",
+                UpdatedByUserId = userId
+            });
+            await _uow.SaveChangesAsync();
+            await _cache.DeleteAsync(GetReminderCacheKey(orderId));
+            await _notifications.SendAsync(userId, "Order Cancelled",
+                $"Your order #{order.OrderNumber} has been cancelled.", "order");
+
+            var fullOrder = await LoadOrderForNotificationsAsync(orderId);
+            if (fullOrder != null)
+                await SendOrderCancellationEmailsAsync(fullOrder);
+
+            return true;
         }
 
         public async Task<CouponResponseDto?> ApplyCouponAsync(ApplyCouponRequest req)
@@ -535,6 +726,255 @@ namespace VerdeCrop.Application.Services
                 (int)Math.Ceiling((double)total / pageSize));
         }
 
+        private async Task<Order?> LoadOrderForNotificationsAsync(int orderId)
+        {
+            return await _uow.Orders.Query()
+                .Include(o => o.User)
+                .Include(o => o.Address)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p.Farmer)
+                            .ThenInclude(f => f.User)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+        }
+
+        private async Task SendOrderPlacementEmailsAsync(Order order)
+        {
+            await SendCustomerOrderEmailAsync(order, "Order Confirmed! 🎉", "CONFIRMED",
+                "Thank you for your purchase. Your order has been placed successfully and is now being prepared.");
+            await SendAdminOrderEmailsAsync(order, "New Order Received 🛒", "NEW ORDER",
+                "A new order has been placed on Graamo. Review the complete order details below.");
+            await SendSellerOrderEmailsAsync(order, "New Seller Order to Fulfill 📦", "SELLER ALERT",
+                "A new order containing your products has been placed. Please review the items below and start fulfillment.", false);
+        }
+
+        private async Task SendOrderCancellationEmailsAsync(Order order)
+        {
+            await SendAdminOrderEmailsAsync(order, "Order Cancelled by Customer", "CANCELLED",
+                "A customer has cancelled this order within the allowed cancellation window.");
+            await SendSellerOrderEmailsAsync(order, "Order Cancelled - Stop Fulfillment", "CANCELLED",
+                "This order has been cancelled by the customer. Please do not process or dispatch the items below.", false);
+        }
+
+        private async Task SendPendingOrderReminderEmailsAsync(Order order)
+        {
+            await SendAdminOrderEmailsAsync(order, "Order Action Reminder ⏰", "REMINDER",
+                "No action has been taken on this order for 15 minutes. Please review and update the order status.", true);
+            await SendSellerOrderEmailsAsync(order, "Seller Order Reminder ⏰", "REMINDER",
+                "This order is still pending. Please review your items and take action as soon as possible.", true);
+        }
+
+        private async Task SendCustomerOrderEmailAsync(Order order, string heading, string badge, string intro)
+        {
+            if (string.IsNullOrWhiteSpace(order.User?.Email) || order.Address == null) return;
+            var html = BuildOrderEmailHtml(order, order.Items.ToList(), heading, intro, badge, false, null, null);
+            await _email.SendEmailAsync(order.User.Email, $"Order Confirmed - {order.OrderNumber}", html);
+        }
+
+        private async Task SendAdminOrderEmailsAsync(Order order, string heading, string badge, string intro, bool includeActionLink = false)
+        {
+            if (order.Address == null || order.User == null) return;
+            var adminEmails = await _uow.Users.Query()
+                .Where(u => u.Role == "admin" && u.IsActive && u.Email != null)
+                .Select(u => u.Email!)
+                .Distinct()
+                .ToListAsync();
+
+            if (adminEmails.Count == 0) return;
+
+            var html = BuildOrderEmailHtml(
+                order,
+                order.Items.ToList(),
+                heading,
+                intro,
+                badge,
+                true,
+                includeActionLink ? GetActionLink(order.Id, true) : null,
+                includeActionLink ? "Review Order" : null);
+
+            foreach (var adminEmail in adminEmails)
+                await _email.SendEmailAsync(adminEmail, $"{heading} - {order.OrderNumber}", html);
+        }
+
+        private async Task SendSellerOrderEmailsAsync(Order order, string heading, string badge, string intro, bool includeActionLink)
+        {
+            if (order.Address == null || order.User == null) return;
+
+            var sellerGroups = order.Items
+                .Where(i => i.Product?.Farmer?.User?.Email != null)
+                .GroupBy(i => new
+                {
+                    SellerEmail = i.Product!.Farmer!.User!.Email!,
+                    SellerName = i.Product.Farmer.User.Name,
+                    FarmName = i.Product.Farmer.FarmName
+                })
+                .ToList();
+
+            foreach (var group in sellerGroups)
+            {
+                var sellerInfo = $"<div style='margin:20px 0;padding:18px;border:1px solid #dce5f0;border-radius:14px;background:#f8fbff'><div style='font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#4b6788;margin-bottom:10px'>Seller Details</div><div style='color:#17324d;font-size:14px;line-height:1.8'><div><strong>Seller:</strong> {group.Key.SellerName}</div><div><strong>Farm:</strong> {group.Key.FarmName}</div><div><strong>Customer:</strong> {order.User.Name}</div><div><strong>Customer Phone:</strong> {order.User.Phone ?? "N/A"}</div></div></div>";
+                var html = BuildOrderEmailHtml(
+                    order,
+                    group.ToList(),
+                    heading,
+                    intro,
+                    badge,
+                    false,
+                    includeActionLink ? GetActionLink(order.Id, false) : null,
+                    includeActionLink ? "Open Order" : null,
+                    sellerInfo);
+
+                await _email.SendEmailAsync(group.Key.SellerEmail, $"{heading} - {order.OrderNumber}", html);
+            }
+        }
+
+        private string BuildOrderEmailHtml(
+            Order order,
+            List<OrderItem> items,
+            string heading,
+            string intro,
+            string badge,
+            bool includeCustomerBlock,
+            string? actionLink,
+            string? actionLabel,
+            string? extraBlock = null)
+        {
+            var itemsHtml = string.Join("", items.Select(i =>
+                $"<tr><td style='padding:10px 0;border-bottom:1px solid #edf2f7;color:#17324d'>{i.ProductName}</td><td style='padding:10px 0;border-bottom:1px solid #edf2f7;color:#6b7d93;text-align:center'>{i.Quantity} {i.Unit}</td><td style='padding:10px 0;border-bottom:1px solid #edf2f7;color:#6b7d93;text-align:right'>₹{i.UnitPrice:F2}</td><td style='padding:10px 0;border-bottom:1px solid #edf2f7;color:#17324d;text-align:right;font-weight:700'>₹{i.TotalPrice:F2}</td></tr>"));
+
+            var addressText = string.Join(", ", new[]
+            {
+                order.Address?.Label,
+                order.Address?.FullName,
+                order.Address?.Phone,
+                order.Address?.Street,
+                order.Address?.City,
+                order.Address?.State,
+                order.Address?.PinCode
+            }.Where(x => !string.IsNullOrWhiteSpace(x))!);
+
+            var notesHtml = string.IsNullOrWhiteSpace(order.Notes)
+                ? string.Empty
+                : $"<div style='margin-top:14px;color:#6b7d93;font-size:14px;line-height:1.6'><strong style='color:#17324d'>Notes:</strong> {order.Notes}</div>";
+
+            var couponHtml = string.IsNullOrWhiteSpace(order.CouponCode)
+                ? string.Empty
+                : $"<div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Coupon</span><strong style='color:#17324d'>{order.CouponCode}</strong></div>";
+
+            var customerBlock = includeCustomerBlock && order.User != null
+                ? $"<div style='margin:20px 0;padding:18px;border:1px solid #dce5f0;border-radius:14px;background:#f8fbff'><div style='font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#4b6788;margin-bottom:10px'>Customer Details</div><div style='color:#17324d;font-size:14px;line-height:1.8'><div><strong>Name:</strong> {order.User.Name}</div><div><strong>Email:</strong> {order.User.Email ?? "N/A"}</div><div><strong>Phone:</strong> {order.User.Phone ?? "N/A"}</div></div></div>"
+                : string.Empty;
+
+            var actionBlock = string.IsNullOrWhiteSpace(actionLink) || string.IsNullOrWhiteSpace(actionLabel)
+                ? string.Empty
+                : $"<div style='margin:20px 0;padding:18px;border:1px solid #dce5f0;border-radius:14px;background:#f8fbff;text-align:center'><a href='{actionLink}' style='display:inline-block;background:#1f4c7a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700'>{actionLabel}</a></div>";
+
+            return $@"<!doctype html>
+<html>
+  <body style='margin:0;padding:0;background:#eef3fb;font-family:Arial,Helvetica,sans-serif;color:#17324d'>
+    <div style='padding:32px 12px'>
+      <div style='max-width:720px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(13,42,74,.08)'>
+        <div style='background:linear-gradient(135deg,#112f52,#1f4c7a);padding:22px 28px;color:#ffffff;position:relative'>
+          <div style='font-size:28px;font-weight:800'>Graamo</div>
+          <div style='position:absolute;right:28px;top:22px;background:#13c296;color:#ffffff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px'>{badge}</div>
+        </div>
+        <div style='padding:32px 28px'>
+          <h1 style='margin:0 0 10px;font-size:30px;color:#17324d'>{heading}</h1>
+          <p style='margin:0 0 16px;color:#6b7d93;font-size:15px;line-height:1.7'>{intro}</p>
+          <div style='display:inline-block;margin:12px 0 24px;background:#f7f9fc;border:1px solid #dce5f0;border-radius:14px;padding:16px 18px'>
+            <div style='color:#9aabc0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.1px;margin-bottom:6px'>Order Reference</div>
+            <div style='color:#23466e;font-size:28px;font-weight:800;letter-spacing:2px'>{order.OrderNumber}</div>
+          </div>
+          {customerBlock}
+          {extraBlock ?? string.Empty}
+          {actionBlock}
+          <div style='margin:20px 0;padding:18px;border:1px solid #dce5f0;border-radius:16px;background:#fafcff'>
+            <div style='font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#4b6788;margin-bottom:14px'>Order Summary</div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Order Date</span><strong style='color:#17324d'>{order.CreatedAt:dd MMM yyyy hh:mm tt}</strong></div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Payment Method</span><strong style='color:#17324d'>{order.PaymentMethod}</strong></div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Payment Status</span><strong style='color:#17324d'>{order.PaymentStatus}</strong></div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Order Status</span><strong style='color:#17324d'>{order.Status}</strong></div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Estimated Delivery</span><strong style='color:#17324d'>{order.EstimatedDelivery:dd MMM yyyy}</strong></div>
+          </div>
+          <div style='margin:20px 0;padding:18px;border:1px solid #dce5f0;border-radius:16px;background:#fafcff'>
+            <div style='font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#4b6788;margin-bottom:14px'>Delivery Address</div>
+            <div style='color:#17324d;font-size:14px;line-height:1.8'>{addressText}</div>
+            {notesHtml}
+          </div>
+          <div style='margin:20px 0;padding:18px;border:1px solid #dce5f0;border-radius:16px;background:#fafcff'>
+            <div style='font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#4b6788;margin-bottom:14px'>Items Ordered</div>
+            <table style='width:100%;border-collapse:collapse'>
+              <thead>
+                <tr>
+                  <th style='text-align:left;padding-bottom:10px;color:#4b6788;font-size:12px;text-transform:uppercase'>Product</th>
+                  <th style='text-align:center;padding-bottom:10px;color:#4b6788;font-size:12px;text-transform:uppercase'>Qty</th>
+                  <th style='text-align:right;padding-bottom:10px;color:#4b6788;font-size:12px;text-transform:uppercase'>Unit Price</th>
+                  <th style='text-align:right;padding-bottom:10px;color:#4b6788;font-size:12px;text-transform:uppercase'>Total</th>
+                </tr>
+              </thead>
+              <tbody>{itemsHtml}</tbody>
+            </table>
+          </div>
+          <div style='margin:20px 0;padding:18px;border:1px solid #dce5f0;border-radius:16px;background:#fafcff'>
+            <div style='font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#4b6788;margin-bottom:14px'>Payment Breakdown</div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Subtotal</span><strong style='color:#17324d'>₹{order.Subtotal:F2}</strong></div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Delivery Charge</span><strong style='color:#17324d'>₹{order.DeliveryCharge:F2}</strong></div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Discount</span><strong style='color:#17324d'>₹{order.DiscountAmount:F2}</strong></div>
+            <div style='display:flex;justify-content:space-between;padding:8px 0;color:#6b7d93'><span>Tax</span><strong style='color:#17324d'>₹{order.TaxAmount:F2}</strong></div>
+            {couponHtml}
+            <div style='display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid #dce5f0'>
+              <div style='color:#17324d;font-size:20px;font-weight:800'>Total Amount</div>
+              <div style='color:#17324d;font-size:28px;font-weight:800'>₹{order.TotalAmount:F2}</div>
+            </div>
+          </div>
+        </div>
+        <div style='padding:18px 28px 26px;color:#a0aec0;font-size:12px;text-align:center;border-top:1px solid #edf2f7'>© 2026 Graamo · Order notification</div>
+      </div>
+    </div>
+  </body>
+</html>";
+        }
+
+        private string GetActionLink(int orderId, bool isAdmin)
+        {
+            var baseUrl = (_config["App:FrontendBaseUrl"] ?? _config["Frontend:BaseUrl"] ?? "http://localhost:3000").TrimEnd('/');
+            return isAdmin ? $"{baseUrl}/admin/orders" : $"{baseUrl}/orders/{orderId}";
+        }
+
+        private static string? NormalizeOrderStatus(string status)
+        {
+            return status.Trim().ToLowerInvariant() switch
+            {
+                "accept" => "confirmed",
+                "accepted" => "confirmed",
+                "confirm" => "confirmed",
+                "confirmed" => "confirmed",
+                "process" => "processing",
+                "processing" => "processing",
+                "ship" => "shipped",
+                "shipped" => "shipped",
+                "deliver" => "delivered",
+                "delivered" => "delivered",
+                _ => null
+            };
+        }
+
+        private static bool CanTransition(string currentStatus, string nextStatus)
+        {
+            currentStatus = currentStatus.Trim().ToLowerInvariant();
+            nextStatus = nextStatus.Trim().ToLowerInvariant();
+            return currentStatus switch
+            {
+                "pending" => nextStatus == "confirmed",
+                "confirmed" => nextStatus == "processing",
+                "processing" => nextStatus == "shipped",
+                "shipped" => nextStatus == "delivered",
+                _ => false
+            };
+        }
+
+        private static string GetReminderCacheKey(int orderId) => $"order:reminder:last:{orderId}";
+
         private static OrderListDto ToListDto(Order o) => new(
             o.Id, o.OrderNumber, o.Status, o.PaymentStatus, o.TotalAmount,
             o.Items?.Count ?? 0, o.CreatedAt, o.EstimatedDelivery?.ToString("dd MMM yyyy"));
@@ -550,5 +990,27 @@ namespace VerdeCrop.Application.Services
                 i.Quantity, i.Unit, i.UnitPrice, i.TotalPrice)).ToList() ?? new(),
             o.StatusHistory?.OrderBy(h => h.CreatedAt)
                 .Select(h => new OrderStatusHistoryDto(h.Id, h.Status, h.Note, h.CreatedAt)).ToList() ?? new());
+
+        private static OrderDetailDto ToSellerDetailDto(Order o, int farmerId)
+        {
+            var sellerItems = o.Items?
+                .Where(i => i.Product?.FarmerId == farmerId)
+                .Select(i => new OrderItemDto(
+                    i.Id, i.ProductId, i.ProductName, i.Product?.ImageUrl,
+                    i.Quantity, i.Unit, i.UnitPrice, i.TotalPrice))
+                .ToList() ?? new List<OrderItemDto>();
+
+            var sellerSubtotal = sellerItems.Sum(i => i.TotalPrice);
+
+            return new OrderDetailDto(
+                o.Id, o.OrderNumber, o.Status, o.PaymentStatus, o.PaymentMethod,
+                sellerSubtotal, 0, 0, 0, sellerSubtotal,
+                o.CouponCode, o.Notes, o.CreatedAt, o.EstimatedDelivery, o.DeliveredAt,
+                new AddressDto(o.Address.Id, o.Address.Label, o.Address.FullName, o.Address.Phone,
+                    o.Address.Street, o.Address.City, o.Address.State, o.Address.PinCode, o.Address.IsDefault),
+                sellerItems,
+                o.StatusHistory?.OrderBy(h => h.CreatedAt)
+                    .Select(h => new OrderStatusHistoryDto(h.Id, h.Status, h.Note, h.CreatedAt)).ToList() ?? new());
+        }
     }
 }

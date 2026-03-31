@@ -11,7 +11,7 @@ export const BlogPage: React.FC = () => (
           { title: '7 Ways to Reduce Food Waste', desc: 'Smart planning and storage methods for sustainable kitchens.' },
           { title: 'Seasonal Vegetables Guide', desc: 'What to buy each season for freshness and nutrition.' },
           { title: 'Organic Pantry Essentials', desc: 'Healthy staple ingredients for daily cooking.' },
-          { title: 'Eco-friendly Packaging', desc: 'How VerdeCrop supports low-waste delivery solutions.' }
+          { title: 'Eco-friendly Packaging', desc: 'How Graamo supports low-waste delivery solutions.' }
         ].map((item, idx) => (
           <article key={idx} className="bg-white rounded-2xl p-5 shadow-card">
             <h2 className="text-xl font-semibold text-forest-900 mb-2">{item.title}</h2>

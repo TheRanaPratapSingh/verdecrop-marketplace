@@ -17,6 +17,7 @@ const emptySellerForm = {
   description: '',
   location: '',
   state: '',
+  pinCode: '',
   certificationNumber: '',
   bankAccountNumber: '',
   bankIfsc: '',
@@ -32,6 +33,8 @@ export const AdminSellers: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [currentSeller, setCurrentSeller] = useState<Farmer | null>(null)
   const [formData, setFormData] = useState({ ...emptySellerForm })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'approved' | 'pending'>('all')
 
   const fetchSellers = async () => {
     setLoading(true)
@@ -65,6 +68,7 @@ export const AdminSellers: React.FC = () => {
       description: seller.description || '',
       location: seller.location,
       state: seller.state,
+      pinCode: seller.pinCode || '',
       certificationNumber: seller.certificationNumber || '',
       bankAccountNumber: seller.bankAccountNumber || '',
       bankIfsc: seller.bankIfsc || '',
@@ -83,6 +87,7 @@ export const AdminSellers: React.FC = () => {
       description: seller.description || '',
       location: seller.location,
       state: seller.state,
+      pinCode: seller.pinCode || '',
       certificationNumber: seller.certificationNumber || '',
       bankAccountNumber: seller.bankAccountNumber || '',
       bankIfsc: seller.bankIfsc || '',
@@ -114,6 +119,7 @@ export const AdminSellers: React.FC = () => {
       description: formData.description,
       location: formData.location,
       state: formData.state,
+      pinCode: formData.pinCode,
       certificationNumber: formData.certificationNumber,
       bankAccountNumber: formData.bankAccountNumber,
       bankIfsc: formData.bankIfsc,
@@ -183,30 +189,88 @@ export const AdminSellers: React.FC = () => {
     }
   }
 
+  const filteredSellers = sellers.filter(seller => {
+    const query = searchQuery.toLowerCase()
+    const matchesText =
+      seller.farmName.toLowerCase().includes(query) ||
+      seller.ownerName.toLowerCase().includes(query) ||
+      seller.location.toLowerCase().includes(query) ||
+      seller.state.toLowerCase().includes(query) ||
+      (seller.pinCode || '').toLowerCase().includes(query)
+
+    const matchesStatus =
+      filterStatus === 'all' ||
+      (filterStatus === 'approved' && seller.isApproved) ||
+      (filterStatus === 'pending' && !seller.isApproved)
+
+    return matchesText && matchesStatus
+  })
+
+  const totalSellers = sellers.length
+  const approvedCount = sellers.filter(s => s.isApproved).length
+  const pendingCount = totalSellers - approvedCount
+
   return (
     <AdminLayout>
       <div>
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-3xl font-display font-bold text-gray-100 mb-1">Sellers</h2>
-            <p className="text-gray-400">Review and manage farmer seller registrations</p>
+            <h2 className="text-3xl font-display font-bold text-gray-100 mb-1">Seller Management</h2>
+            <p className="text-gray-300">Modern dashboard for premium partner onboarding.</p>
           </div>
-          <Button variant="primary" className="gap-2 px-6" onClick={openAddModal}>
+          <Button variant="primary" className="gap-2 px-6 py-3" onClick={openAddModal}>
             + Add Seller
           </Button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <div className="bg-white/10 border border-white/15 p-4 rounded-xl shadow-sm">
+            <p className="text-xs text-gray-300 uppercase tracking-wide">Total Sellers</p>
+            <p className="text-2xl font-bold text-white">{totalSellers}</p>
+          </div>
+          <div className="bg-white/10 border border-white/15 p-4 rounded-xl shadow-sm">
+            <p className="text-xs text-gray-300 uppercase tracking-wide">Approved</p>
+            <p className="text-2xl font-bold text-lime-300">{approvedCount}</p>
+          </div>
+          <div className="bg-white/10 border border-white/15 p-4 rounded-xl shadow-sm">
+            <p className="text-xs text-gray-300 uppercase tracking-wide">Pending Review</p>
+            <p className="text-2xl font-bold text-orange-300">{pendingCount}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-7">
+          <Input
+            label="Search by name, location, pin code"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search sellers..."
+            className="md:col-span-2"
+          />
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-label font-medium text-gray-300">Status filter</label>
+            <select
+              className="h-12 px-3 rounded-lg border border-white/20 bg-slate-900 text-white"
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value as 'all' | 'approved' | 'pending')}
+            >
+              <option value="all">All Sellers</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-8">
             <Spinner size="lg" />
           </div>
-        ) : sellers.length === 0 ? (
-          <Card className="bg-white border border-gray-200 p-12 text-center rounded-2xl">
-            <p className="text-gray-500 text-lg">No sellers found</p>
+        ) : filteredSellers.length === 0 ? (
+          <Card className="bg-white/10 border border-dashed border-gray-300 p-12 text-center rounded-2xl">
+            <p className="text-gray-300 text-lg">No sellers match your search or filter criteria</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {sellers.map(seller => (
+            {filteredSellers.map(seller => (
               <Card key={seller.id} className="bg-white border border-gray-200 p-6 rounded-2xl hover:shadow-lg transition-all duration-300">
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -224,8 +288,9 @@ export const AdminSellers: React.FC = () => {
 
                 <p className="text-sm text-gray-700 mb-2">📍 Location: {seller.location}</p>
                 <p className="text-sm text-gray-700 mb-2">🏡 State: {seller.state}</p>
+                <p className="text-sm text-gray-700 mb-2">📮 Pin Code: {seller.pinCode || 'N/A'}</p>
 
-                <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
+                <div className="border-t border-white/15 pt-4 flex flex-wrap gap-2">
                   <Button variant="secondary" size="sm" className="flex-1" onClick={() => openViewModal(seller)}>
                     <Eye className="w-4 h-4" /> View
                   </Button>
@@ -237,7 +302,14 @@ export const AdminSellers: React.FC = () => {
                   </Button>
                 </div>
 
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wider font-medium text-gray-400">
+                    {seller.isApproved ? 'Live Partner' : 'Review pending'}
+                  </span>
+                  <span className="text-xs text-gray-400">ID #{seller.id}</span>
+                </div>
+
+                <div className="mt-3 flex gap-2">
                   {!seller.isApproved ? (
                     <>
                       <Button
@@ -294,6 +366,12 @@ export const AdminSellers: React.FC = () => {
                 label="State"
                 value={formData.state}
                 onChange={e => setFormData({ ...formData, state: e.target.value })}
+                disabled={viewMode}
+              />
+              <Input
+                label="Pin Code"
+                value={formData.pinCode}
+                onChange={e => setFormData({ ...formData, pinCode: e.target.value })}
                 disabled={viewMode}
               />
               <Input

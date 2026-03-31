@@ -5,7 +5,7 @@ export const CareersPage: React.FC = () => (
   <PageLayout>
     <div className="max-w-5xl mx-auto px-6 py-16">
       <h1 className="text-4xl font-display font-bold text-forest-900 mb-4">Careers</h1>
-      <p className="text-gray-600 font-body mb-6">Join the VerdeCrop team and help us build a healthier food future.</p>
+      <p className="text-gray-600 font-body mb-6">Join the Graamo team and help us build a healthier food future.</p>
       <div className="space-y-4">
         {[
           { role: 'Product Manager', desc: 'Lead product strategy and drive marketplace features.' },

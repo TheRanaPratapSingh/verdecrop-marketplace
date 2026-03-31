@@ -144,8 +144,10 @@ builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IFarmerService, FarmerService>();
 builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IWishlistService, WishlistService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddHostedService<OrderReminderHostedService>();
 
 // Application services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -162,7 +164,7 @@ builder.Services.AddControllers().AddJsonOptions(o =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "VerdeCrop API", Version = "v1", Description = "Organic Marketplace REST API" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Graamo API", Version = "v1", Description = "Organic Marketplace REST API" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -236,5 +238,5 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-Log.Information("VerdeCrop API started — http://localhost:{Port}", 49268);
+Log.Information("Graamo API started — http://localhost:{Port}", 49268);
 app.Run();

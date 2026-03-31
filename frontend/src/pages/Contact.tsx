@@ -10,7 +10,7 @@ export const ContactPage: React.FC = () => (
       <div className="grid gap-6 md:grid-cols-2">
         <div className="bg-white rounded-2xl shadow-card p-6">
           <p className="text-sm text-gray-600 mb-4">Email</p>
-          <p className="font-semibold text-forest-900">support@verdecrop.com</p>
+          <p className="font-semibold text-forest-900">support@graamo.com</p>
           <p className="text-sm text-gray-600 mt-4">Phone</p>
           <p className="font-semibold text-forest-900">+91 12345 67890</p>
           <p className="text-sm text-gray-600 mt-4">Address</p>

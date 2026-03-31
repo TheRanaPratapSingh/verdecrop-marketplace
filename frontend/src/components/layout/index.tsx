@@ -36,14 +36,17 @@ export const Navbar: React.FC = () => {
   }
 
   const isAdmin = user?.role?.toString().trim().toLowerCase() === 'admin'
+  const isFarmer = user?.role?.toString().trim().toLowerCase() === 'farmer'
 
-  const navLinks = [
-    { to: '/products', label: 'Shop' },
-    { to: '/products?isOrganic=true', label: 'Organic' },
-    { to: '/products?isFeatured=true', label: 'Featured' },
-    { to: '/farmers', label: 'Farmers' },
-    ...(isAuthenticated ? [{ to: '/admin', label: 'Admin' }] : []),
-  ]
+  const navLinks = isFarmer
+    ? [{ to: '/seller/orders', label: 'Seller Dashboard' }]
+    : [
+        { to: '/products', label: 'Shop' },
+        { to: '/products?isOrganic=true', label: 'Organic' },
+        { to: '/products?isFeatured=true', label: 'Featured' },
+        { to: '/shop-by-farms', label: 'Shop by Farms' },
+        ...(isAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
+      ]
 
   return (
     <>
@@ -53,7 +56,7 @@ export const Navbar: React.FC = () => {
             <div className="w-9 h-9 bg-forest-700 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-forest-600 transition-colors">
               <Leaf className="w-5 h-5 text-white" strokeWidth={1.8} />
             </div>
-            <span className="font-display text-[22px] font-semibold text-stone-900 tracking-tight">VerdeCrop</span>
+            <span className="font-display text-[22px] font-semibold text-stone-900 tracking-tight">Graamo</span>
           </Link>
 
           <div className="hidden lg:flex items-center gap-1 flex-1">
@@ -63,20 +66,26 @@ export const Navbar: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1 ml-auto">
-            <button onClick={() => setSearchOpen(true)} className="p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
-              <Search className="w-[18px] h-[18px]" strokeWidth={1.8} />
-            </button>
+            {!isFarmer && (
+              <button onClick={() => setSearchOpen(true)} className="p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
+                <Search className="w-[18px] h-[18px]" strokeWidth={1.8} />
+              </button>
+            )}
 
             {isAuthenticated ? (
               <>
-                <button onClick={openCart} className="relative p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
-                  <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={1.8} />
-                  {itemCount() > 0 && <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center">{itemCount() > 9 ? '9+' : itemCount()}</span>}
-                </button>
-                <Link to="/notifications" className="relative p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
-                  <Bell className="w-[18px] h-[18px]" strokeWidth={1.8} />
-                  {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>}
-                </Link>
+                {!isFarmer && (
+                  <>
+                    <button onClick={openCart} className="relative p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
+                      <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                      {itemCount() > 0 && <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center">{itemCount() > 9 ? '9+' : itemCount()}</span>}
+                    </button>
+                    <Link to="/notifications" className="relative p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
+                      <Bell className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                      {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+                    </Link>
+                  </>
+                )}
                 <div className="relative ml-1" ref={userMenuRef}>
                   <button onClick={() => setUserMenuOpen(v => !v)} className="flex items-center gap-2 h-9 pl-1.5 pr-3 rounded-2xl hover:bg-stone-100 transition-all duration-150">
                     <div className="w-7 h-7 rounded-xl bg-forest-100 border-2 border-forest-200 flex items-center justify-center overflow-hidden">
@@ -93,13 +102,16 @@ export const Navbar: React.FC = () => {
                         <p className="text-xs text-amber-700 mt-1.5 font-medium bg-amber-50 px-2 py-1 rounded">Role: {user?.role || 'unknown'}</p>
                       </div>
                       <div className="py-1.5">
-                        {[
-                          { to: '/profile', icon: Package, label: 'My Profile' },
-                          { to: '/orders', icon: Package, label: 'Orders' },
-                          { to: '/wishlist', icon: Heart, label: 'Wishlist' },
-                          ...(user?.role?.toLowerCase() === 'farmer' ? [{ to: '/farmer', icon: LayoutDashboard, label: 'Farmer Dashboard' }] : []),
-                          ...(user?.role?.toLowerCase() === 'admin' ? [{ to: '/admin', icon: Settings, label: 'Admin Panel' }] : []),
-                        ].map(item => (
+                        {(
+                          isFarmer
+                            ? [{ to: '/seller/orders', icon: LayoutDashboard, label: 'Seller Dashboard' }]
+                            : [
+                                { to: '/profile', icon: Package, label: 'My Profile' },
+                                { to: '/orders', icon: Package, label: 'Orders' },
+                                { to: '/wishlist', icon: Heart, label: 'Wishlist' },
+                                ...(user?.role?.toLowerCase() === 'admin' ? [{ to: '/admin', icon: Settings, label: 'Admin Panel' }] : []),
+                              ]
+                        ).map(item => (
                           <Link key={item.to} to={item.to} onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 mx-2 px-3 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-forest-700 rounded-2xl transition-all duration-150 font-body">
                             <item.icon className="w-4 h-4 text-stone-400" strokeWidth={1.8} />{item.label}
                           </Link>
@@ -246,7 +258,7 @@ export const Footer: React.FC = () => (
         <div className="col-span-2">
           <Link to="/" className="flex items-center gap-3 mb-4 w-fit">
             <div className="w-10 h-10 bg-forest-700 rounded-2xl flex items-center justify-center"><Leaf className="w-5 h-5 text-white" strokeWidth={1.8} /></div>
-            <span className="font-display text-2xl font-semibold text-white">VerdeCrop</span>
+            <span className="font-display text-2xl font-semibold text-white">Graamo</span>
           </Link>
           <p className="text-sm font-body leading-relaxed text-stone-400 max-w-xs">Connecting certified organic farmers with conscious families across India. No middlemen, maximum freshness.</p>
           <div className="flex gap-2 mt-6">
@@ -299,7 +311,7 @@ export const Footer: React.FC = () => (
         ))}
       </div>
       <div className="border-t border-stone-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-xs font-body text-stone-500">© 2024 VerdeCrop. All rights reserved.</p>
+        <p className="text-xs font-body text-stone-500">© 2024 Graamo. All rights reserved.</p>
         <div className="flex items-center gap-4">
           {['Privacy', 'Terms', 'Cookies'].map(l => (
             <Link

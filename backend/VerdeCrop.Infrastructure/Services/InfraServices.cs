@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Net;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -97,23 +99,38 @@ namespace VerdeCrop.Infrastructure.Services
 
         public async Task<string> GenerateOtpAsync(string identifier, string purpose)
         {
-            var isDev = _config["Environment"] == "Development";
-            var code = isDev ? "123456" : new Random().Next(100000, 999999).ToString();
+            // Always generate a proper 6-digit OTP. Do not use hardcoded dev OTPs here.
+            var rng = new Random();
+            var code = rng.Next(0, 1000000).ToString("D6");
 
-            var existing = await _uow.OtpCodes.FirstOrDefaultAsync(
-                o => o.Identifier == identifier && o.Purpose == purpose && !o.IsUsed);
-            if (existing != null)
-            {
-                existing.IsUsed = true;
-                await _uow.OtpCodes.UpdateAsync(existing);
-            }
+            // Throttling: max sends per hour
+            var maxPerHour = int.TryParse(_config["Otp:MaxPerHour"], out var mph) ? mph : 10;
+            var since = DateTime.UtcNow.AddHours(-1);
+            var sentCount = await _uow.OtpCodes.Query().CountAsync(o => o.Identifier == identifier && o.Purpose == purpose && o.CreatedAt >= since);
+            if (sentCount >= maxPerHour)
+                throw new InvalidOperationException("OTP send limit exceeded. Try again later.");
 
+            // Per-minute throttle
+            var last = await _uow.OtpCodes.Query().Where(o => o.Identifier == identifier && o.Purpose == purpose)
+                .OrderByDescending(o => o.CreatedAt).FirstOrDefaultAsync();
+            var minIntervalSeconds = int.TryParse(_config["Otp:MinIntervalSeconds"], out var mis) ? mis : 30;
+            if (last != null && (DateTime.UtcNow - last.CreatedAt).TotalSeconds < minIntervalSeconds)
+                throw new InvalidOperationException("OTP requested too frequently. Please wait a moment.");
+
+            // Invalidate existing unused otps for this identifier/purpose
+            var existing = await _uow.OtpCodes.GetAllAsync(o => o.Identifier == identifier && o.Purpose == purpose && !o.IsUsed);
+            foreach (var e in existing) { e.IsUsed = true; await _uow.OtpCodes.UpdateAsync(e); }
+
+            var expiryMinutes = int.TryParse(_config["Otp:ExpiryMinutes"], out var em) ? em : 5;
             await _uow.OtpCodes.AddAsync(new OtpCode
             {
                 Identifier = identifier,
                 Code = code,
                 Purpose = purpose,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+                ExpiresAt = DateTime.UtcNow.AddMinutes(expiryMinutes),
+                IsUsed = false,
+                AttemptCount = 0,
+                CreatedAt = DateTime.UtcNow
             });
             await _uow.SaveChangesAsync();
             return code;
@@ -121,62 +138,132 @@ namespace VerdeCrop.Infrastructure.Services
 
         public async Task<bool> ValidateOtpAsync(string identifier, string code, string purpose)
         {
-            var otp = await _uow.OtpCodes.FirstOrDefaultAsync(
-                o => o.Identifier == identifier && o.Code == code && o.Purpose == purpose
-                     && !o.IsUsed && o.ExpiresAt > DateTime.UtcNow);
+            // Find most recent unused OTP for identifier and purpose
+            var otp = await _uow.OtpCodes.Query()
+                .Where(o => o.Identifier == identifier && o.Purpose == purpose && !o.IsUsed)
+                .OrderByDescending(o => o.CreatedAt).FirstOrDefaultAsync();
             if (otp == null) return false;
-            otp.IsUsed = true;
+
+            // expired
+            if (otp.ExpiresAt <= DateTime.UtcNow) { otp.IsUsed = true; await _uow.OtpCodes.UpdateAsync(otp); await _uow.SaveChangesAsync(); return false; }
+
+            var maxAttempts = int.TryParse(_config["Otp:MaxAttempts"], out var ma) ? ma : 5;
+            if (otp.Code == code)
+            {
+                otp.IsUsed = true;
+                await _uow.OtpCodes.UpdateAsync(otp);
+                await _uow.SaveChangesAsync();
+                return true;
+            }
+
+            // wrong code
+            otp.AttemptCount += 1;
+            if (otp.AttemptCount >= maxAttempts) otp.IsUsed = true;
             await _uow.OtpCodes.UpdateAsync(otp);
             await _uow.SaveChangesAsync();
-            return true;
+            return false;
         }
     }
 
-    // ── Email Service (SendGrid) ──────────────────────────────────────────────
+    // ── Email Service ─────────────────────────────────────────────────────────
     public class EmailService : IEmailService
     {
         private readonly IConfiguration _config;
-        private bool IsDev => _config["Environment"] == "Development"
-                              || _config["ASPNETCORE_ENVIRONMENT"] == "Development";
 
         public EmailService(IConfiguration config) { _config = config; }
+        private string TemplatesPath => Path.Combine(AppContext.BaseDirectory, "EmailTemplates");
+
+        private string LoadTemplate(string name)
+        {
+            var path = Path.Combine(TemplatesPath, name);
+            if (!File.Exists(path)) return "";
+            return File.ReadAllText(path);
+        }
+
+        private string Render(string template, Dictionary<string, string?> data)
+        {
+            if (string.IsNullOrEmpty(template)) return "";
+            foreach (var kv in data)
+            {
+                template = template.Replace("{{" + kv.Key + "}}", kv.Value ?? "");
+            }
+            return template;
+        }
+
+        public async Task SendEmailAsync(string to, string subject, string htmlBody)
+        {
+            var smtpHost = _config["Smtp:Host"];
+            var smtpUsername = _config["Smtp:Username"];
+            var smtpPassword = _config["Smtp:Password"];
+            var smtpPort = int.TryParse(_config["Smtp:Port"], out var port) ? port : 587;
+            var smtpFromName = _config["Smtp:FromName"] ?? _config["Email:FromName"] ?? "Graamo";
+            var fromAddress = _config["Email:FromAddress"] ?? smtpUsername ?? "noreply@graamo.com";
+            var enableSsl = !bool.TryParse(_config["Smtp:EnableSsl"], out var ssl) || ssl;
+
+            if (!string.IsNullOrWhiteSpace(smtpHost) && !string.IsNullOrWhiteSpace(smtpUsername) && !string.IsNullOrWhiteSpace(smtpPassword))
+            {
+                using var message = new MailMessage
+                {
+                    From = new MailAddress(fromAddress, smtpFromName),
+                    Subject = subject,
+                    Body = htmlBody,
+                    IsBodyHtml = true
+                };
+                message.To.Add(to);
+
+                using var client = new SmtpClient(smtpHost, smtpPort)
+                {
+                    EnableSsl = enableSsl,
+                    UseDefaultCredentials = false,
+                    Credentials = new NetworkCredential(smtpUsername, smtpPassword),
+                    DeliveryMethod = SmtpDeliveryMethod.Network
+                };
+
+                await client.SendMailAsync(message);
+                return;
+            }
+
+            var apiKey = _config["SendGrid:ApiKey"];
+            if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.StartsWith("SG.your"))
+            {
+                var client = new SendGridClient(apiKey);
+                var from = new EmailAddress(fromAddress, smtpFromName);
+                var msg = MailHelper.CreateSingleEmail(from, new EmailAddress(to), subject, plainTextContent: null, htmlContent: htmlBody);
+                await client.SendEmailAsync(msg);
+                return;
+            }
+
+            throw new InvalidOperationException("No email provider configured. Add SMTP or SendGrid settings.");
+        }
 
         public async Task SendOtpEmailAsync(string email, string otp, string purpose)
         {
-            if (IsDev)
-            {
-                Console.WriteLine($"[DEV EMAIL] To: {email} | OTP: {otp} | Purpose: {purpose}");
-                return;
-            }
-            var apiKey = _config["SendGrid:ApiKey"];
-            if (string.IsNullOrWhiteSpace(apiKey) || apiKey.StartsWith("SG.your"))
-            {
-                Console.WriteLine($"[WARN] SendGrid API key not configured. OTP for {email}: {otp}");
-                return;
-            }
-            var client = new SendGridClient(apiKey);
-            var msg = MailHelper.CreateSingleEmail(
-                new EmailAddress("noreply@verdecrop.com", "VerdeCrop"),
-                new EmailAddress(email),
-                $"Your VerdeCrop OTP - {otp}",
-                $"Your OTP is: {otp}. Valid for 10 minutes.",
-                $"<h2>VerdeCrop</h2><p>Your OTP is: <strong>{otp}</strong></p><p>Valid for 10 minutes.</p>");
-            await client.SendEmailAsync(msg);
+            var tpl = LoadTemplate("OtpTemplate.html");
+            var body = Render(tpl, new Dictionary<string, string?> {
+                { "Otp", otp }, { "Purpose", purpose }, { "AppName", "Graamo" }, { "ValidityMinutes", _config["Otp:ExpiryMinutes"] ?? "5" }
+            });
+            await SendEmailAsync(email, $"Your Graamo OTP - {otp}", body);
+        }
+
+        public async Task SendWelcomeEmailAsync(string email, string name)
+        {
+            var tpl = LoadTemplate("WelcomeTemplate.html");
+            var body = Render(tpl, new Dictionary<string, string?> { { "Name", name }, { "AppName", "Graamo" } });
+            await SendEmailAsync(email, $"Welcome to Graamo - Registration Successful, {name}!", body);
+        }
+
+        public async Task SendLoginWelcomeEmailAsync(string email, string name)
+        {
+            var tpl = LoadTemplate("LoginWelcomeTemplate.html");
+            var body = Render(tpl, new Dictionary<string, string?> { { "Name", name }, { "AppName", "Graamo" } });
+            await SendEmailAsync(email, $"Welcome back to Graamo, {name}!", body);
         }
 
         public async Task SendOrderConfirmationAsync(string email, string orderNumber, decimal amount)
         {
-            if (IsDev) { Console.WriteLine($"[DEV EMAIL] Order confirmed: {orderNumber}"); return; }
-            var apiKey = _config["SendGrid:ApiKey"];
-            if (string.IsNullOrWhiteSpace(apiKey) || apiKey.StartsWith("SG.your")) return;
-            var client = new SendGridClient(apiKey);
-            var msg = MailHelper.CreateSingleEmail(
-                new EmailAddress("noreply@verdecrop.com", "VerdeCrop"),
-                new EmailAddress(email),
-                $"Order Confirmed - {orderNumber}",
-                $"Your order {orderNumber} has been confirmed. Total: Rs.{amount}",
-                $"<h2>Order Confirmed!</h2><p>Order: <strong>{orderNumber}</strong></p><p>Amount: <strong>Rs.{amount}</strong></p>");
-            await client.SendEmailAsync(msg);
+            var tpl = LoadTemplate("OrderConfirmationTemplate.html");
+            var body = Render(tpl, new Dictionary<string, string?> { { "OrderNumber", orderNumber }, { "Amount", amount.ToString("F2") }, { "AppName", "Graamo" } });
+            await SendEmailAsync(email, $"Order Confirmed - {orderNumber}", body);
         }
     }
 
@@ -214,7 +301,7 @@ namespace VerdeCrop.Infrastructure.Services
                 return;
             }
             await MessageResource.CreateAsync(
-                body: $"VerdeCrop OTP: {otp}. Valid for 10 min. Do not share.",
+                body: $"Graamo OTP: {otp}. Valid for 10 min. Do not share.",
                 from: new Twilio.Types.PhoneNumber(from),
                 to: new Twilio.Types.PhoneNumber(phone));
         }
@@ -301,7 +388,12 @@ namespace VerdeCrop.Infrastructure.Services
             var order = await _uow.Orders.GetByIdAsync(orderId);
             if (order == null) return null;
 
-            var client = new RazorpayClient(_config["Razorpay:KeyId"], _config["Razorpay:KeySecret"]);
+            var keyId = _config["Razorpay:KeyId"];
+            var keySecret = _config["Razorpay:KeySecret"];
+            if (string.IsNullOrWhiteSpace(keyId) || string.IsNullOrWhiteSpace(keySecret))
+                throw new InvalidOperationException("Razorpay is not configured. Add Razorpay:KeyId and Razorpay:KeySecret or use Cash on Delivery.");
+
+            var client = new RazorpayClient(keyId, keySecret);
             var options = new Dictionary<string, object>
             {
                 ["amount"] = (int)(order.TotalAmount * 100),
@@ -321,7 +413,7 @@ namespace VerdeCrop.Infrastructure.Services
             });
             await _uow.SaveChangesAsync();
 
-            return new RazorpayOrderResponse(rpOrderId, order.TotalAmount, "INR", _config["Razorpay:KeyId"]!);
+            return new RazorpayOrderResponse(rpOrderId, order.TotalAmount, "INR", keyId);
         }
 
         public async Task<bool> VerifyRazorpayPaymentAsync(VerifyRazorpayRequest req)

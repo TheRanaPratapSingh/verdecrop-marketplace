@@ -1,4 +1,4 @@
-# 🌿 VerdeCrop — Organic Marketplace
+# 🌿 Graamo — Organic Marketplace
 
 Production-ready full-stack organic products marketplace. Farmers sell directly to consumers.
 
@@ -127,8 +127,8 @@ verdecrop/
 
 | Role   | Identifier              | OTP    |
 |--------|-------------------------|--------|
-| Admin  | admin@verdecrop.com     | 123456 |
-| Farmer | farmer@verdecrop.com    | 123456 |
+| Admin  | admin@graamo.com     | 123456 |
+| Farmer | farmer@graamo.com    | 123456 |
 | User   | +919876543210           | 123456 |
 
 > **Note:** In development mode, any OTP of `123456` is accepted.

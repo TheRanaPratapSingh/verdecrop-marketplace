@@ -108,6 +108,36 @@ namespace VerdeCrop.API.Controllers
         }
     }
 
+    // ── Wishlist ──────────────────────────────────────────────────────────────
+    [Route("api/wishlist")]
+    [Authorize]
+    public class WishlistController : BaseController
+    {
+        private readonly IWishlistService _wishlist;
+        public WishlistController(IWishlistService wishlist) { _wishlist = wishlist; }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var items = await _wishlist.GetWishlistAsync(CurrentUserId);
+            return Ok(ApiResponse.Ok(items));
+        }
+
+        [HttpPost("{productId:int}")]
+        public async Task<IActionResult> Add(int productId)
+        {
+            var result = await _wishlist.AddAsync(CurrentUserId, productId);
+            return result ? Ok(ApiResponse.Ok(true)) : BadRequest(ApiResponse.Fail("Unable to add to wishlist"));
+        }
+
+        [HttpDelete("{productId:int}")]
+        public async Task<IActionResult> Remove(int productId)
+        {
+            var result = await _wishlist.RemoveAsync(CurrentUserId, productId);
+            return result ? Ok(ApiResponse.Ok(true)) : NotFound(ApiResponse.Fail("Wishlist item not found"));
+        }
+    }
+
     // ── Categories ────────────────────────────────────────────────────────────
     [Route("api/categories")]
     public class CategoriesController : BaseController
@@ -171,8 +201,16 @@ namespace VerdeCrop.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] bool? isApproved = null)
         {
-            var result = await _farmers.GetAllAsync(page, pageSize, isApproved);
-            return Ok(ApiResponse.Ok(result));
+            try
+            {
+                var result = await _farmers.GetAllAsync(page, pageSize, isApproved);
+                return Ok(ApiResponse.Ok(result));
+            }
+            catch (Exception ex)
+            {
+                // return error details to help frontend debugging
+                return StatusCode(500, ApiResponse.Fail<string>($"Failed to get farmers: {ex.Message}"));
+            }
         }
 
         [HttpGet("{id}")]
@@ -194,8 +232,31 @@ namespace VerdeCrop.API.Controllers
         [Authorize]
         public async Task<IActionResult> Register([FromBody] RegisterFarmerRequest req)
         {
+            // If admin is creating a seller from admin UI and provided an owner name, create a new user+farmer
+            if (CurrentUserRole == "admin" && !string.IsNullOrEmpty(req.OwnerName))
+            {
+                var created = await _farmers.CreateAdminAsync(req.OwnerName, req);
+                return created == null ? BadRequest(ApiResponse.Fail("Failed to create farmer")) : Ok(ApiResponse.Ok(created, "Farmer created"));
+            }
+
             var f = await _farmers.RegisterAsync(CurrentUserId, req);
             return Ok(ApiResponse.Ok(f, "Farmer registration submitted for approval"));
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> Update(int id, [FromBody] RegisterFarmerRequest req)
+        {
+            var updated = await _farmers.UpdateAsync(id, req);
+            return updated == null ? NotFound() : Ok(ApiResponse.Ok(updated, "Farmer updated"));
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var success = await _farmers.DeleteAsync(id);
+            return success ? Ok(ApiResponse.Ok(true, "Farmer deleted")) : NotFound(ApiResponse.Fail("Farmer not found"));
         }
 
         [HttpPut("{id}/approve")]
@@ -361,6 +422,14 @@ namespace VerdeCrop.API.Controllers
         public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _orders.GetUserOrdersAsync(CurrentUserId, page, pageSize);
+            return Ok(ApiResponse.Ok(result));
+        }
+
+        [HttpGet("seller")]
+        [Authorize(Roles = "farmer")]
+        public async Task<IActionResult> GetSellerOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null)
+        {
+            var result = await _orders.GetSellerOrdersAsync(CurrentUserId, page, pageSize, status);
             return Ok(ApiResponse.Ok(result));
         }
 

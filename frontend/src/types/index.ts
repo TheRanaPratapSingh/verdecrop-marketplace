@@ -42,6 +42,7 @@ export interface Farmer {
   reviewCount: number
   ownerName: string
   avatarUrl?: string
+  pinCode?: string
 }
 
 export interface Product {
@@ -68,6 +69,8 @@ export interface Product {
   isActive: boolean
   reviews?: Review[]
 }
+
+export type WishlistItem = Product
 
 export interface CartItem {
   id: number

@@ -5,9 +5,9 @@ import { useLocation } from 'react-router-dom'
 const pageData: Record<string, { title: string; subtitle: string; content: string[] }> = {
   '/about-us': {
     title: 'About Us',
-    subtitle: 'Know VerdeCrop',
+    subtitle: 'Know Graamo',
     content: [
-      'VerdeCrop connects certified organic farmers directly with consumers for fresher produce and fair pricing.',
+      'Graamo connects certified organic farmers directly with consumers for fresher produce and fair pricing.',
       'We are committed to transparency, seasonal goodness, and sustainability across our supply chain.',
       'Join us in supporting smallholder farmers and choosing eco-friendly food choices.',
     ]
@@ -22,7 +22,7 @@ const pageData: Record<string, { title: string; subtitle: string; content: strin
   },
   '/careers': {
     title: 'Careers',
-    subtitle: 'Grow with VerdeCrop',
+    subtitle: 'Grow with Graamo',
     content: [
       'We’re building a team passionate about food quality, farmer empowerment, and eco-conscious commerce.',
       'Explore open roles and make an impact in the organic marketplace.',
@@ -33,12 +33,12 @@ const pageData: Record<string, { title: string; subtitle: string; content: strin
     subtitle: 'We’d love to hear from you',
     content: [
       'For support, partnerships, or feedback, please get in touch with our team.',
-      'Email: support@verdecrop.com | Phone: +91 12345 67890',
+      'Email: support@graamo.com | Phone: +91 12345 67890',
     ]
   },
   '/become-a-seller': {
     title: 'Become a Seller',
-    subtitle: 'Join VerdeCrop as a Farmer Partner',
+    subtitle: 'Join Graamo as a Farmer Partner',
     content: [
       'Create your seller profile and reach thousands of customers across cities.',
       'We handle logistics, payments, and promotion so you can focus on harvesting quality produce.',

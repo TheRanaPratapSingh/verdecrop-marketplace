@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store'
 import { Spinner } from './components/ui'
+import { trackPageView } from './lib/analytics'
 
 const HomePage            = lazy(() => import('./pages/Home'))
 const ProductsPage        = lazy(() => import('./pages/Products').then(m => ({ default: m.ProductsPage })))
@@ -13,6 +14,7 @@ const RegisterPage        = lazy(() => import('./pages/Auth').then(m => ({ defau
 const CheckoutPage        = lazy(() => import('./pages/Pages').then(m => ({ default: m.CheckoutPage })))
 const OrdersPage          = lazy(() => import('./pages/Pages').then(m => ({ default: m.OrdersPage })))
 const OrderDetailPage     = lazy(() => import('./pages/Pages').then(m => ({ default: m.OrderDetailPage })))
+const WishlistPage        = lazy(() => import('./pages/Wishlist').then(m => ({ default: m.WishlistPage })))
 const ProfilePage         = lazy(() => import('./pages/Pages').then(m => ({ default: m.ProfilePage })))
 const NotificationsPage   = lazy(() => import('./pages/Pages').then(m => ({ default: m.NotificationsPage })))
 const AboutUsPage         = lazy(() => import('./pages/AboutUs').then(m => ({ default: m.AboutUsPage })))
@@ -23,6 +25,9 @@ const ContactPage         = lazy(() => import('./pages/Contact').then(m => ({ de
 const BecomeSellerPage    = lazy(() => import('./pages/BecomeSeller').then(m => ({ default: m.BecomeSellerPage })))
 const FarmerStoriesPage   = lazy(() => import('./pages/FarmerStories').then(m => ({ default: m.FarmerStoriesPage })))
 const CertificationsPage  = lazy(() => import('./pages/Certifications').then(m => ({ default: m.CertificationsPage })))
+const ShopByFarmsPage     = lazy(() => import('./pages/ShopByFarms').then(m => ({ default: m.ShopByFarmsPage })))
+const SellerOrdersPage     = lazy(() => import('./pages/SellerOrders').then(m => ({ default: m.SellerOrdersPage })))
+const SellerOrderDetailPage = lazy(() => import('./pages/SellerOrderDetail').then(m => ({ default: m.SellerOrderDetailPage })))
 const AdminDashboard      = lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })))
 const AdminProducts       = lazy(() => import('./pages/admin/Products').then(m => ({ default: m.AdminProducts })))
 const AdminCategories     = lazy(() => import('./pages/admin/Categories').then(m => ({ default: m.AdminCategories })))
@@ -41,8 +46,11 @@ const Loader: React.FC = () => (
 )
 
 const ScrollTop: React.FC = () => {
-  const { pathname } = useLocation()
-  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  const { pathname, search } = useLocation()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    trackPageView(`${pathname}${search}`)
+  }, [pathname, search])
   return null
 }
 
@@ -74,43 +82,55 @@ const RequireGuest: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>
 }
 
-const App: React.FC = () => (
-  <BrowserRouter>
-    <ScrollTop />
-    <Suspense fallback={<Loader />}>
-      <Routes>
-        <Route path="/"                element={<HomePage />} />
-        <Route path="/products"        element={<ProductsPage />} />
-        <Route path="/products/:slug"  element={<ProductDetailPage />} />
-        <Route path="/about-us"        element={<AboutUsPage />} />
-        <Route path="/blog"            element={<BlogPage />} />
-        <Route path="/careers"         element={<CareersPage />} />
-        <Route path="/contact"         element={<ContactPage />} />
-        <Route path="/become-a-seller" element={<BecomeSellerPage />} />
-        <Route path="/farmer-stories"  element={<FarmerStoriesPage />} />
-        <Route path="/certifications"  element={<CertificationsPage />} />
-        <Route path="/login"           element={<RequireGuest><LoginPage /></RequireGuest>} />
-        <Route path="/register"        element={<RequireGuest><RegisterPage /></RequireGuest>} />
-        <Route path="/checkout"        element={<RequireAuth><CheckoutPage /></RequireAuth>} />
-        <Route path="/orders"          element={<RequireAuth><OrdersPage /></RequireAuth>} />
-        <Route path="/orders/:id"      element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
-        <Route path="/profile"         element={<RequireAuth><ProfilePage /></RequireAuth>} />
-        <Route path="/notifications"   element={<RequireAuth><NotificationsPage /></RequireAuth>} />
-        <Route path="/admin"           element={<RequireAuth><AdminDashboard /></RequireAuth>} />
-        <Route path="/admin/products"  element={<RequireAuth><AdminProducts /></RequireAuth>} />
-        <Route path="/admin/categories" element={<RequireAuth><AdminCategories /></RequireAuth>} />
-        <Route path="/admin/sellers"   element={<RequireAuth><AdminSellers /></RequireAuth>} />
-        <Route path="/admin/orders"    element={<RequireAuth><AdminOrders /></RequireAuth>} />
-        <Route path="/admin/users"     element={<RequireAuth><AdminUsers /></RequireAuth>} />
-        <Route path="*"                element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
-    <Toaster position="top-right" toastOptions={{
-      duration: 3500,
-      style: { borderRadius: '14px', fontSize: '14px', fontFamily: '"DM Sans", system-ui, sans-serif' },
-      success: { iconTheme: { primary: '#267d39', secondary: '#fff' } }
-    }} />
-  </BrowserRouter>
-)
+const App: React.FC = () => {
+  const location = useLocation()
+  useEffect(() => {
+    trackPageView(location.pathname)
+  }, [location.pathname])
+
+  return (
+    <BrowserRouter>
+      <ScrollTop />
+      <Suspense fallback={<Loader />}>
+        <Routes>
+          <Route path="/"                element={<HomePage />} />
+          <Route path="/products"        element={<ProductsPage />} />
+          <Route path="/products/:slug"  element={<ProductDetailPage />} />
+          <Route path="/about-us"        element={<AboutUsPage />} />
+          <Route path="/blog"            element={<BlogPage />} />
+          <Route path="/careers"         element={<CareersPage />} />
+          <Route path="/contact"         element={<ContactPage />} />
+          <Route path="/become-a-seller" element={<BecomeSellerPage />} />
+          <Route path="/shop-by-farms"   element={<ShopByFarmsPage />} />
+          <Route path="/farmers"         element={<ShopByFarmsPage />} />
+          <Route path="/farmer-stories"  element={<FarmerStoriesPage />} />
+          <Route path="/certifications"  element={<CertificationsPage />} />
+          <Route path="/login"           element={<RequireGuest><LoginPage /></RequireGuest>} />
+          <Route path="/register"        element={<RequireGuest><RegisterPage /></RequireGuest>} />
+          <Route path="/checkout"        element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+          <Route path="/orders"          element={<RequireAuth><OrdersPage /></RequireAuth>} />
+          <Route path="/orders/:id"      element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
+          <Route path="/wishlist"        element={<RequireAuth><WishlistPage /></RequireAuth>} />
+          <Route path="/seller/orders"   element={<RequireAuth role="farmer"><SellerOrdersPage /></RequireAuth>} />
+          <Route path="/seller/orders/:id" element={<RequireAuth role="farmer"><SellerOrderDetailPage /></RequireAuth>} />
+          <Route path="/profile"         element={<RequireAuth><ProfilePage /></RequireAuth>} />
+          <Route path="/notifications"   element={<RequireAuth><NotificationsPage /></RequireAuth>} />
+          <Route path="/admin"           element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+          <Route path="/admin/products"  element={<RequireAuth><AdminProducts /></RequireAuth>} />
+          <Route path="/admin/categories" element={<RequireAuth><AdminCategories /></RequireAuth>} />
+          <Route path="/admin/sellers"   element={<RequireAuth><AdminSellers /></RequireAuth>} />
+          <Route path="/admin/orders"    element={<RequireAuth><AdminOrders /></RequireAuth>} />
+          <Route path="/admin/users"     element={<RequireAuth><AdminUsers /></RequireAuth>} />
+          <Route path="*"                element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+      <Toaster position="top-right" toastOptions={{
+        duration: 3500,
+        style: { borderRadius: '14px', fontSize: '14px', fontFamily: '"DM Sans", system-ui, sans-serif' },
+        success: { iconTheme: { primary: '#267d39', secondary: '#fff' } }
+      }} />
+    </BrowserRouter>
+  )
+}
 
 export default App

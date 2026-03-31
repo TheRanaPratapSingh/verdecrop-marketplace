@@ -9,7 +9,7 @@ export const FarmerStoriesPage: React.FC = () => (
       <div className="space-y-4">
         {[
           { name: 'Radha from Karnataka', story: 'Switched to organic pulses and increased yield by 30%.' },
-          { name: 'Amit from Punjab', story: 'Now supplies 200+ families directly through VerdeCrop.' },
+          { name: 'Amit from Punjab', story: 'Now supplies 200+ families directly through Graamo.' },
           { name: 'Meena from Odisha', story: 'Earned a sustainable livelihood with coriander and herbs.' }
         ].map((farmer, idx) => (
           <article key={idx} className="bg-white rounded-2xl shadow-card p-5">

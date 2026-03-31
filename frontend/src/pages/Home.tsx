@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Sprout, Award } from 'lucide-react'
 import { categoryApi, productApi } from '../services/api'
 import { PageLayout } from '../components/layout'
 import { ProductGrid } from '../components/product'
 import type { Category, Product } from '../types'
+import toast from 'react-hot-toast'
 
 // Helper: Map category slugs to emoji and colors
 const getCategoryStyle = (slug?: string) => {
@@ -21,9 +22,25 @@ const getCategoryStyle = (slug?: string) => {
 }
 
 const HomePage: React.FC = () => {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [categories, setCategories] = useState<Category[]>([])
   const [featured, setFeatured] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const state = location.state as { registrationSuccess?: boolean; welcomeMessage?: string } | null
+    const sessionMessage = sessionStorage.getItem('postRegisterSuccess')
+    const message = state?.registrationSuccess
+      ? (state.welcomeMessage || 'Registration successful! Welcome to Graamo!')
+      : sessionMessage
+
+    if (message) {
+      toast.success(message)
+      sessionStorage.removeItem('postRegisterSuccess')
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.pathname, location.state, navigate])
 
   useEffect(() => {
     Promise.all([
@@ -186,7 +203,7 @@ const HomePage: React.FC = () => {
       <section className="bg-white border-y border-stone-100 py-16">
         <div className="max-w-7xl mx-auto px-6 sm:px-10">
           <div className="text-center mb-12">
-            <p className="section-label mb-3">Why VerdeCrop</p>
+            <p className="section-label mb-3">Why Graamo</p>
             <h2 className="font-display text-4xl font-semibold text-stone-900">Committed to purity & trust</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -218,7 +235,7 @@ const HomePage: React.FC = () => {
           {[
             { name: 'Priya Sharma', city: 'Bangalore', text: 'Finally found organic produce I can actually trust. My kids love the fresh vegetables and I love knowing exactly which farm they came from.', rating: 5 },
             { name: 'Rajesh Kumar', city: 'Delhi', text: 'The quality is exceptional — you can taste the difference immediately. The farmer connection feature is brilliant, I know exactly who grew my food.', rating: 5 },
-            { name: 'Anita Menon', city: 'Mumbai', text: 'VerdeCrop has completely changed how my family eats. Same-day delivery, zero pesticides, and the farmers are so passionate about what they grow.', rating: 5 },
+            { name: 'Anita Menon', city: 'Mumbai', text: 'Graamo has completely changed how my family eats. Same-day delivery, zero pesticides, and the farmers are so passionate about what they grow.', rating: 5 },
           ].map((t, i) => (
             <div key={t.name} className="card p-7 animate-fade-up" style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'both' }}>
               <div className="flex gap-1 mb-5">
@@ -254,7 +271,7 @@ const HomePage: React.FC = () => {
               Sell directly to<br />50,000+ families
             </h2>
             <p className="text-stone-400 font-body text-base leading-relaxed max-w-md">
-              Join VerdeCrop and reach health-conscious consumers who pay fair prices for quality organic produce. Zero commission on your first 100 orders.
+              Join Graamo and reach health-conscious consumers who pay fair prices for quality organic produce. Zero commission on your first 100 orders.
             </p>
           </div>
           <div className="relative z-10 flex flex-col items-center gap-3 flex-shrink-0">
