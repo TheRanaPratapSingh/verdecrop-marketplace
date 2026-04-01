@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import { useAuthStore } from '../store'
 
-const BASE_URL = '/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -116,7 +116,7 @@ export const wishlistApi = {
   remove: (productId: number) => unwrap<boolean>(api.delete(`/wishlist/${productId}`)),
 }
 
-// ── Categories ─────────────────────────────────────────────────────────────────
+// ── Categories ────────────────────────────────────────────────────────────────
 export const categoryApi = {
   getAll: () => unwrap<Category[]>(api.get('/categories')),
   getById: (id: number) => unwrap<Category>(api.get(`/categories/id/${id}`)),
@@ -135,7 +135,7 @@ export const farmerApi = {
   getById: (id: number) => unwrap<Farmer>(api.get(`/farmers/${id}`)),
   getMyProfile: () => unwrap<Farmer>(api.get('/farmers/me')),
   register: (data: object) => unwrap<Farmer>(api.post('/farmers/register', data)),
-  create: (data: object) => unwrap<Farmer>(api.post('/farmers/register', data)), // alias for frontend 'sellers' create
+  create: (data: object) => unwrap<Farmer>(api.post('/farmers/register', data)),
   update: (id: number, data: object) => unwrap<Farmer>(api.put(`/farmers/${id}`, data)),
   delete: (id: number) => unwrap<boolean>(api.delete(`/farmers/${id}`)),
   approve: (id: number, approve: boolean) => unwrap<boolean>(api.put(`/farmers/${id}/approve`, approve)),
