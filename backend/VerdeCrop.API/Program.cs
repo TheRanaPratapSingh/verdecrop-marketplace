@@ -31,8 +31,13 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
         sqlOpts => sqlOpts.CommandTimeout(60)));
 
 // ── JWT Auth ──────────────────────────────────────────────────────────────────
-var jwtKey = builder.Configuration["Jwt:SecretKey"]
-    ?? throw new InvalidOperationException("Jwt:SecretKey is required");
+var jwtKey = builder.Configuration["Jwt:SecretKey"];
+
+if (string.IsNullOrEmpty(jwtKey))
+{
+    Console.WriteLine("JWT KEY IS NULL ❌");
+    jwtKey = "CHANGE_THIS_TO_A_32_CHAR_MIN_SECRET_KEY_IN_PRODUCTION"; // fallback
+}
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
@@ -213,6 +218,7 @@ app.UseSwaggerUI(c =>
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");  // ← Must be before UseAuthentication
 app.UseAuthentication();
+app.UseAuthorization();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
