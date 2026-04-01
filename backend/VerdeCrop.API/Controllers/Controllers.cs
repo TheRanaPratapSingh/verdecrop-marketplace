@@ -15,8 +15,57 @@ namespace VerdeCrop.API.Controllers
         protected string CurrentUserRole => User.FindFirstValue(ClaimTypes.Role) ?? "";
     }
 
-    // ── Auth — handled by DevAuthController in Debug, AuthServiceController in Release ──
-    // (AuthController moved to DevAuthController.cs for clean dev/prod separation)
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    [Route("api/auth")]
+    public class AuthController : BaseController
+    {
+        private readonly IAuthService _auth;
+        public AuthController(IAuthService auth) { _auth = auth; }
+
+        [HttpPost("send-otp")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest req)
+        {
+            try
+            {
+                var result = await _auth.SendOtpAsync(req);
+                return result
+                    ? Ok(ApiResponse.Ok(true, "OTP sent successfully"))
+                    : BadRequest(ApiResponse.Fail("Failed to send OTP"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(429, ApiResponse.Fail(ex.Message));
+            }
+        }
+
+        [HttpPost("verify-otp")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest req)
+        {
+            var result = await _auth.VerifyOtpAsync(req);
+            return result != null
+                ? Ok(ApiResponse.Ok(result))
+                : Unauthorized(ApiResponse.Fail("Invalid or expired OTP"));
+        }
+
+        [HttpPost("refresh")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest req)
+        {
+            var result = await _auth.RefreshTokenAsync(req.Token);
+            return result != null
+                ? Ok(ApiResponse.Ok(result))
+                : Unauthorized(ApiResponse.Fail("Invalid refresh token"));
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest req)
+        {
+            await _auth.LogoutAsync(req.RefreshToken);
+            return Ok(ApiResponse.Ok(true));
+        }
+    }
 
     // ── Users ─────────────────────────────────────────────────────────────────
     [Route("api/users")]
