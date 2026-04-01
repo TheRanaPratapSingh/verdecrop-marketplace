@@ -2,7 +2,7 @@
 
 
 
-const CDN_BASE_URL = import.meta.env.VITE_CDN_BASE_URL ||"https://graamo-cwb0f0g8hdbhgkhbq.centralindia-01.azurewebsites.net";
+const CDN_BASE_URL = import.meta.env.VITE_CDN_BASE_URL ||"https://graamo-cwb0f0g8hdbghkbq.centralindia-01.azurewebsites.net";
 
 const normalizeRelative = (path: string) => {
   if (!path) return undefined
