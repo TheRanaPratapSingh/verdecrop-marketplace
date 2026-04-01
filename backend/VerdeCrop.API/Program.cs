@@ -61,7 +61,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
+        policy.WithOrigins(
+                    "http://localhost:3000",
+                    "http://localhost:3001",
+                    "https://salmon-meadow-02363df00.6.azurestaticapps.net"
+                )
               .AllowAnyHeader()
               .AllowAnyMethod();
         // ❌ NO AllowCredentials (this was causing your issue)
