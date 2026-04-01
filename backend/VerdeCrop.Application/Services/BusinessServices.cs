@@ -195,80 +195,116 @@ namespace VerdeCrop.Application.Services
 
         public async Task<PagedResult<ProductListDto>> GetAllAsync(ProductQueryParams q)
         {
-            var query = _uow.Products.Query()
-                .Include(p => p.Category)
-                .Include(p => p.Farmer).ThenInclude(f => f.User)
-                .Where(p => p.IsActive);
-
-            if (!string.IsNullOrWhiteSpace(q.Search))
-                query = query.Where(p => p.Name.Contains(q.Search) || (p.Description != null && p.Description.Contains(q.Search)));
-            if (q.CategoryId.HasValue) query = query.Where(p => p.CategoryId == q.CategoryId);
-            if (q.FarmerId.HasValue) query = query.Where(p => p.FarmerId == q.FarmerId);
-            if (q.MinPrice.HasValue) query = query.Where(p => p.Price >= q.MinPrice);
-            if (q.MaxPrice.HasValue) query = query.Where(p => p.Price <= q.MaxPrice);
-            if (q.IsOrganic.HasValue) query = query.Where(p => p.IsOrganic == q.IsOrganic);
-            if (q.IsFeatured.HasValue) query = query.Where(p => p.IsFeatured == q.IsFeatured);
-            if (q.InStock == true) query = query.Where(p => p.StockQuantity > 0);
-
-            query = q.SortBy switch
+            try
             {
-                "price_asc" => query.OrderBy(p => p.Price),
-                "price_desc" => query.OrderByDescending(p => p.Price),
-                "rating" => query.OrderByDescending(p => p.Rating),
-                "popular" => query.OrderByDescending(p => p.ReviewCount),
-                _ => query.OrderByDescending(p => p.CreatedAt)
-            };
+                var query = _uow.Products.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Farmer)
+                    .Where(p => p.IsActive);
 
-            var total = await query.CountAsync();
-            var items = await query.Skip((q.Page - 1) * q.PageSize).Take(q.PageSize).ToListAsync();
+                if (!string.IsNullOrWhiteSpace(q.Search))
+                    query = query.Where(p => p.Name.Contains(q.Search) || (p.Description != null && p.Description.Contains(q.Search)));
+                if (q.CategoryId.HasValue) query = query.Where(p => p.CategoryId == q.CategoryId);
+                if (q.FarmerId.HasValue) query = query.Where(p => p.FarmerId == q.FarmerId);
+                if (q.MinPrice.HasValue) query = query.Where(p => p.Price >= q.MinPrice);
+                if (q.MaxPrice.HasValue) query = query.Where(p => p.Price <= q.MaxPrice);
+                if (q.IsOrganic.HasValue) query = query.Where(p => p.IsOrganic == q.IsOrganic);
+                if (q.IsFeatured.HasValue) query = query.Where(p => p.IsFeatured == q.IsFeatured);
+                if (q.InStock == true) query = query.Where(p => p.StockQuantity > 0);
 
-            return new PagedResult<ProductListDto>(
-                items.Select(ToListDto).ToList(),
-                total, q.Page, q.PageSize,
-                (int)Math.Ceiling((double)total / q.PageSize));
+                query = q.SortBy switch
+                {
+                    "price_asc" => query.OrderBy(p => p.Price),
+                    "price_desc" => query.OrderByDescending(p => p.Price),
+                    "rating" => query.OrderByDescending(p => p.Rating),
+                    "popular" => query.OrderByDescending(p => p.ReviewCount),
+                    _ => query.OrderByDescending(p => p.CreatedAt)
+                };
+
+                var total = await query.CountAsync();
+                var items = await query.Skip((q.Page - 1) * q.PageSize).Take(q.PageSize).ToListAsync();
+
+                return new PagedResult<ProductListDto>(
+                    items.Select(ToListDto).ToList(),
+                    total, q.Page, q.PageSize,
+                    (int)Math.Ceiling((double)total / q.PageSize));
+            }
+            catch
+            {
+                return new PagedResult<ProductListDto>(
+                    new List<ProductListDto>(), 0, q.Page, q.PageSize, 0);
+            }
         }
 
         public async Task<ProductDetailDto?> GetByIdAsync(int id)
         {
-            var p = await _uow.Products.Query()
-                .Include(x => x.Category)
-                .Include(x => x.Farmer).ThenInclude(f => f.User)
-                .Include(x => x.Reviews).ThenInclude(r => r.User)
-                .FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
-            return p == null ? null : ToDetailDto(p);
+            try
+            {
+                var p = await _uow.Products.Query()
+                    .Include(x => x.Category)
+                    .Include(x => x.Farmer)
+                    .Include(x => x.Reviews).ThenInclude(r => r.User)
+                    .FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
+                return p == null ? null : ToDetailDto(p);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<ProductDetailDto?> GetBySlugAsync(string slug)
         {
-            var p = await _uow.Products.Query()
-                .Include(x => x.Category)
-                .Include(x => x.Farmer).ThenInclude(f => f.User)
-                .Include(x => x.Reviews).ThenInclude(r => r.User)
-                .FirstOrDefaultAsync(x => x.Slug == slug && x.IsActive);
-            return p == null ? null : ToDetailDto(p);
+            try
+            {
+                var p = await _uow.Products.Query()
+                    .Include(x => x.Category)
+                    .Include(x => x.Farmer)
+                    .Include(x => x.Reviews).ThenInclude(r => r.User)
+                    .FirstOrDefaultAsync(x => x.Slug == slug && x.IsActive);
+                return p == null ? null : ToDetailDto(p);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<List<ProductListDto>> GetFeaturedAsync(int count = 8)
         {
-            var result = await _uow.Products.Query()
-                .Include(p => p.Category)
-                .Include(p => p.Farmer).ThenInclude(f => f.User)
-                .Where(p => p.IsActive && p.IsFeatured)
-                .OrderByDescending(p => p.Rating)
-                .Take(count)
-                .ToListAsync();
-            return result.Select(ToListDto).ToList();
+            try
+            {
+                var result = await _uow.Products.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Farmer)
+                    .Where(p => p.IsActive && p.IsFeatured)
+                    .OrderByDescending(p => p.Rating)
+                    .Take(count)
+                    .ToListAsync();
+                return result.Select(ToListDto).ToList();
+            }
+            catch
+            {
+                return new List<ProductListDto>();
+            }
         }
 
         public async Task<List<ProductListDto>> GetByFarmerAsync(int farmerId)
         {
-            var products = await _uow.Products.Query()
-                .Include(p => p.Category)
-                .Include(p => p.Farmer).ThenInclude(f => f.User)
-                .Where(p => p.FarmerId == farmerId)
-                .OrderByDescending(p => p.CreatedAt)
-                .ToListAsync();
-            return products.Select(ToListDto).ToList();
+            try
+            {
+                var products = await _uow.Products.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Farmer)
+                    .Where(p => p.FarmerId == farmerId)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToListAsync();
+                return products.Select(ToListDto).ToList();
+            }
+            catch
+            {
+                return new List<ProductListDto>();
+            }
         }
 
         // ── FIX: Now saves Description, ImageUrl, ImageUrls, IsFeatured ──────
@@ -416,12 +452,12 @@ namespace VerdeCrop.Application.Services
             p.CategoryId, p.Category?.Name ?? "",
             p.FarmerId, p.Farmer?.FarmName ?? "", p.Farmer?.Location ?? "",
             p.Price, p.OriginalPrice, p.Unit, p.MinOrderQty, p.StockQuantity,
-            p.ImageUrl, p.ImageUrls, p.IsOrganic, p.IsFeatured,
+            p.ImageUrl, p.ImageUrls ?? new List<string>(), p.IsOrganic, p.IsFeatured,
             p.Rating, p.ReviewCount, p.IsActive,
             p.Reviews?.Select(r => new ReviewDto(
                 r.Id, r.UserId, r.User?.Name ?? "", r.User?.AvatarUrl,
                 r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
-            )).ToList() ?? new());
+            )).ToList() ?? new List<ReviewDto>());
     }
 
     // ── Order Service ─────────────────────────────────────────────────────────

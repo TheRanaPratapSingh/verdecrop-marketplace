@@ -175,35 +175,38 @@ builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 var app = builder.Build();
 
 // ── Global error handler ──────────────────────────────────────────────────────
-app.UseExceptionHandler(errApp =>
+app.UseExceptionHandler(errorApp =>
 {
-    errApp.Run(async ctx =>
+    errorApp.Run(async context =>
     {
-        ctx.Response.ContentType = "application/json";
-        ctx.Response.StatusCode = 500;
-        var feature = ctx.Features
-            .Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        var feature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
         var ex = feature?.Error;
-        var isDev = app.Environment.IsDevelopment();
-        var msg = isDev
-            ? $"{ex?.GetType().Name}: {ex?.Message} | {ex?.InnerException?.Message}"
-            : "Internal server error";
-        Console.WriteLine($"[UNHANDLED] {ex?.GetType().Name}: {ex?.Message}");
-        await ctx.Response.WriteAsJsonAsync(new { success = false, message = msg });
+        var message = app.Environment.IsDevelopment() ? ex?.Message : "Internal server error";
+        await context.Response.WriteAsJsonAsync(new { success = false, message });
     });
 });
 
 // ── Auto Migration ────────────────────────────────────────────────────────────
-try
+var autoMigrateOnStartup = builder.Configuration.GetValue<bool?>("Database:AutoMigrateOnStartup")
+    ?? app.Environment.IsDevelopment();
+
+if (autoMigrateOnStartup)
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-    Log.Information("Database migration completed");
-}
-catch (Exception ex)
-{
-    Log.Error(ex, "Database migration failed");
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.Migrate();
+        Log.Information("Database migration completed successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Database migration failed during startup.");
+        if (app.Environment.IsDevelopment())
+            throw;
+    }
 }
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────

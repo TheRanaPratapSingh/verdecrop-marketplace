@@ -553,30 +553,51 @@ namespace VerdeCrop.Infrastructure.Services
 
         public async Task<List<CategoryDto>> GetAllAsync()
         {
-            var result = await _uow.Categories.Query()
-                .Where(c => c.IsActive)
-                .OrderBy(c => c.DisplayOrder)
-                .Select(c => new CategoryDto(
-                    c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
-                    c.DisplayOrder, c.Products.Count(p => p.IsActive)))
-                .ToListAsync();
-            return result;
+            try
+            {
+                var result = await _uow.Categories.Query()
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.DisplayOrder)
+                    .Select(c => new CategoryDto(
+                        c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
+                        c.DisplayOrder, c.Products != null ? c.Products.Count(p => p.IsActive) : 0))
+                    .ToListAsync();
+                return result;
+            }
+            catch
+            {
+                return new List<CategoryDto>();
+            }
         }
 
         public async Task<CategoryDto?> GetByIdAsync(int id)
         {
-            var c = await _uow.Categories.Query()
-                .Include(x => x.Products)
-                .FirstOrDefaultAsync(x => x.Id == id);
-            return c == null ? null : ToDto(c);
+            try
+            {
+                var c = await _uow.Categories.Query()
+                    .Include(x => x.Products)
+                    .FirstOrDefaultAsync(x => x.Id == id);
+                return c == null ? null : ToDto(c);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<CategoryDto?> GetBySlugAsync(string slug)
         {
-            var c = await _uow.Categories.Query()
-                .Include(x => x.Products)
-                .FirstOrDefaultAsync(x => x.Slug == slug && x.IsActive);
-            return c == null ? null : ToDto(c);
+            try
+            {
+                var c = await _uow.Categories.Query()
+                    .Include(x => x.Products)
+                    .FirstOrDefaultAsync(x => x.Slug == slug && x.IsActive);
+                return c == null ? null : ToDto(c);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         // ── FIX: CreateAsync — was missing, now includes slug dedup ──────────
