@@ -198,8 +198,6 @@ namespace VerdeCrop.Application.Services
             try
             {
                 var query = _uow.Products.Query()
-                    .Include(p => p.Category)
-                    .Include(p => p.Farmer)
                     .Where(p => p.IsActive);
 
                 if (!string.IsNullOrWhiteSpace(q.Search))
@@ -222,11 +220,20 @@ namespace VerdeCrop.Application.Services
                 };
 
                 var total = await query.CountAsync();
-                var items = await query.Skip((q.Page - 1) * q.PageSize).Take(q.PageSize).ToListAsync();
+                var items = await query
+                    .Skip((q.Page - 1) * q.PageSize)
+                    .Take(q.PageSize)
+                    .Select(p => new ProductListDto(
+                        p.Id, p.Name, p.Slug,
+                        p.CategoryId, p.Category != null ? p.Category.Name : "",
+                        p.FarmerId, p.Farmer != null ? p.Farmer.FarmName : "",
+                        p.Price, p.OriginalPrice, p.Unit, p.StockQuantity,
+                        p.ImageUrl, p.IsOrganic, p.IsFeatured,
+                        p.Rating, p.ReviewCount, p.IsActive))
+                    .ToListAsync();
 
                 return new PagedResult<ProductListDto>(
-                    items.Select(ToListDto).ToList(),
-                    total, q.Page, q.PageSize,
+                    items, total, q.Page, q.PageSize,
                     (int)Math.Ceiling((double)total / q.PageSize));
             }
             catch
@@ -240,12 +247,24 @@ namespace VerdeCrop.Application.Services
         {
             try
             {
-                var p = await _uow.Products.Query()
-                    .Include(x => x.Category)
-                    .Include(x => x.Farmer)
-                    .Include(x => x.Reviews).ThenInclude(r => r.User)
-                    .FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
-                return p == null ? null : ToDetailDto(p);
+                var result = await _uow.Products.Query()
+                    .Where(x => x.Id == id && x.IsActive)
+                    .Select(p => new ProductDetailDto(
+                        p.Id, p.Name, p.Slug, p.Description,
+                        p.CategoryId, p.Category != null ? p.Category.Name : "",
+                        p.FarmerId, p.Farmer != null ? p.Farmer.FarmName : "",
+                        p.Farmer != null ? p.Farmer.Location : "",
+                        p.Price, p.OriginalPrice, p.Unit, p.MinOrderQty, p.StockQuantity,
+                        p.ImageUrl, p.ImageUrls, p.IsOrganic, p.IsFeatured,
+                        p.Rating, p.ReviewCount, p.IsActive,
+                        p.Reviews.Select(r => new ReviewDto(
+                            r.Id, r.UserId,
+                            r.User != null ? r.User.Name : "",
+                            r.User != null ? r.User.AvatarUrl : null,
+                            r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
+                        )).ToList()))
+                    .FirstOrDefaultAsync();
+                return result;
             }
             catch
             {
@@ -257,12 +276,24 @@ namespace VerdeCrop.Application.Services
         {
             try
             {
-                var p = await _uow.Products.Query()
-                    .Include(x => x.Category)
-                    .Include(x => x.Farmer)
-                    .Include(x => x.Reviews).ThenInclude(r => r.User)
-                    .FirstOrDefaultAsync(x => x.Slug == slug && x.IsActive);
-                return p == null ? null : ToDetailDto(p);
+                var result = await _uow.Products.Query()
+                    .Where(x => x.Slug == slug && x.IsActive)
+                    .Select(p => new ProductDetailDto(
+                        p.Id, p.Name, p.Slug, p.Description,
+                        p.CategoryId, p.Category != null ? p.Category.Name : "",
+                        p.FarmerId, p.Farmer != null ? p.Farmer.FarmName : "",
+                        p.Farmer != null ? p.Farmer.Location : "",
+                        p.Price, p.OriginalPrice, p.Unit, p.MinOrderQty, p.StockQuantity,
+                        p.ImageUrl, p.ImageUrls, p.IsOrganic, p.IsFeatured,
+                        p.Rating, p.ReviewCount, p.IsActive,
+                        p.Reviews.Select(r => new ReviewDto(
+                            r.Id, r.UserId,
+                            r.User != null ? r.User.Name : "",
+                            r.User != null ? r.User.AvatarUrl : null,
+                            r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
+                        )).ToList()))
+                    .FirstOrDefaultAsync();
+                return result;
             }
             catch
             {
@@ -275,13 +306,18 @@ namespace VerdeCrop.Application.Services
             try
             {
                 var result = await _uow.Products.Query()
-                    .Include(p => p.Category)
-                    .Include(p => p.Farmer)
                     .Where(p => p.IsActive && p.IsFeatured)
                     .OrderByDescending(p => p.Rating)
                     .Take(count)
+                    .Select(p => new ProductListDto(
+                        p.Id, p.Name, p.Slug,
+                        p.CategoryId, p.Category != null ? p.Category.Name : "",
+                        p.FarmerId, p.Farmer != null ? p.Farmer.FarmName : "",
+                        p.Price, p.OriginalPrice, p.Unit, p.StockQuantity,
+                        p.ImageUrl, p.IsOrganic, p.IsFeatured,
+                        p.Rating, p.ReviewCount, p.IsActive))
                     .ToListAsync();
-                return result.Select(ToListDto).ToList();
+                return result;
             }
             catch
             {
@@ -294,12 +330,17 @@ namespace VerdeCrop.Application.Services
             try
             {
                 var products = await _uow.Products.Query()
-                    .Include(p => p.Category)
-                    .Include(p => p.Farmer)
                     .Where(p => p.FarmerId == farmerId)
                     .OrderByDescending(p => p.CreatedAt)
+                    .Select(p => new ProductListDto(
+                        p.Id, p.Name, p.Slug,
+                        p.CategoryId, p.Category != null ? p.Category.Name : "",
+                        p.FarmerId, p.Farmer != null ? p.Farmer.FarmName : "",
+                        p.Price, p.OriginalPrice, p.Unit, p.StockQuantity,
+                        p.ImageUrl, p.IsOrganic, p.IsFeatured,
+                        p.Rating, p.ReviewCount, p.IsActive))
                     .ToListAsync();
-                return products.Select(ToListDto).ToList();
+                return products;
             }
             catch
             {

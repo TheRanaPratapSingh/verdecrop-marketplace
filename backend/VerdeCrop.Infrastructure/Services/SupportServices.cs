@@ -560,7 +560,8 @@ namespace VerdeCrop.Infrastructure.Services
                     .OrderBy(c => c.DisplayOrder)
                     .Select(c => new CategoryDto(
                         c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
-                        c.DisplayOrder, c.Products != null ? c.Products.Count(p => p.IsActive) : 0))
+                        c.DisplayOrder,
+                        c.Products.Where(p => p.IsActive).Count()))
                     .ToListAsync();
                 return result;
             }
@@ -574,10 +575,14 @@ namespace VerdeCrop.Infrastructure.Services
         {
             try
             {
-                var c = await _uow.Categories.Query()
-                    .Include(x => x.Products)
-                    .FirstOrDefaultAsync(x => x.Id == id);
-                return c == null ? null : ToDto(c);
+                var result = await _uow.Categories.Query()
+                    .Where(c => c.Id == id)
+                    .Select(c => new CategoryDto(
+                        c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
+                        c.DisplayOrder,
+                        c.Products.Where(p => p.IsActive).Count()))
+                    .FirstOrDefaultAsync();
+                return result;
             }
             catch
             {
@@ -589,10 +594,14 @@ namespace VerdeCrop.Infrastructure.Services
         {
             try
             {
-                var c = await _uow.Categories.Query()
-                    .Include(x => x.Products)
-                    .FirstOrDefaultAsync(x => x.Slug == slug && x.IsActive);
-                return c == null ? null : ToDto(c);
+                var result = await _uow.Categories.Query()
+                    .Where(c => c.Slug == slug && c.IsActive)
+                    .Select(c => new CategoryDto(
+                        c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
+                        c.DisplayOrder,
+                        c.Products.Where(p => p.IsActive).Count()))
+                    .FirstOrDefaultAsync();
+                return result;
             }
             catch
             {
