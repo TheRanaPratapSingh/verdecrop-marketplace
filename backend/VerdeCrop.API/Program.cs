@@ -55,16 +55,27 @@ builder.Services.AddAuthorization();
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>()
-    ?? new[] { "http://localhost:3000" };
+    ?? new[] { "http://localhost:3000", "http://localhost:3001", "http://localhost:3002" };
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-        // ❌ NO AllowCredentials (this was causing your issue)
+        policy
+            .SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
+                if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)) return true;
+
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return uri.Host.EndsWith(".azurestaticapps.net", StringComparison.OrdinalIgnoreCase);
+                }
+
+                return false;
+            })
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 
