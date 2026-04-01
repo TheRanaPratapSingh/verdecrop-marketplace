@@ -13,14 +13,17 @@ namespace VerdeCrop.Infrastructure.Services
             _cache = cache;
         }
 
-        public async Task SetAsync<T>(string key, T value, TimeSpan expiration)
+        public async Task SetAsync<T>(string key, T value, TimeSpan? expiry = null)
         {
             var json = JsonSerializer.Serialize(value);
 
-            await _cache.SetStringAsync(key, json, new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = expiration
-            });
+            var options = new DistributedCacheEntryOptions();
+            if (expiry.HasValue)
+                options.AbsoluteExpirationRelativeToNow = expiry.Value;
+            else
+                options.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30);
+
+            await _cache.SetStringAsync(key, json, options);
         }
 
         public async Task<T?> GetAsync<T>(string key)
@@ -40,14 +43,8 @@ namespace VerdeCrop.Infrastructure.Services
 
         public async Task DeleteByPrefixAsync(string prefix)
         {
-            // ⚠️ DistributedMemoryCache doesn't support scanning keys
-            // So this is a NO-OP for now (safe for dev)
+            // DistributedMemoryCache doesn't support scanning keys — NO-OP for now
             await Task.CompletedTask;
-        }
-
-        Task ICacheService.SetAsync<T>(string key, T value, TimeSpan? expiry)
-        {
-            throw new NotImplementedException();
         }
     }
 }

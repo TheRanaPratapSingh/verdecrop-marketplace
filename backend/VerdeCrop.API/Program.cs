@@ -107,6 +107,10 @@ try
 }
 catch { }
 
+// ── Caching ───────────────────────────────────────────────────────────────────
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddScoped<ICacheService, MemoryCacheService>();
+
 // ── Dependency Injection ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -221,7 +225,6 @@ app.UseSwaggerUI(c =>
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");  // ← Must be before UseAuthentication
 app.UseAuthentication();
-app.UseAuthorization();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
