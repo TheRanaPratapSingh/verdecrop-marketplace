@@ -16,7 +16,7 @@ using VerdeCrop.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Serilog ─────────────────────────────────────────
+// ── Serilog ───────────────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
@@ -24,13 +24,13 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 builder.Host.UseSerilog();
 
-// ── Database ────────────────────────────────────────
+// ── Database ──────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOpts => sqlOpts.CommandTimeout(60)));
 
-// ── JWT Auth ────────────────────────────────────────
+// ── JWT Auth ──────────────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:SecretKey"]
     ?? throw new InvalidOperationException("Jwt:SecretKey is required");
 
@@ -51,43 +51,49 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// ── ✅ CORS FIX (IMPORTANT) ─────────────────────────
+// ── CORS ──────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .AllowAnyOrigin()
+            .WithOrigins(
+                "https://salmon-meadow-02363df00.6.azurestaticapps.net",
+                "http://localhost:3000",
+                "http://localhost:5173"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod()
+            .AllowCredentials()
             .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
 });
 
-// ── Rate Limiting ──────────────────────────────────
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
 builder.Services.AddRateLimiter(opt =>
 {
     opt.RejectionStatusCode = 429;
-
     opt.AddFixedWindowLimiter("api", o =>
     {
         o.Window = TimeSpan.FromMinutes(1);
         o.PermitLimit = 1000;
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         o.QueueLimit = 200;
     });
-
     opt.AddFixedWindowLimiter("auth", o =>
     {
         o.Window = TimeSpan.FromMinutes(15);
         o.PermitLimit = 200;
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         o.QueueLimit = 50;
     });
 });
 
-// ── Firebase (optional) ────────────────────────────
+// ── Firebase (optional) ───────────────────────────────────────────────────────
 try
 {
-    var credPath = builder.Configuration["Firebase:CredentialsPath"] ?? "firebase-credentials.json";
+    var credPath = builder.Configuration["Firebase:CredentialsPath"]
+        ?? "firebase-credentials.json";
     if (File.Exists(credPath))
         FirebaseApp.Create(new AppOptions
         {
@@ -96,9 +102,8 @@ try
 }
 catch { }
 
-// ── Dependency Injection ───────────────────────────
+// ── Dependency Injection ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -115,70 +120,102 @@ builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IWishlistService, WishlistService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
-
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 
-// ── Controllers + Swagger ──────────────────────────
-builder.Services.AddControllers();
-
+// ── Controllers + Swagger ─────────────────────────────────────────────────────
+builder.Services.AddControllers().AddJsonOptions(o =>
+{
+    o.JsonSerializerOptions.PropertyNamingPolicy =
+        System.Text.Json.JsonNamingPolicy.CamelCase;
+    o.JsonSerializerOptions.DefaultIgnoreCondition =
+        System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Graamo API",
-        Version = "v1"
+        Version = "v1",
+        Description = "Organic Marketplace REST API"
     });
-
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        In = ParameterLocation.Header
+        In = ParameterLocation.Header,
+        Description = "Enter: Bearer {your-jwt-token}"
     });
-
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+    {{
+        new OpenApiSecurityScheme
         {
-            new OpenApiSecurityScheme
+            Reference = new OpenApiReference
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            new string[] {}
-        }
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        },
+        Array.Empty<string>()
+    }});
+});
+
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
+
+// ── Build app ─────────────────────────────────────────────────────────────────
+var app = builder.Build();
+
+// ── Global error handler ──────────────────────────────────────────────────────
+app.UseExceptionHandler(errApp =>
+{
+    errApp.Run(async ctx =>
+    {
+        ctx.Response.ContentType = "application/json";
+        ctx.Response.StatusCode = 500;
+        var feature = ctx.Features
+            .Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        var ex = feature?.Error;
+        var isDev = app.Environment.IsDevelopment();
+        var msg = isDev
+            ? $"{ex?.GetType().Name}: {ex?.Message} | {ex?.InnerException?.Message}"
+            : "Internal server error";
+        Console.WriteLine($"[UNHANDLED] {ex?.GetType().Name}: {ex?.Message}");
+        await ctx.Response.WriteAsJsonAsync(new { success = false, message = msg });
     });
 });
 
-// ── Build app ──────────────────────────────────────
-var app = builder.Build();
-
-// ── Auto Migration ─────────────────────────────────
-using (var scope = app.Services.CreateScope())
+// ── Auto Migration ────────────────────────────────────────────────────────────
+try
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    Log.Information("Database migration completed");
+}
+catch (Exception ex)
+{
+    Log.Error(ex, "Database migration failed");
 }
 
-// ── Middleware ─────────────────────────────────────
+// ── Middleware pipeline ───────────────────────────────────────────────────────
+app.UseSerilogRequestLogging();
+app.UseRateLimiter();
 app.UseSwagger();
-app.UseSwaggerUI();
-
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Graamo API v1");
+    c.RoutePrefix = "swagger";
+});
 app.UseHttpsRedirection();
-
-// ✅ IMPORTANT ORDER
-app.UseCors("AllowFrontend");
-
+app.UseCors("AllowFrontend");  // ← Must be before UseAuthentication
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
+app.MapHealthChecks("/health");
 
+Log.Information("Graamo API started");
 app.Run();
