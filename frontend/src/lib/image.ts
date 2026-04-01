@@ -1,4 +1,8 @@
-const CDN_BASE_URL = import.meta.env.VITE_CDN_BASE_URL || 'https://cdn.verdecrop.com'
+
+
+
+
+const CDN_BASE_URL = import.meta.env.VITE_CDN_BASE_URL ||"https://graamo-cwb0f08hdbghkb.centralindia-01.azurewebsites.net";
 
 const normalizeRelative = (path: string) => {
   if (!path) return undefined
