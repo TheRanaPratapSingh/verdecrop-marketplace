@@ -59,14 +59,12 @@ const RequireAuth: React.FC<{ children: React.ReactNode; role?: string }> = ({ c
   const isHydrated = useAuthStore.persist.hasHydrated()
   const location = useLocation()
 
-  // Normalize user role for comparison
   const userRole = (user?.role || '').toString().trim().toLowerCase()
   const requiredRole = (role || '').toString().trim().toLowerCase()
 
   if (!isHydrated) return <Loader />
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
   
-  // If role is required, check if it matches
   if (requiredRole && userRole !== requiredRole) {
     console.warn(`Access denied: user role "${userRole}" does not match required role "${requiredRole}"`)
     return <Navigate to="/" replace />
@@ -82,14 +80,16 @@ const RequireGuest: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>
 }
 
-const App: React.FC = () => {
+// ── This inner component can safely use useLocation ──────────────────────────
+const AppRoutes: React.FC = () => {
   const location = useLocation()
+
   useEffect(() => {
     trackPageView(location.pathname)
   }, [location.pathname])
 
   return (
-    <BrowserRouter>
+    <>
       <ScrollTop />
       <Suspense fallback={<Loader />}>
         <Routes>
@@ -121,7 +121,7 @@ const App: React.FC = () => {
           <Route path="/admin/sellers"   element={<RequireAuth><AdminSellers /></RequireAuth>} />
           <Route path="/admin/orders"    element={<RequireAuth><AdminOrders /></RequireAuth>} />
           <Route path="/admin/users"     element={<RequireAuth><AdminUsers /></RequireAuth>} />
-          <Route path="*"                element={<Navigate to="/" replace />} />
+          <Route path="*"               element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
       <Toaster position="top-right" toastOptions={{
@@ -129,6 +129,15 @@ const App: React.FC = () => {
         style: { borderRadius: '14px', fontSize: '14px', fontFamily: '"DM Sans", system-ui, sans-serif' },
         success: { iconTheme: { primary: '#267d39', secondary: '#fff' } }
       }} />
+    </>
+  )
+}
+
+// ── App wraps everything in BrowserRouter ─────────────────────────────────────
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
     </BrowserRouter>
   )
 }
