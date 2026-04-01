@@ -52,30 +52,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // ── ✅ CORS FIX (IMPORTANT) ─────────────────────────
-var allowedOrigins = builder.Configuration
-    .GetSection("Cors:AllowedOrigins")
-    .Get<string[]>()
-    ?? new[] { "http://localhost:3000", "http://localhost:3001", "http://localhost:3002" };
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .SetIsOriginAllowed(origin =>
-            {
-                if (string.IsNullOrWhiteSpace(origin)) return false;
-                if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)) return true;
-
-                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                {
-                    return uri.Host.EndsWith(".azurestaticapps.net", StringComparison.OrdinalIgnoreCase);
-                }
-
-                return false;
-            })
+            .AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
 });
 
@@ -87,14 +72,15 @@ builder.Services.AddRateLimiter(opt =>
     opt.AddFixedWindowLimiter("api", o =>
     {
         o.Window = TimeSpan.FromMinutes(1);
-        o.PermitLimit = 100;
-        o.QueueLimit = 5;
+        o.PermitLimit = 1000;
+        o.QueueLimit = 200;
     });
 
     opt.AddFixedWindowLimiter("auth", o =>
     {
         o.Window = TimeSpan.FromMinutes(15);
-        o.PermitLimit = 20;
+        o.PermitLimit = 200;
+        o.QueueLimit = 50;
     });
 });
 
