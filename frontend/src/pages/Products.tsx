@@ -98,10 +98,10 @@ export const ProductsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
           {/* ── Filter Sidebar ── */}
-          <aside className={`${filtersOpen ? 'block' : 'hidden'} lg:block w-56 flex-shrink-0`}>
-            <div className="bg-white rounded-2xl shadow-card p-5 sticky top-20 space-y-6">
+          <aside className={`${filtersOpen ? 'block' : 'hidden'} lg:block`}>
+            <div className="bg-white rounded-2xl shadow-card p-5 sticky top-24 space-y-6 max-h-[calc(100vh-7rem)] overflow-y-auto">
               {/* Categories */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 font-body">Category</h3>
@@ -188,7 +188,7 @@ export const ProductsPage: React.FC = () => {
           </aside>
 
           {/* ── Product Grid ── */}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0">
             {products.length === 0 && !loading ? (
               <EmptyState title="No products found" description="Try adjusting your filters or search terms." />
             ) : (

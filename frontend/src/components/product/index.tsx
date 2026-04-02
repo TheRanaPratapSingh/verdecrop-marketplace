@@ -100,15 +100,15 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0
 
   return (
-    <Link to={`/products/${product.slug}`} className="group block">
-      <div className="bg-white rounded-[26px] shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:-translate-y-1">
+    <Link to={`/products/${product.slug}`} className="group block h-full">
+      <div className="bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden hover:-translate-y-1 h-full flex flex-col">
         {/* Image */}
         <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-stone-50 aspect-[4/3]">
           {imageSrc ? (
             <img
               src={imageSrc}
               alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
               onError={handleImageError}
             />
@@ -117,26 +117,24 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
           )}
 
           {/* Badges */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+          <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
             {product.isOrganic && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-forest-700/90 backdrop-blur-sm rounded-full">
-                <Leaf className="w-2.5 h-2.5 text-white" strokeWidth={2} />
-                <span className="text-[9px] font-label font-bold text-white tracking-widest uppercase">Organic</span>
-              </div>
+              <span className="badge-organic">
+                <Leaf className="w-2.5 h-2.5" strokeWidth={2.5} />
+                Organic
+              </span>
             )}
             {discount > 0 && (
-              <div className="px-2 py-0.5 bg-red-500 rounded-full">
-                <span className="text-[9px] font-label font-bold text-white">-{discount}%</span>
-              </div>
+              <span className="badge-discount">-{discount}%</span>
             )}
           </div>
 
           {/* Wishlist */}
           <button
             onClick={e => { e.preventDefault(); setWishlisted(v => !v) }}
-            className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-2xl shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+            className="absolute top-2.5 right-2.5 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
           >
-            <Heart className={`w-4 h-4 transition-all duration-200 ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} strokeWidth={1.8} />
+            <Heart className={`w-4 h-4 transition-colors ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} strokeWidth={1.8} />
           </button>
 
           {/* Out of stock */}
@@ -148,13 +146,13 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
         </div>
 
         {/* Info */}
-        <div className="p-4">
-          <p className="text-[10px] font-label font-medium text-stone-400 tracking-wide mb-0.5 uppercase truncate">{product.farmerName}</p>
-          <h3 className="font-label font-semibold text-stone-800 leading-snug line-clamp-2 mb-2 group-hover:text-forest-700 transition-colors">{product.name}</h3>
+        <div className="p-4 flex flex-col flex-1">
+          <p className="text-[10px] font-label font-medium text-stone-400 tracking-wider uppercase truncate">{product.farmerName}</p>
+          <h3 className="font-label font-bold text-stone-900 text-sm leading-snug line-clamp-2 mt-1 group-hover:text-forest-700 transition-colors">{product.name}</h3>
 
           {product.reviewCount > 0 && (
-            <div className="flex items-center gap-1.5 mb-2.5">
-              <div className="flex gap-0.5">
+            <div className="flex items-center gap-1 mt-2">
+              <div className="flex">
                 {[1, 2, 3, 4, 5].map(i => (
                   <Star key={i} className={`w-3 h-3 ${i <= Math.round(product.rating) ? 'fill-amber-400 text-amber-400' : 'fill-stone-200 text-stone-200'}`} />
                 ))}
@@ -163,9 +161,10 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-lg font-display font-semibold text-forest-700">₹{product.price}</span>
+          {/* Price + CTA — pushed to bottom */}
+          <div className="mt-auto pt-3">
+            <div className="flex items-baseline gap-1.5 mb-2.5">
+              <span className="text-lg font-display font-bold text-forest-700">₹{product.price}</span>
               {product.originalPrice && product.originalPrice > product.price && (
                 <span className="text-xs text-stone-400 line-through font-body">₹{product.originalPrice}</span>
               )}
@@ -175,9 +174,9 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
             <button
               onClick={handleAddToCart}
               disabled={adding || product.stockQuantity === 0}
-              className="flex items-center justify-center gap-2 px-3 py-2.5 bg-forest-700 hover:bg-forest-600 active:bg-forest-800 text-white rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-forest-700 hover:bg-forest-600 active:bg-forest-800 text-white text-sm font-label font-semibold rounded-xl shadow-btn hover:shadow-btn-hover active:scale-[0.97] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {adding ? <Spinner size="sm" /> : <><ShoppingCart className="w-4 h-4" strokeWidth={2} /><span className="text-xs sm:text-sm font-medium">Add to Cart</span></>}
+              {adding ? <Spinner size="sm" /> : <><ShoppingCart className="w-4 h-4" strokeWidth={2} />Add to Cart</>}
             </button>
           </div>
         </div>
@@ -190,9 +189,9 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
 export const ProductGrid: React.FC<{ products: Product[]; loading?: boolean }> = ({ products, loading }) => {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-3xl shadow-card overflow-hidden animate-pulse">
+          <div key={i} className="bg-white rounded-2xl shadow-card overflow-hidden animate-pulse">
             <div className="aspect-[4/3] bg-stone-100" />
             <div className="p-4 space-y-2.5">
               <div className="h-2.5 bg-stone-100 rounded-full w-1/2" />
@@ -216,9 +215,9 @@ export const ProductGrid: React.FC<{ products: Product[]; loading?: boolean }> =
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
       {products.map((p, i) => (
-        <div key={p.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms`, animationFillMode: 'both' }}>
+        <div key={p.id} className="animate-fade-up h-full" style={{ animationDelay: `${i * 40}ms`, animationFillMode: 'both' }}>
           <ProductCard product={p} />
         </div>
       ))}
