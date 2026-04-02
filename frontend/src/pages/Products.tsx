@@ -252,16 +252,20 @@ export const ProductDetailPage: React.FC = () => {
     productApi.getBySlug(slug)
       .then(p => {
         setProduct(p)
-        trackEvent('view_product', {
-          product_id: p.id,
-          product_name: p.name,
-          category_name: p.categoryName,
-          price: p.price,
-        })
         setLoading(false)
       })
       .catch(() => setLoading(false))
   }, [slug])
+
+  useEffect(() => {
+    if (!product) return
+    trackEvent('view_product', {
+      product_id: product.id,
+      product_name: product.name,
+      category_name: product.categoryName,
+      price: product.price,
+    })
+  }, [product])
 
   const handleAddToCart = async () => {
     if (!product) return
@@ -356,19 +360,6 @@ export const ProductDetailPage: React.FC = () => {
   const saveAmount = finalOriginalPrice ? Math.max(0, finalOriginalPrice - finalPrice) : 0
   const hasReviews = (product.reviewCount || 0) > 0
   const farmInitial = product.farmerName?.[0]?.toUpperCase() || 'F'
-
-  // Track product view
-  useEffect(() => {
-    if (product) {
-      trackEvent('Product Viewed', {
-        product_id: product.id,
-        product_name: product.name,
-        category: product.categoryName,
-        price: product.price,
-        variant: product.imageUrls?.[0] || '',
-      })
-    }
-  }, [product])
 
   return (
     <PageLayout>
