@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight } from 'lucide-react'
+import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout } from 'lucide-react'
 import { useAuthStore, useCartStore, useNotifStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
@@ -15,6 +15,8 @@ export const Navbar: React.FC = () => {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [scrolled, setScrolled] = useState(false)
+  const [cartBump, setCartBump] = useState(false)
+  const prevItemCount = useRef(0)
   const navigate = useNavigate()
   const location = useLocation()
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -23,12 +25,25 @@ export const Navbar: React.FC = () => {
     const h = (e: MouseEvent) => { if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false) }
     document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
   }, [])
+
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 8)
-    window.addEventListener('scroll', fn); return () => window.removeEventListener('scroll', fn)
+    const fn = () => setScrolled(window.scrollY > 12)
+    window.addEventListener('scroll', fn, { passive: true })
+    return () => window.removeEventListener('scroll', fn)
   }, [])
+
   useEffect(() => { if (isAuthenticated) cartApi.get().then(setCart).catch(() => {}) }, [isAuthenticated])
-  useEffect(() => { setMobileOpen(false) }, [location.pathname])
+  useEffect(() => { setMobileOpen(false); setUserMenuOpen(false) }, [location.pathname])
+
+  // Cart badge bump animation when item is added
+  useEffect(() => {
+    const count = itemCount()
+    if (count > prevItemCount.current) {
+      setCartBump(true)
+      setTimeout(() => setCartBump(false), 400)
+    }
+    prevItemCount.current = count
+  }, [itemCount()])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,30 +60,97 @@ export const Navbar: React.FC = () => {
         { to: '/products?isOrganic=true', label: 'Organic' },
         { to: '/products?isFeatured=true', label: 'Featured' },
         { to: '/shop-by-farms', label: 'Shop by Farms' },
-        ...(isAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
       ]
+
+  const isActive = (to: string) => {
+    if (to.includes('?')) return location.pathname + location.search === to || location.search === to.slice(to.indexOf('?'))
+    return location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
+  }
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${scrolled ? 'glass shadow-nav' : 'bg-white/80 backdrop-blur-md border-b border-stone-100'}`}>
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 h-[68px] flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
-            <div className="w-9 h-9 bg-forest-700 rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-forest-600 transition-colors">
-              <Leaf className="w-5 h-5 text-white" strokeWidth={1.8} />
+      {/* ── Main navbar ── */}
+      <nav
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
+          scrolled
+            ? 'bg-white/90 backdrop-blur-xl border-b border-stone-200/60 shadow-[0_2px_20px_rgba(0,0,0,0.08)]'
+            : 'bg-white/80 backdrop-blur-md border-b border-stone-100'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[70px] flex items-center gap-4">
+
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group mr-2">
+            <div className="relative w-9 h-9 bg-forest-700 rounded-[14px] flex items-center justify-center shadow-[0_2px_8px_rgba(30,110,36,0.35)] group-hover:bg-forest-600 group-hover:shadow-[0_4px_16px_rgba(30,110,36,0.45)] group-hover:scale-105 transition-all duration-200">
+              <Leaf className="w-[18px] h-[18px] text-white" strokeWidth={2} />
             </div>
-            <span className="font-display text-[22px] font-semibold text-stone-900 tracking-tight">Graamo</span>
+            <span className="font-display text-[23px] font-semibold text-stone-900 tracking-tight group-hover:text-forest-700 transition-colors duration-200">Graamo</span>
           </Link>
 
-          <div className="hidden lg:flex items-center gap-1 flex-1">
+          {/* Desktop nav links */}
+          <div className="hidden lg:flex items-center gap-0.5 flex-1">
             {navLinks.map(l => (
-              <Link key={l.to} to={l.to} className={`px-4 py-2 text-[13px] font-label font-medium tracking-wide rounded-xl transition-all duration-150 ${location.pathname === l.to ? 'bg-forest-50 text-forest-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'}`}>{l.label}</Link>
+              <Link
+                key={l.to}
+                to={l.to}
+                className={`relative px-4 py-2 text-[13px] font-label font-semibold tracking-wide rounded-xl transition-all duration-200 group/link ${
+                  isActive(l.to)
+                    ? 'text-forest-700'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                {l.label}
+                {/* animated underline */}
+                <span
+                  className={`absolute bottom-0.5 left-4 right-4 h-[2px] rounded-full bg-forest-600 transition-all duration-250 ${
+                    isActive(l.to) ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 group-hover/link:opacity-60 group-hover/link:scale-x-100'
+                  }`}
+                  style={{ transformOrigin: 'left' }}
+                />
+              </Link>
             ))}
+
+            {/* Admin pill — separate visual identity */}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`ml-2 flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-label font-bold tracking-wide rounded-full border transition-all duration-200 ${
+                  location.pathname.startsWith('/admin')
+                    ? 'bg-amber-500 border-amber-500 text-white shadow-[0_2px_8px_rgba(245,158,11,0.4)]'
+                    : 'border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 hover:border-amber-400'
+                }`}
+              >
+                <Settings className="w-3 h-3" strokeWidth={2.2} />
+                Admin
+              </Link>
+            )}
           </div>
 
+          {/* Right action cluster */}
           <div className="flex items-center gap-1 ml-auto">
+
+            {/* CTA buttons — unauthenticated, desktop only */}
+            {!isAuthenticated && (
+              <div className="hidden lg:flex items-center gap-2 mr-1">
+                <Link to="/shop-by-farms" className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-label font-semibold text-forest-700 border border-forest-300 rounded-xl hover:bg-forest-50 hover:border-forest-400 transition-all duration-200">
+                  <Sprout className="w-3.5 h-3.5" strokeWidth={2} />
+                  Meet Farmers
+                </Link>
+                <Link to="/products" className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-label font-semibold text-white bg-forest-700 rounded-xl shadow-btn hover:bg-forest-600 hover:shadow-btn-hover hover:scale-[1.03] active:scale-[0.97] transition-all duration-200">
+                  Shop
+                  <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </Link>
+              </div>
+            )}
+
+            {/* Search */}
             {!isFarmer && (
-              <button onClick={() => setSearchOpen(true)} className="p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
-                <Search className="w-[18px] h-[18px]" strokeWidth={1.8} />
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
+                aria-label="Search"
+              >
+                <Search className="w-[18px] h-[18px]" strokeWidth={2} />
               </button>
             )}
 
@@ -76,50 +158,122 @@ export const Navbar: React.FC = () => {
               <>
                 {!isFarmer && (
                   <>
-                    <button onClick={openCart} className="relative p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
-                      <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={1.8} />
-                      {itemCount() > 0 && <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center">{itemCount() > 9 ? '9+' : itemCount()}</span>}
+                    {/* Cart */}
+                    <button
+                      onClick={openCart}
+                      className="relative p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
+                      aria-label="Cart"
+                    >
+                      <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
+                      {itemCount() > 0 && (
+                        <span
+                          className={`absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center px-1 transition-transform duration-200 ${
+                            cartBump ? 'scale-125' : 'scale-100'
+                          }`}
+                        >
+                          {itemCount() > 9 ? '9+' : itemCount()}
+                        </span>
+                      )}
                     </button>
-                    <Link to="/notifications" className="relative p-2.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-xl transition-all duration-150">
-                      <Bell className="w-[18px] h-[18px]" strokeWidth={1.8} />
-                      {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+
+                    {/* Notifications */}
+                    <Link
+                      to="/notifications"
+                      className="relative p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
+                      aria-label="Notifications"
+                    >
+                      <Bell className="w-[18px] h-[18px]" strokeWidth={2} />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
                     </Link>
                   </>
                 )}
+
+                {/* User menu */}
                 <div className="relative ml-1" ref={userMenuRef}>
-                  <button onClick={() => setUserMenuOpen(v => !v)} className="flex items-center gap-2 h-9 pl-1.5 pr-3 rounded-2xl hover:bg-stone-100 transition-all duration-150">
-                    <div className="w-7 h-7 rounded-xl bg-forest-100 border-2 border-forest-200 flex items-center justify-center overflow-hidden">
-                      {user?.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" /> : <span className="text-[11px] font-label font-bold text-forest-700">{user?.name?.[0]?.toUpperCase()}</span>}
+                  <button
+                    onClick={() => setUserMenuOpen(v => !v)}
+                    className={`flex items-center gap-2 h-9 pl-1 pr-2.5 rounded-2xl border transition-all duration-200 ${
+                      userMenuOpen
+                        ? 'bg-forest-50 border-forest-200'
+                        : 'border-transparent hover:bg-stone-100 hover:border-stone-200'
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div className="w-7 h-7 rounded-xl bg-forest-100 border-2 border-forest-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {user?.avatarUrl
+                        ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                        : <span className="text-[11px] font-label font-bold text-forest-700">{user?.name?.[0]?.toUpperCase()}</span>}
                     </div>
-                    <span className="text-[13px] font-label font-medium text-stone-700 hidden sm:block">{user?.name?.split(' ')[0]}</span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                    <span className="text-[13px] font-label font-semibold text-stone-700 hidden sm:block max-w-[80px] truncate">
+                      {user?.name?.split(' ')[0]}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-200 flex-shrink-0 ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
+
+                  {/* Dropdown */}
                   {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-3xl shadow-modal border border-stone-100 py-2 animate-scale-in overflow-hidden">
-                      <div className="px-4 py-3 border-b border-stone-50">
-                        <p className="text-sm font-label font-semibold text-stone-800">{user?.name}</p>
-                        <p className="text-xs text-stone-400 mt-0.5 truncate">{user?.email || user?.phone}</p>
-                        <p className="text-xs text-amber-700 mt-1.5 font-medium bg-amber-50 px-2 py-1 rounded">Role: {user?.role || 'unknown'}</p>
+                    <div className="absolute right-0 top-full mt-2.5 w-60 bg-white rounded-2xl shadow-modal border border-stone-100/80 py-1.5 animate-scale-in overflow-hidden">
+                      {/* User info header */}
+                      <div className="px-4 py-3.5 border-b border-stone-50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-forest-100 border-2 border-forest-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {user?.avatarUrl
+                              ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                              : <span className="text-sm font-label font-bold text-forest-700">{user?.name?.[0]?.toUpperCase()}</span>}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-label font-bold text-stone-900 truncate">{user?.name}</p>
+                            <p className="text-[11px] text-stone-400 font-body truncate">{user?.email || user?.phone}</p>
+                          </div>
+                        </div>
+                        <div className={`mt-2.5 px-2.5 py-1 rounded-lg text-[11px] font-label font-semibold text-center ${
+                          isAdmin ? 'bg-amber-50 text-amber-700' : isFarmer ? 'bg-forest-50 text-forest-700' : 'bg-stone-50 text-stone-500'
+                        }`}>
+                          {isAdmin ? '⚡ Admin' : isFarmer ? '🌾 Farmer' : '👤 Customer'}
+                        </div>
                       </div>
-                      <div className="py-1.5">
+
+                      {/* Menu items */}
+                      <div className="py-1">
                         {(
                           isFarmer
                             ? [{ to: '/seller/orders', icon: LayoutDashboard, label: 'Seller Dashboard' }]
                             : [
-                                { to: '/profile', icon: Package, label: 'My Profile' },
-                                { to: '/orders', icon: Package, label: 'Orders' },
+                                { to: '/profile', icon: User, label: 'My Profile' },
+                                { to: '/orders', icon: Package, label: 'My Orders' },
                                 { to: '/wishlist', icon: Heart, label: 'Wishlist' },
-                                ...(user?.role?.toLowerCase() === 'admin' ? [{ to: '/admin', icon: Settings, label: 'Admin Panel' }] : []),
+                                ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Admin Panel' }] : []),
                               ]
                         ).map(item => (
-                          <Link key={item.to} to={item.to} onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 mx-2 px-3 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-forest-700 rounded-2xl transition-all duration-150 font-body">
-                            <item.icon className="w-4 h-4 text-stone-400" strokeWidth={1.8} />{item.label}
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            onClick={() => setUserMenuOpen(false)}
+                            className={`flex items-center gap-3 mx-1.5 px-3 py-2.5 text-[13px] font-body rounded-xl transition-all duration-150 group/item ${
+                              location.pathname === item.to
+                                ? 'bg-forest-50 text-forest-700'
+                                : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                            }`}
+                          >
+                            <item.icon className="w-4 h-4 text-stone-350 group-hover/item:text-forest-600 transition-colors" strokeWidth={1.8} />
+                            {item.label}
                           </Link>
                         ))}
                       </div>
-                      <div className="border-t border-stone-50 py-1.5">
-                        <button onClick={() => { logout(); setUserMenuOpen(false); navigate('/') }} className="flex w-full items-center gap-3 mx-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-2xl transition-all duration-150 font-body">
-                          <LogOut className="w-4 h-4" strokeWidth={1.8} />Sign out
+
+                      {/* Logout */}
+                      <div className="border-t border-stone-50 pt-1 pb-1">
+                        <button
+                          onClick={() => { logout(); setUserMenuOpen(false); navigate('/') }}
+                          className="flex w-full items-center gap-3 mx-1.5 px-3 py-2.5 text-[13px] text-red-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all duration-150 font-body"
+                          style={{ width: 'calc(100% - 12px)' }}
+                        >
+                          <LogOut className="w-4 h-4" strokeWidth={1.8} />
+                          Sign out
                         </button>
                       </div>
                     </div>
@@ -127,35 +281,161 @@ export const Navbar: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2 ml-1">
                 <Link to="/login">
-                  <Button variant="ghost" size="sm" className="text-[13px]">Log in</Button>
+                  <Button variant="ghost" size="sm" className="text-[13px] font-label font-semibold">Log in</Button>
                 </Link>
-                <Link to="/register">
-                  <Button variant="primary" size="sm" className="text-[13px] px-5 py-2.5">Sign up</Button>
+                <Link to="/register" className="hidden sm:block">
+                  <Button variant="primary" size="sm" className="text-[13px] px-5">Sign up</Button>
                 </Link>
               </div>
             )}
-            <button onClick={() => setMobileOpen(v => !v)} className="lg:hidden p-2.5 text-stone-500 hover:bg-stone-100 rounded-xl transition-all duration-150 ml-1">
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" strokeWidth={1.8} />}
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileOpen(v => !v)}
+              className="lg:hidden p-2.5 text-stone-500 hover:bg-stone-100 rounded-xl transition-all duration-150 ml-1"
+              aria-label="Toggle menu"
+            >
+              {mobileOpen
+                ? <X className="w-5 h-5" />
+                : <Menu className="w-5 h-5" strokeWidth={2} />}
             </button>
           </div>
         </div>
-        {mobileOpen && (
-          <div className="lg:hidden border-t border-stone-100 bg-white/95 backdrop-blur-xl px-5 py-4 space-y-1 animate-fade-in">
-            {navLinks.map(l => <Link key={l.to} to={l.to} className="block px-4 py-3 text-sm font-label font-medium text-stone-700 hover:bg-stone-50 hover:text-forest-700 rounded-2xl transition-all">{l.label}</Link>)}
-          </div>
-        )}
       </nav>
 
-      {searchOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-start justify-center pt-28 px-4" onClick={() => setSearchOpen(false)}>
-          <form onSubmit={handleSearch} className="w-full max-w-2xl animate-scale-in" onClick={e => e.stopPropagation()}>
-            <div className="relative glass rounded-3xl shadow-modal overflow-hidden">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" strokeWidth={1.8} />
-              <input autoFocus value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search organic vegetables, fruits, grains…" className="w-full pl-14 pr-14 py-5 text-lg font-body bg-transparent outline-none text-stone-800 placeholder:text-stone-400" />
-              <button type="button" onClick={() => setSearchOpen(false)} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-stone-100 rounded-xl transition-colors"><X className="w-5 h-5 text-stone-400" /></button>
+      {/* ── Mobile slide-in drawer ── */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* backdrop */}
+          <div
+            className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm animate-fade-in"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* drawer */}
+          <div className="absolute top-0 left-0 bottom-0 w-[300px] bg-white shadow-[4px_0_40px_rgba(0,0,0,0.15)] flex flex-col animate-slide-right">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
+              <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-forest-700 rounded-[12px] flex items-center justify-center">
+                  <Leaf className="w-4 h-4 text-white" strokeWidth={2} />
+                </div>
+                <span className="font-display text-xl font-semibold text-stone-900">Graamo</span>
+              </Link>
+              <button onClick={() => setMobileOpen(false)} className="p-2 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-xl transition-all">
+                <X className="w-5 h-5" />
+              </button>
             </div>
+
+            {/* User info in drawer */}
+            {isAuthenticated && (
+              <div className="px-5 py-4 border-b border-stone-100 bg-stone-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-forest-100 border-2 border-forest-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {user?.avatarUrl
+                      ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                      : <span className="text-sm font-label font-bold text-forest-700">{user?.name?.[0]?.toUpperCase()}</span>}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-label font-bold text-stone-900 truncate">{user?.name}</p>
+                    <p className="text-[11px] text-stone-400 font-body truncate">{user?.email || user?.phone}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Nav links */}
+            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+              {navLinks.map(l => (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-all duration-150 ${
+                    isActive(l.to)
+                      ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-600'
+                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              ))}
+
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-all duration-150 mt-1 ${
+                    location.pathname.startsWith('/admin')
+                      ? 'bg-amber-50 text-amber-700 border-l-2 border-amber-500'
+                      : 'text-amber-600 hover:bg-amber-50'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" strokeWidth={2} />
+                  Admin Panel
+                </Link>
+              )}
+
+              {!isAuthenticated && (
+                <div className="pt-4 space-y-2">
+                  <Link to="/shop-by-farms" onClick={() => setMobileOpen(false)} className="flex items-center justify-center gap-2 w-full px-4 py-3 text-[13px] font-label font-bold text-forest-700 border-2 border-forest-300 rounded-xl hover:bg-forest-50 transition-all">
+                    <Sprout className="w-4 h-4" strokeWidth={2} /> Meet Farmers
+                  </Link>
+                  <Link to="/products" onClick={() => setMobileOpen(false)} className="flex items-center justify-center gap-2 w-full px-4 py-3 text-[13px] font-label font-bold text-white bg-forest-700 rounded-xl shadow-btn hover:bg-forest-600 transition-all">
+                    Shop Now <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Drawer footer — auth actions */}
+            {isAuthenticated ? (
+              <div className="border-t border-stone-100 px-3 py-3 space-y-0.5">
+                {isFarmer
+                  ? <Link to="/seller/orders" className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><LayoutDashboard className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Seller Dashboard</Link>
+                  : <>
+                    <Link to="/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><User className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Profile</Link>
+                    <Link to="/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Package className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Orders</Link>
+                    <Link to="/wishlist" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Heart className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Wishlist</Link>
+                  </>
+                }
+                <button
+                  onClick={() => { logout(); setMobileOpen(false); navigate('/') }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-[13px] text-red-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all font-body"
+                >
+                  <LogOut className="w-4 h-4" strokeWidth={1.8} /> Sign out
+                </button>
+              </div>
+            ) : (
+              <div className="border-t border-stone-100 px-4 py-3 flex gap-2">
+                <Link to="/login" onClick={() => setMobileOpen(false)} className="flex-1 text-center px-4 py-2.5 text-[13px] font-label font-semibold text-stone-700 border border-stone-200 rounded-xl hover:bg-stone-50 transition-all">Log in</Link>
+                <Link to="/register" onClick={() => setMobileOpen(false)} className="flex-1 text-center px-4 py-2.5 text-[13px] font-label font-semibold text-white bg-forest-700 rounded-xl hover:bg-forest-600 transition-all">Sign up</Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Search overlay ── */}
+      {searchOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-sm flex items-start justify-center pt-28 px-4"
+          onClick={() => setSearchOpen(false)}
+        >
+          <form onSubmit={handleSearch} className="w-full max-w-2xl animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="relative glass rounded-2xl shadow-modal overflow-hidden border border-white/80">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-forest-500" strokeWidth={2} />
+              <input
+                autoFocus
+                value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                placeholder="Search organic vegetables, fruits, grains…"
+                className="w-full pl-14 pr-14 py-5 text-lg font-body bg-transparent outline-none text-stone-800 placeholder:text-stone-400"
+              />
+              <button type="button" onClick={() => setSearchOpen(false)} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-stone-100 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-stone-400" />
+              </button>
+            </div>
+            <p className="text-center text-[12px] text-white/60 mt-3 font-body">Press Enter to search · Esc to close</p>
           </form>
         </div>
       )}
@@ -345,7 +625,7 @@ export const Footer: React.FC = () => (
 export const PageLayout: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <>
     <Navbar /><CartDrawer />
-    <main className={`pt-[68px] min-h-screen ${className}`}>{children}</main>
+    <main className={`pt-[70px] min-h-screen ${className}`}>{children}</main>
     <Footer />
   </>
 )
