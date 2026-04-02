@@ -247,10 +247,6 @@ namespace VerdeCrop.API.Controllers
 
             var cat = await _categories.GetBySlugAsync(slug);
             return cat == null ? NotFound() : Ok(ApiResponse.Ok(cat));
-            if (!ModelState.IsValid)
-                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
-                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
-
         }
 
         [HttpPut("{id}")]

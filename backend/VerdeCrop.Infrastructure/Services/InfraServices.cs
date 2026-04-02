@@ -347,8 +347,10 @@ namespace VerdeCrop.Infrastructure.Services
     // ── Azure Blob Storage ────────────────────────────────────────────────────
     public class AzureBlobStorageService : IStorageService
     {
-        private readonly BlobServiceClient _client;
-        private readonly string _containerName;
+#pragma warning disable CS0649 // Fields intentionally unassigned — Azure Blob not yet wired
+        private readonly BlobServiceClient? _client;
+        private readonly string? _containerName;
+#pragma warning restore CS0649
 
         public AzureBlobStorageService(IConfiguration config)
         {
@@ -358,6 +360,8 @@ namespace VerdeCrop.Infrastructure.Services
 
         public async Task<string> UploadAsync(Stream fileStream, string fileName, string folder)
         {
+            if (_client == null || _containerName == null)
+                throw new InvalidOperationException("Azure Blob Storage is not configured.");
             var container = _client.GetBlobContainerClient(_containerName);
             await container.CreateIfNotExistsAsync();
             var blobName = $"{folder}/{Guid.NewGuid()}-{fileName}";
@@ -368,6 +372,8 @@ namespace VerdeCrop.Infrastructure.Services
 
         public async Task DeleteAsync(string url)
         {
+            if (_client == null || _containerName == null)
+                throw new InvalidOperationException("Azure Blob Storage is not configured.");
             var uri = new Uri(url);
             var blobName = uri.AbsolutePath.TrimStart('/').Replace($"{_containerName}/", "");
             var container = _client.GetBlobContainerClient(_containerName);
