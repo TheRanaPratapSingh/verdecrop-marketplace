@@ -81,7 +81,7 @@ namespace VerdeCrop.Application.DTOs
         List<ReviewDto> Reviews);
 
     public record ProductQueryParams(
-        string? Search, int? CategoryId, int? FarmerId,
+        string? Search, int? CategoryId, string? CategorySlug, int? FarmerId,
         decimal? MinPrice, decimal? MaxPrice,
         bool? IsOrganic, bool? IsFeatured, bool? InStock,
         string SortBy = "newest", int Page = 1, int PageSize = 20);

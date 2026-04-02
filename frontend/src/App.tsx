@@ -1,6 +1,6 @@
 // ── App.tsx ───────────────────────────────────────────────────────────────────
-import React, { Suspense, lazy, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import React, { Component, Suspense, lazy, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store'
 import { Spinner } from './components/ui'
@@ -44,6 +44,34 @@ const Loader: React.FC = () => (
     </div>
   </div>
 )
+
+// ── Error Boundary ───────────────────────────────────────────────────────────
+interface ErrorBoundaryState { hasError: boolean; error?: Error }
+class ErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false }
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState { return { hasError: true, error } }
+  componentDidCatch(error: Error, info: React.ErrorInfo) { console.error('ErrorBoundary caught:', error, info) }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-cream p-6">
+          <div className="text-center max-w-md">
+            <div className="text-5xl mb-4">😓</div>
+            <h1 className="text-2xl font-display font-semibold text-gray-900 mb-2">Something went wrong</h1>
+            <p className="text-sm text-gray-500 font-body mb-6">An unexpected error occurred. Please try again.</p>
+            <button
+              onClick={() => { this.setState({ hasError: false, error: undefined }); window.location.href = '/' }}
+              className="inline-flex items-center justify-center px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              Go Home
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const ScrollTop: React.FC = () => {
   const { pathname, search } = useLocation()
@@ -91,8 +119,9 @@ const AppRoutes: React.FC = () => {
   return (
     <>
       <ScrollTop />
-      <Suspense fallback={<Loader />}>
-        <Routes>
+      <ErrorBoundary>
+        <Suspense fallback={<Loader />}>
+          <Routes>
           <Route path="/"                element={<HomePage />} />
           <Route path="/products"        element={<ProductsPage />} />
           <Route path="/products/:slug"  element={<ProductDetailPage />} />
@@ -123,7 +152,8 @@ const AppRoutes: React.FC = () => {
           <Route path="/admin/users"     element={<RequireAuth><AdminUsers /></RequireAuth>} />
           <Route path="*"               element={<Navigate to="/" replace />} />
         </Routes>
-      </Suspense>
+        </Suspense>
+      </ErrorBoundary>
       <Toaster position="top-right" toastOptions={{
         duration: 3500,
         style: { borderRadius: '14px', fontSize: '14px', fontFamily: '"DM Sans", system-ui, sans-serif' },

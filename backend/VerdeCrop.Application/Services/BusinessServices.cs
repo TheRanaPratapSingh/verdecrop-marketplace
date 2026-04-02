@@ -202,7 +202,10 @@ namespace VerdeCrop.Application.Services
 
                 if (!string.IsNullOrWhiteSpace(q.Search))
                     query = query.Where(p => p.Name.Contains(q.Search) || (p.Description != null && p.Description.Contains(q.Search)));
-                if (q.CategoryId.HasValue) query = query.Where(p => p.CategoryId == q.CategoryId);
+                if (q.CategoryId.HasValue)
+                    query = query.Where(p => p.CategoryId == q.CategoryId);
+                else if (!string.IsNullOrWhiteSpace(q.CategorySlug))
+                    query = query.Where(p => p.Category != null && p.Category.Slug == q.CategorySlug);
                 if (q.FarmerId.HasValue) query = query.Where(p => p.FarmerId == q.FarmerId);
                 if (q.MinPrice.HasValue) query = query.Where(p => p.Price >= q.MinPrice);
                 if (q.MaxPrice.HasValue) query = query.Where(p => p.Price <= q.MaxPrice);
