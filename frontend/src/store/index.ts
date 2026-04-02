@@ -2,6 +2,19 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User, Cart, Notification } from '../types'
 
+// Safe localStorage wrapper — jsdom (used by prerender) has no localStorage
+const safeStorage = {
+  getItem: (key: string) => {
+    try { return localStorage.getItem(key) } catch { return null }
+  },
+  setItem: (key: string, value: string) => {
+    try { localStorage.setItem(key, value) } catch { /* no-op during prerender */ }
+  },
+  removeItem: (key: string) => {
+    try { localStorage.removeItem(key) } catch { /* no-op during prerender */ }
+  },
+}
+
 // ── Auth Store ────────────────────────────────────────────────────────────────
 interface AuthState {
   user: User | null
@@ -24,8 +37,8 @@ export const useAuthStore = create<AuthState>()(
         const normalizedRole = (user.role || 'user').toString().trim().toLowerCase() as User['role']
         const normalizedUser = { ...user, role: normalizedRole }
 
-        localStorage.setItem('accessToken', accessToken)
-        localStorage.setItem('refreshToken', refreshToken)
+        safeStorage.setItem('accessToken', accessToken)
+        safeStorage.setItem('refreshToken', refreshToken)
         set({ user: normalizedUser, isAuthenticated: true, accessToken, refreshToken })
       },
       setUser: (user) => {
@@ -33,8 +46,8 @@ export const useAuthStore = create<AuthState>()(
         set({ user: { ...user, role: normalizedRole } })
       },
       logout: () => {
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
+        safeStorage.removeItem('accessToken')
+        safeStorage.removeItem('refreshToken')
         set({ user: null, isAuthenticated: false, accessToken: null, refreshToken: null })
       },
     }),

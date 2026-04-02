@@ -1,9 +1,15 @@
 import React from 'react'
 import { PageLayout } from '../components/layout'
+import { SEO } from '../components/SEO'
 import { Button, Input } from '../components/ui'
 
 export const ContactPage: React.FC = () => (
   <PageLayout>
+    <SEO
+      title="Contact Us"
+      description="Have a question about your order, a product, or becoming a seller on Graamo? Get in touch with our support team – we're here to help."
+      canonical="https://graamo.in/contact"
+    />
     <div className="max-w-5xl mx-auto px-6 py-16">
       <h1 className="text-4xl font-display font-bold text-forest-900 mb-4">Contact</h1>
       <p className="text-gray-600 font-body mb-6">Reach out with questions or feedback — we’re here to help.</p>

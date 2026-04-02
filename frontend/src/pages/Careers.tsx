@@ -1,8 +1,14 @@
 import React from 'react'
 import { PageLayout } from '../components/layout'
+import { SEO } from '../components/SEO'
 
 export const CareersPage: React.FC = () => (
   <PageLayout>
+    <SEO
+      title="Careers"
+      description="Join Graamo and help build India's most trusted organic marketplace. Explore open roles in tech, marketing, logistics, and more."
+      canonical="https://graamo.in/careers"
+    />
     <div className="max-w-5xl mx-auto px-6 py-16">
       <h1 className="text-4xl font-display font-bold text-forest-900 mb-4">Careers</h1>
       <p className="text-gray-600 font-body mb-6">Join the Graamo team and help us build a healthier food future.</p>

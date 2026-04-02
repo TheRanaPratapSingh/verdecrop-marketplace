@@ -4,6 +4,7 @@ import { ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Sprout, Award } fr
 import { categoryApi, productApi } from '../services/api'
 import { PageLayout } from '../components/layout'
 import { ProductGrid } from '../components/product'
+import { SEO } from '../components/SEO'
 import type { Category, Product } from '../types'
 import toast from 'react-hot-toast'
 
@@ -64,7 +65,12 @@ const HomePage: React.FC = () => {
 
   return (
     <PageLayout>
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
+      <SEO
+        titleOverride="Graamo – Organic Marketplace"
+        description="Buy 100% certified organic vegetables, fruits, grains & more directly from 500+ trusted Indian farmers. No chemicals, no middlemen – farm fresh to your door."
+        canonical="https://graamo.in/"
+      />
+      {/* ── HERO
       <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-forest-950">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_30%_50%,rgba(46,139,50,0.18)_0%,transparent_70%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_60%_at_80%_30%,rgba(21,86,32,0.12)_0%,transparent_70%)]" />

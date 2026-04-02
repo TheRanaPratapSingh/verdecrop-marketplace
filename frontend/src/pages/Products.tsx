@@ -5,6 +5,7 @@ import { productApi, categoryApi, cartApi } from '../services/api'
 import { resolveAssetUrl, resolveLocalUrl, resolveProductImage } from '../lib/image'
 import { PageLayout } from '../components/layout'
 import { ProductGrid, CategoryIcon } from '../components/product'
+import { SEO } from '../components/SEO'
 import { Button, Badge, Spinner, Pagination, PriceDisplay, StarRating, EmptyState } from '../components/ui'
 import { useCartStore, useAuthStore } from '../store'
 import type { Product, Category } from '../types'
@@ -71,6 +72,23 @@ export const ProductsPage: React.FC = () => {
 
   return (
     <PageLayout>
+      <SEO
+        title={
+          search
+            ? `"${search}" – Organic Products`
+            : matchedCategory
+              ? `${matchedCategory.name} – Organic`
+              : farmerId
+                ? `${farmerName || 'Farm'} Products`
+                : 'Shop Organic Products'
+        }
+        description={
+          matchedCategory
+            ? `Buy fresh certified organic ${matchedCategory.name.toLowerCase()} directly from verified Indian farmers on Graamo. No chemicals, no middlemen.`
+            : `Browse ${total > 0 ? total + '+' : 'thousands of'} certified organic products from trusted Indian farms. Fresh vegetables, fruits, grains & more on Graamo.`
+        }
+        canonical={`https://graamo.in/products`}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -354,6 +372,13 @@ export const ProductDetailPage: React.FC = () => {
 
   return (
     <PageLayout>
+      <SEO
+        title={product.name}
+        description={`Buy ${product.name} – ${product.isOrganic ? '100% certified organic, ' : ''}₹${product.price}/${product.unit ?? 'unit'} from ${product.farmerName ?? 'a verified farm'} on Graamo. ${product.description ? product.description.slice(0, 80) : 'Farm fresh, no chemicals.'}`.slice(0, 155)}
+        canonical={`https://graamo.in/products/${product.slug}`}
+        image={images[0] ?? undefined}
+        type="website"
+      />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-28 md:pb-8">
         <div className="flex items-center gap-2 text-sm text-stone-400 mb-6 font-body">
           <Link to="/" className="hover:text-forest-700 transition-colors">Home</Link>

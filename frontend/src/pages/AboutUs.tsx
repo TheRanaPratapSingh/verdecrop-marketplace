@@ -1,10 +1,16 @@
 import React from 'react'
 import { PageLayout } from '../components/layout'
+import { SEO } from '../components/SEO'
 import { Button } from '../components/ui'
 import { Link } from 'react-router-dom'
 
 export const AboutUsPage: React.FC = () => (
   <PageLayout>
+    <SEO
+      title="About Us"
+      description="Learn how Graamo connects 500+ certified organic farmers directly with health-conscious Indian families. No chemicals, no middlemen – just pure, fresh produce."
+      canonical="https://graamo.in/about-us"
+    />
     <div className="max-w-5xl mx-auto px-6 py-16">
       <h1 className="text-4xl font-display font-bold text-forest-900 mb-4">About Graamo</h1>
       <p className="text-gray-600 font-body leading-relaxed mb-6">Graamo is India's community-driven organic marketplace connecting responsible farmers with health-conscious families. We believe in transparency, fair pricing, and farm-to-door delivery of sustainably grown produce.</p>

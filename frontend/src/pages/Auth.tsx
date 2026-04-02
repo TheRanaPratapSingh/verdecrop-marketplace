@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Leaf, Phone, Mail, ArrowRight, ChevronLeft } from 'lucide-react'
 import { authApi } from '../services/api'
 import { useAuthStore } from '../store'
+import { SEO } from '../components/SEO'
 import { Button, Input } from '../components/ui'
 import toast from 'react-hot-toast'
 import { trackEvent } from '../lib/analytics'
@@ -170,7 +171,9 @@ export const LoginPage: React.FC = () => {
   }
 
   return (
-    <AuthLayout title="Welcome back" subtitle="Log in with your phone or email">
+    <>
+      <SEO title="Log In" description="Sign in to your Graamo account to shop fresh organic produce." noIndex />
+      <AuthLayout title="Welcome back" subtitle="Log in with your phone or email">
       {step === 'input' ? (
         <div className="space-y-4 animate-fade-up">
           <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
@@ -227,10 +230,11 @@ export const LoginPage: React.FC = () => {
         </div>
       )}
     </AuthLayout>
+    </>
   )
 }
 
-// ── Register Page ─────────────────────────────────────────────────────────────
+// ── Register Page
 export const RegisterPage: React.FC = () => {
   const { setAuth } = useAuthStore()
   const navigate = useNavigate()
@@ -298,7 +302,9 @@ export const RegisterPage: React.FC = () => {
   }
 
   return (
-    <AuthLayout title="Create account" subtitle="Join thousands of health-conscious families">
+    <>
+      <SEO title="Create Account" description="Join Graamo to shop fresh certified organic produce directly from Indian farmers." noIndex />
+      <AuthLayout title="Create account" subtitle="Join thousands of health-conscious families">
       {step === 'info' ? (
         <div className="space-y-4 animate-fade-up">
           <Input label="Full Name" placeholder="Priya Sharma" value={name} onChange={e => setName(e.target.value)} />
@@ -344,5 +350,6 @@ export const RegisterPage: React.FC = () => {
         </div>
       )}
     </AuthLayout>
+    </>
   )
 }

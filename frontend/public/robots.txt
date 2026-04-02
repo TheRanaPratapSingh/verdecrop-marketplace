@@ -1,0 +1,42 @@
+# ── Graamo – robots.txt ──────────────────────────────────────────────────────
+# Hosted on Azure Static Web Apps at https://graamo.in
+
+User-agent: *
+
+# Allow all public-facing pages
+Allow: /
+Allow: /products
+Allow: /products/
+Allow: /shop-by-farms
+Allow: /about-us
+Allow: /contact
+Allow: /blog
+Allow: /farmer-stories
+Allow: /certifications
+Allow: /become-a-seller
+Allow: /careers
+
+# Block auth, private, and admin routes from indexing
+Disallow: /login
+Disallow: /register
+Disallow: /checkout
+Disallow: /orders
+Disallow: /orders/
+Disallow: /profile
+Disallow: /notifications
+Disallow: /wishlist
+Disallow: /seller/
+Disallow: /admin/
+Disallow: /admin
+
+# Block query-string variants that create duplicate content
+Disallow: /*?page=
+Disallow: /*?sortBy=
+Disallow: /*?minPrice=
+Disallow: /*?maxPrice=
+
+# Block static build artifacts
+Disallow: /assets/
+
+# Sitemap location
+Sitemap: https://graamo.in/sitemap.xml

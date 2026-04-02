@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapPin, Star, ShoppingBag } from 'lucide-react'
 import { PageLayout } from '../components/layout'
+import { SEO } from '../components/SEO'
 import { Button, Badge, Spinner, EmptyState } from '../components/ui'
 import { farmerApi } from '../services/api'
 import type { Farmer } from '../types'
@@ -25,6 +26,11 @@ export const ShopByFarmsPage: React.FC = () => {
 
   return (
     <PageLayout>
+      <SEO
+        title="Shop by Farms"
+        description="Browse 500+ verified organic farms across India. Shop fresh vegetables, fruits, grains and more directly from the farmers who grow them."
+        canonical="https://graamo.in/shop-by-farms"
+      />
       <section className="relative overflow-hidden bg-gradient-to-b from-cream via-stone-50 to-stone-100">
         <div className="absolute inset-0 bg-hero-mesh opacity-60 pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 relative z-10">

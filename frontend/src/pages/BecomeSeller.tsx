@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { PageLayout } from '../components/layout'
+import { SEO } from '../components/SEO'
 import { useAuthStore } from '../store'
 import { Button, Input, Textarea, Badge } from '../components/ui'
 import toast from 'react-hot-toast'
@@ -229,6 +230,11 @@ export const BecomeSellerPage: React.FC = () => {
   // ────────────────────────────────────────────────────────────────────────────
   return (
     <PageLayout>
+      <SEO
+        title="Become a Seller"
+        description="Join Graamo's verified organic seller network. Register your farm, list products, and start selling to thousands of health-conscious families across India."
+        canonical="https://graamo.in/become-a-seller"
+      />
       <section className="relative overflow-hidden bg-gradient-to-b from-cream via-stone-50 to-stone-100">
         <div className="absolute inset-0 bg-hero-mesh opacity-60 pointer-events-none" />
         <div className="absolute top-10 -left-20 w-80 h-80 rounded-full bg-forest-200/35 blur-3xl pointer-events-none" />

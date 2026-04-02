@@ -1,8 +1,14 @@
 import React from 'react'
 import { PageLayout } from '../components/layout'
+import { SEO } from '../components/SEO'
 
 export const BlogPage: React.FC = () => (
   <PageLayout>
+    <SEO
+      title="Blog"
+      description="Organic living tips, seasonal recipe ideas, farmer success stories, and sustainability guides from the Graamo community."
+      canonical="https://graamo.in/blog"
+    />
     <div className="max-w-5xl mx-auto px-6 py-16">
       <h1 className="text-4xl font-display font-bold text-forest-900 mb-4">Blog</h1>
       <p className="text-gray-600 font-body mb-8">Latest updates, recipes, and stories from the organic community.</p>
