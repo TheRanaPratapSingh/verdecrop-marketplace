@@ -45,9 +45,13 @@ export const ProductsPage: React.FC = () => {
   const loadProducts = useCallback(async () => {
     setLoading(true)
     try {
+      const effectiveCategoryId = categoryId
+        || (categorySlug && categories.length
+          ? String(categories.find(c => c.slug === categorySlug)?.id || '')
+          : '')
       const params: Record<string, string> = { page: String(page), pageSize: '20', sortBy }
       if (search) params.search = search
-      if (resolvedCategoryId) params.categoryId = resolvedCategoryId
+      if (effectiveCategoryId) params.categoryId = effectiveCategoryId
       if (isOrganic) params.isOrganic = isOrganic
       if (minPrice) params.minPrice = minPrice
       if (maxPrice) params.maxPrice = maxPrice
@@ -60,10 +64,16 @@ export const ProductsPage: React.FC = () => {
       setTotal(farmerId ? filteredItems.length : (res?.totalCount || 0))
       setTotalPages(farmerId ? 1 : (res?.totalPages || 1))
     } finally { setLoading(false) }
-  }, [page, search, resolvedCategoryId, sortBy, isOrganic, minPrice, maxPrice, farmerId])
+  }, [page, search, categoryId, categorySlug, categories, sortBy, isOrganic, minPrice, maxPrice, farmerId])
 
-  useEffect(() => { loadProducts() }, [loadProducts])
-  useEffect(() => { categoryApi.getAll().then(setCategories).catch(() => {}) }, [])
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false)
+  useEffect(() => {
+    categoryApi.getAll().then(cats => { setCategories(cats); setCategoriesLoaded(true) }).catch(() => setCategoriesLoaded(true))
+  }, [])
+  useEffect(() => {
+    if (categorySlug && !categoriesLoaded) return
+    loadProducts()
+  }, [loadProducts, categorySlug, categoriesLoaded])
 
   const clearFilters = () => setSearchParams(new URLSearchParams())
 
@@ -80,9 +90,11 @@ export const ProductsPage: React.FC = () => {
                 ? `Results for "${search}"`
                 : farmerId
                   ? `Products from ${farmerName || 'Selected Farm'}`
-                  : resolvedCategoryId
-                    ? categories.find(c => c.id === Number(resolvedCategoryId))?.name || 'Products'
-                    : 'All Products'}
+                  : matchedCategory
+                    ? matchedCategory.name
+                    : resolvedCategoryId
+                      ? categories.find(c => c.id === Number(resolvedCategoryId))?.name || 'Products'
+                      : 'All Products'}
             </h1>
             {!loading && <p className="text-sm text-gray-500 font-body mt-0.5">{total.toLocaleString()} products</p>}
           </div>
@@ -245,6 +257,18 @@ export const ProductDetailPage: React.FC = () => {
       .catch(() => setLoading(false))
   }, [slug])
 
+  useEffect(() => {
+    if (product) {
+      trackEvent('Product Viewed', {
+        product_id: product.id,
+        product_name: product.name,
+        category: product.categoryName,
+        price: product.price,
+        variant: Array.isArray(product.imageUrls) ? (product.imageUrls[0] || '') : '',
+      })
+    }
+  }, [product])
+
   const handleAddToCart = async () => {
     if (!product) return
     if (!isAuthenticated) { toast.error('Please login to continue'); return }
@@ -320,7 +344,9 @@ export const ProductDetailPage: React.FC = () => {
     </PageLayout>
   )
 
-  const rawImages = product.imageUrls?.length ? product.imageUrls : product.imageUrl ? [product.imageUrl] : []
+  const rawImages = Array.isArray(product.imageUrls) && product.imageUrls.length
+    ? product.imageUrls
+    : product.imageUrl ? [product.imageUrl] : []
   let images = rawImages
     .map(img => resolveAssetUrl(img) || resolveLocalUrl(img))
     .filter(Boolean) as string[]
@@ -338,19 +364,6 @@ export const ProductDetailPage: React.FC = () => {
   const saveAmount = finalOriginalPrice ? Math.max(0, finalOriginalPrice - finalPrice) : 0
   const hasReviews = (product.reviewCount || 0) > 0
   const farmInitial = product.farmerName?.[0]?.toUpperCase() || 'F'
-
-  // Track product view
-  useEffect(() => {
-    if (product) {
-      trackEvent('Product Viewed', {
-        product_id: product.id,
-        product_name: product.name,
-        category: product.categoryName,
-        price: product.price,
-        variant: product.imageUrls?.[0] || '',
-      })
-    }
-  }, [product])
 
   return (
     <PageLayout>
