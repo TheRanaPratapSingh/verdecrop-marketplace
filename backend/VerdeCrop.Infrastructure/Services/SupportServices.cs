@@ -531,7 +531,7 @@ namespace VerdeCrop.Infrastructure.Services
 
         public async Task<PagedResult<OrderListDto>> GetAllOrdersAsync(int page, int pageSize, string? status)
         {
-            var query = _uow.Orders.Query().Include(o => o.Items).AsQueryable();
+            var query = _uow.Orders.Query().Include(o => o.Items).Include(o => o.Address).AsQueryable();
             if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
             var total = await query.CountAsync();
             var items = await query.OrderByDescending(o => o.CreatedAt)
@@ -539,7 +539,8 @@ namespace VerdeCrop.Infrastructure.Services
             return new PagedResult<OrderListDto>(
                 items.Select(o => new OrderListDto(o.Id, o.OrderNumber, o.Status, o.PaymentStatus,
                     o.TotalAmount, o.Items?.Count ?? 0, o.CreatedAt,
-                    o.EstimatedDelivery?.ToString("dd MMM yyyy"))).ToList(),
+                    o.EstimatedDelivery?.ToString("dd MMM yyyy"),
+                    o.Address?.FullName)).ToList(),
                 total, page, pageSize, (int)Math.Ceiling((double)total / pageSize));
         }
     }

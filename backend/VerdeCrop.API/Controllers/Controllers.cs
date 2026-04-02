@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Serilog;
+using VerdeCrop.API.Security;
 using VerdeCrop.Application.DTOs;
 using VerdeCrop.Application.Interfaces;
 
@@ -26,6 +28,13 @@ namespace VerdeCrop.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest req)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail("Invalid request parameters."));
+
+            // Prevent OTP spray: reject clearly invalid identifiers
+            if (req.Identifier.Length > 200 || req.Identifier.Contains('<') || req.Identifier.Contains('>'))
+                return BadRequest(ApiResponse.Fail("Invalid identifier."));
+
             try
             {
                 var result = await _auth.SendOtpAsync(req);
@@ -43,10 +52,17 @@ namespace VerdeCrop.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest req)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail("Invalid request parameters."));
+
             var result = await _auth.VerifyOtpAsync(req);
-            return result != null
-                ? Ok(ApiResponse.Ok(result))
-                : Unauthorized(ApiResponse.Fail("Invalid or expired OTP"));
+            if (result == null)
+            {
+                Log.Warning("Failed OTP verification for identifier {Identifier} from {IP}",
+                    req.Identifier, HttpContext.Connection.RemoteIpAddress);
+                return Unauthorized(ApiResponse.Fail("Invalid or expired OTP"));
+            }
+            return Ok(ApiResponse.Ok(result));
         }
 
         [HttpPost("refresh")]
@@ -86,6 +102,10 @@ namespace VerdeCrop.API.Controllers
         [HttpPut("me")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest req)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
+
             var u = await _users.UpdateProfileAsync(CurrentUserId, req);
             return Ok(ApiResponse.Ok(u));
         }
@@ -93,7 +113,15 @@ namespace VerdeCrop.API.Controllers
         [HttpPost("me/avatar")]
         public async Task<IActionResult> UploadAvatar(IFormFile file)
         {
-            if (file == null || file.Length == 0) return BadRequest("No file");
+            if (file == null || file.Length == 0)
+                return BadRequest(ApiResponse.Fail("No file provided."));
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(ApiResponse.Fail("File size must not exceed 5 MB."));
+
+            var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+            if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
+                return BadRequest(ApiResponse.Fail("Only JPEG, PNG, and WebP images are allowed."));
+
             var url = await _users.UploadAvatarAsync(CurrentUserId, file.OpenReadStream(), file.FileName);
             return Ok(ApiResponse.Ok(new { url }));
         }
@@ -144,7 +172,10 @@ namespace VerdeCrop.API.Controllers
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null)
         {
-            var result = await _users.GetAllAsync(page, pageSize, search);
+            var result = await _users.GetAllAsync(
+                InputValidator.ClampPage(page),
+                InputValidator.ClampPageSize(pageSize, 50),
+                search);
             return Ok(ApiResponse.Ok(result));
         }
 
@@ -211,16 +242,15 @@ namespace VerdeCrop.API.Controllers
         [HttpGet("{slug}")]
         public async Task<IActionResult> GetBySlug(string slug)
         {
+            if (!InputValidator.IsValidSlug(slug))
+                return BadRequest(ApiResponse.Fail("Invalid category slug."));
+
             var cat = await _categories.GetBySlugAsync(slug);
             return cat == null ? NotFound() : Ok(ApiResponse.Ok(cat));
-        }
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
 
-        [HttpPost]
-        [Authorize(Roles = "admin")]
-        public async Task<IActionResult> Create([FromBody] CreateCategoryRequest req)
-        {
-            var cat = await _categories.CreateAsync(req);
-            return CreatedAtAction(nameof(GetById), new { id = cat.Id }, ApiResponse.Ok(cat, "Category created"));
         }
 
         [HttpPut("{id}")]
@@ -245,21 +275,17 @@ namespace VerdeCrop.API.Controllers
     public class FarmersController : BaseController
     {
         private readonly IFarmerService _farmers;
-        public FarmersController(IFarmerService farmers) { _farmers = farmers; }
+        private readonly IUserService _users;
+        public FarmersController(IFarmerService farmers, IUserService users) { _farmers = farmers; _users = users; }
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] bool? isApproved = null)
         {
-            try
-            {
-                var result = await _farmers.GetAllAsync(page, pageSize, isApproved);
-                return Ok(ApiResponse.Ok(result));
-            }
-            catch (Exception ex)
-            {
-                // return error details to help frontend debugging
-                return StatusCode(500, ApiResponse.Fail<string>($"Failed to get farmers: {ex.Message}"));
-            }
+            var result = await _farmers.GetAllAsync(
+                InputValidator.ClampPage(page),
+                InputValidator.ClampPageSize(pageSize, 100),
+                isApproved);
+            return Ok(ApiResponse.Ok(result));
         }
 
         [HttpGet("{id}")]
@@ -281,6 +307,10 @@ namespace VerdeCrop.API.Controllers
         [Authorize]
         public async Task<IActionResult> Register([FromBody] RegisterFarmerRequest req)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
+
             // If admin is creating a seller from admin UI and provided an owner name, create a new user+farmer
             if (CurrentUserRole == "admin" && !string.IsNullOrEmpty(req.OwnerName))
             {
@@ -314,6 +344,26 @@ namespace VerdeCrop.API.Controllers
         {
             await _farmers.ApproveAsync(id, approve);
             return Ok(ApiResponse.Ok(true, approve ? "Farmer approved" : "Farmer rejected"));
+        }
+
+        [HttpPost("{id}/photo")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> UploadPhoto(int id, IFormFile file)
+        {
+            var farmer = await _farmers.GetByIdAsync(id);
+            if (farmer == null) return NotFound(ApiResponse.Fail("Farmer not found"));
+
+            if (file == null || file.Length == 0)
+                return BadRequest(ApiResponse.Fail("No file provided."));
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(ApiResponse.Fail("File size must not exceed 5 MB."));
+
+            var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+            if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
+                return BadRequest(ApiResponse.Fail("Only JPEG, PNG, and WebP images are allowed."));
+
+            var url = await _users.UploadAvatarAsync(farmer.UserId, file.OpenReadStream(), file.FileName);
+            return Ok(ApiResponse.Ok(new { url }));
         }
     }
 
@@ -353,6 +403,9 @@ namespace VerdeCrop.API.Controllers
         [HttpGet("{slug}")]
         public async Task<IActionResult> GetBySlug(string slug)
         {
+            if (!InputValidator.IsValidSlug(slug))
+                return BadRequest(ApiResponse.Fail("Invalid product slug."));
+
             var p = await _products.GetBySlugAsync(slug);
             return p == null ? NotFound() : Ok(ApiResponse.Ok(p));
         }
@@ -361,6 +414,10 @@ namespace VerdeCrop.API.Controllers
         [Authorize(Roles = "farmer")]
         public async Task<IActionResult> Create([FromBody] CreateProductRequest req)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
+
             var farmerProfile = await _farmers.GetByUserIdAsync(CurrentUserId);
             if (farmerProfile == null || !farmerProfile.IsApproved)
                 return Forbid();
@@ -409,7 +466,15 @@ namespace VerdeCrop.API.Controllers
         [Authorize(Roles = "farmer")]
         public async Task<IActionResult> UploadImage(int id, IFormFile file)
         {
-            if (file == null) return BadRequest("No file");
+            if (file == null)
+                return BadRequest(ApiResponse.Fail("No file provided."));
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(ApiResponse.Fail("File size must not exceed 5 MB."));
+
+            var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+            if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
+                return BadRequest(ApiResponse.Fail("Only JPEG, PNG, and WebP images are allowed."));
+
             var url = await _products.UploadImageAsync(id, file.OpenReadStream(), file.FileName);
             return Ok(ApiResponse.Ok(new { url }));
         }
@@ -470,7 +535,10 @@ namespace VerdeCrop.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _orders.GetUserOrdersAsync(CurrentUserId, page, pageSize);
+            var result = await _orders.GetUserOrdersAsync(
+                CurrentUserId,
+                InputValidator.ClampPage(page),
+                InputValidator.ClampPageSize(pageSize, 50));
             return Ok(ApiResponse.Ok(result));
         }
 
@@ -478,7 +546,14 @@ namespace VerdeCrop.API.Controllers
         [Authorize(Roles = "farmer")]
         public async Task<IActionResult> GetSellerOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null)
         {
-            var result = await _orders.GetSellerOrdersAsync(CurrentUserId, page, pageSize, status);
+            if (status != null && !InputValidator.IsValidOrderStatus(status))
+                return BadRequest(ApiResponse.Fail("Invalid order status value."));
+
+            var result = await _orders.GetSellerOrdersAsync(
+                CurrentUserId,
+                InputValidator.ClampPage(page),
+                InputValidator.ClampPageSize(pageSize, 50),
+                status);
             return Ok(ApiResponse.Ok(result));
         }
 
@@ -492,6 +567,13 @@ namespace VerdeCrop.API.Controllers
         [HttpPost]
         public async Task<IActionResult> PlaceOrder([FromBody] PlaceOrderRequest req)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
+
+            if (!InputValidator.IsValidPaymentMethod(req.PaymentMethod))
+                return BadRequest(ApiResponse.Fail("Invalid payment method."));
+
             var order = await _orders.PlaceOrderAsync(CurrentUserId, req);
             if (order == null) return BadRequest(ApiResponse.Fail("Failed to place order. Check stock or address."));
             return Ok(ApiResponse.Ok(order, "Order placed successfully"));
@@ -515,6 +597,12 @@ namespace VerdeCrop.API.Controllers
         [Authorize(Roles = "admin,farmer")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status, [FromQuery] string? note = null)
         {
+            if (!InputValidator.IsValidOrderStatus(status))
+            {
+                Log.Warning("Invalid order status '{Status}' attempted by user {UserId}", status, CurrentUserId);
+                return BadRequest(ApiResponse.Fail("Invalid order status value."));
+            }
+
             await _orders.UpdateStatusAsync(id, status, note, CurrentUserId);
             return Ok(ApiResponse.Ok(true));
         }
@@ -648,7 +736,13 @@ namespace VerdeCrop.API.Controllers
         [HttpGet("orders")]
         public async Task<IActionResult> GetOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null)
         {
-            var result = await _orders.GetAllAsync(page, pageSize, status);
+            if (status != null && !InputValidator.IsValidOrderStatus(status))
+                return BadRequest(ApiResponse.Fail("Invalid order status value."));
+
+            var result = await _orders.GetAllAsync(
+                InputValidator.ClampPage(page),
+                InputValidator.ClampPageSize(pageSize, 100),
+                status);
             return Ok(ApiResponse.Ok(result));
         }
     }

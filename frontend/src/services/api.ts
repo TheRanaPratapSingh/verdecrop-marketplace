@@ -140,7 +140,7 @@ export const farmerApi = {
   delete: (id: number) => unwrap<boolean>(api.delete(`/farmers/${id}`)),
   approve: (id: number, approve: boolean) => unwrap<boolean>(api.put(`/farmers/${id}/approve`, approve)),
   uploadPhoto: (id: number, form: FormData) =>
-    unwrap<{ url: string }>(api.post(`/farmers/${id}/avatar`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
+    unwrap<{ url: string }>(api.post(`/farmers/${id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
 }
 
 // ── Products ─────────────────────────────────────────────────────────────────

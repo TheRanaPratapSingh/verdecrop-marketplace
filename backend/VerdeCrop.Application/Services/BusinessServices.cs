@@ -639,6 +639,7 @@ namespace VerdeCrop.Application.Services
         {
             var query = _uow.Orders.Query()
                 .Include(o => o.Items)
+                .Include(o => o.Address)
                 .Where(o => o.UserId == userId)
                 .OrderByDescending(o => o.CreatedAt);
 
@@ -797,7 +798,7 @@ namespace VerdeCrop.Application.Services
 
         public async Task<PagedResult<OrderListDto>> GetAllAsync(int page, int pageSize, string? status)
         {
-            var query = _uow.Orders.Query().Include(o => o.Items).AsQueryable();
+            var query = _uow.Orders.Query().Include(o => o.Items).Include(o => o.Address).AsQueryable();
             if (!string.IsNullOrEmpty(status)) query = query.Where(o => o.Status == status);
             query = query.OrderByDescending(o => o.CreatedAt);
             var total = await query.CountAsync();
@@ -1057,7 +1058,8 @@ namespace VerdeCrop.Application.Services
 
         private static OrderListDto ToListDto(Order o) => new(
             o.Id, o.OrderNumber, o.Status, o.PaymentStatus, o.TotalAmount,
-            o.Items?.Count ?? 0, o.CreatedAt, o.EstimatedDelivery?.ToString("dd MMM yyyy"));
+            o.Items?.Count ?? 0, o.CreatedAt, o.EstimatedDelivery?.ToString("dd MMM yyyy"),
+            o.Address?.FullName);
 
         private static OrderDetailDto ToDetailDto(Order o) => new(
             o.Id, o.OrderNumber, o.Status, o.PaymentStatus, o.PaymentMethod,

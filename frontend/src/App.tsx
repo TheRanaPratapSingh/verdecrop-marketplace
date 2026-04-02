@@ -26,7 +26,6 @@ const BecomeSellerPage    = lazy(() => import('./pages/BecomeSeller').then(m => 
 const FarmerStoriesPage   = lazy(() => import('./pages/FarmerStories').then(m => ({ default: m.FarmerStoriesPage })))
 const CertificationsPage  = lazy(() => import('./pages/Certifications').then(m => ({ default: m.CertificationsPage })))
 const ShopByFarmsPage     = lazy(() => import('./pages/ShopByFarms').then(m => ({ default: m.ShopByFarmsPage })))
-const FarmersPage         = lazy(() => import('./pages/Farmers').then(m => ({ default: m.FarmersPage })))
 const SellerOrdersPage     = lazy(() => import('./pages/SellerOrders').then(m => ({ default: m.SellerOrdersPage })))
 const SellerOrderDetailPage = lazy(() => import('./pages/SellerOrderDetail').then(m => ({ default: m.SellerOrderDetailPage })))
 const AdminDashboard      = lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })))
@@ -35,7 +34,6 @@ const AdminCategories     = lazy(() => import('./pages/admin/Categories').then(m
 const AdminSellers        = lazy(() => import('./pages/admin/Sellers').then(m => ({ default: m.AdminSellers })))
 const AdminOrders         = lazy(() => import('./pages/admin/Orders').then(m => ({ default: m.AdminOrders })))
 const AdminUsers          = lazy(() => import('./pages/admin/Users').then(m => ({ default: m.AdminUsers })))
-const AdminFarmers        = lazy(() => import('./pages/admin/Farmers').then(m => ({ default: m.AdminFarmers })))
 
 const Loader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-cream">
@@ -104,7 +102,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/contact"         element={<ContactPage />} />
           <Route path="/become-a-seller" element={<BecomeSellerPage />} />
           <Route path="/shop-by-farms"   element={<ShopByFarmsPage />} />
-          <Route path="/farmers"         element={<FarmersPage />} />
+          <Route path="/farmers"         element={<ShopByFarmsPage />} />
           <Route path="/farmer-stories"  element={<FarmerStoriesPage />} />
           <Route path="/certifications"  element={<CertificationsPage />} />
           <Route path="/login"           element={<RequireGuest><LoginPage /></RequireGuest>} />
@@ -123,7 +121,6 @@ const AppRoutes: React.FC = () => {
           <Route path="/admin/sellers"   element={<RequireAuth><AdminSellers /></RequireAuth>} />
           <Route path="/admin/orders"    element={<RequireAuth><AdminOrders /></RequireAuth>} />
           <Route path="/admin/users"     element={<RequireAuth><AdminUsers /></RequireAuth>} />
-          <Route path="/admin/farmers" element={<RequireAuth><AdminFarmers /></RequireAuth>} />
           <Route path="*"               element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

@@ -2,12 +2,14 @@ using System.Text;
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Threading.RateLimiting;
+using VerdeCrop.API.Middleware;
 using VerdeCrop.Application.Interfaces;
 using VerdeCrop.Application.Services;
 using VerdeCrop.Infrastructure.Data;
@@ -33,10 +35,15 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 // ── JWT Auth ──────────────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:SecretKey"];
 
-if (string.IsNullOrEmpty(jwtKey))
+if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
 {
-    Console.WriteLine("JWT KEY IS NULL ❌");
-    jwtKey = "CHANGE_THIS_TO_A_32_CHAR_MIN_SECRET_KEY_IN_PRODUCTION"; // fallback
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException(
+            "FATAL: Jwt:SecretKey is missing or too short (minimum 32 characters). " +
+            "Set it via Azure App Configuration or environment variables.");
+
+    Log.Warning("JWT key is missing or weak — using insecure fallback. DO NOT use in production.");
+    jwtKey = "CHANGE_THIS_TO_A_32_CHAR_MIN_SECRET_KEY_IN_PRODUCTION";
 }
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -50,7 +57,33 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidateAudience = true,
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            ClockSkew = TimeSpan.Zero
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero   // no grace period — tokens expire exactly on time
+        };
+        opt.Events = new JwtBearerEvents
+        {
+            // Return clean JSON 401 instead of a redirect
+            OnChallenge = ctx =>
+            {
+                ctx.HandleResponse();
+                ctx.Response.StatusCode = 401;
+                ctx.Response.ContentType = "application/json";
+                return ctx.Response.WriteAsJsonAsync(new { success = false, message = "Unauthorized. Please log in." });
+            },
+            // Return clean JSON 403 instead of a redirect
+            OnForbidden = ctx =>
+            {
+                ctx.Response.StatusCode = 403;
+                ctx.Response.ContentType = "application/json";
+                return ctx.Response.WriteAsJsonAsync(new { success = false, message = "Access denied. Insufficient permissions." });
+            },
+            OnAuthenticationFailed = ctx =>
+            {
+                Log.Warning("JWT authentication failed: {Error} from {IP}",
+                    ctx.Exception.Message,
+                    ctx.HttpContext.Connection.RemoteIpAddress);
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -78,19 +111,27 @@ builder.Services.AddCors(options =>
 builder.Services.AddRateLimiter(opt =>
 {
     opt.RejectionStatusCode = 429;
+    opt.OnRejected = async (ctx, _) =>
+    {
+        ctx.HttpContext.Response.ContentType = "application/json";
+        await ctx.HttpContext.Response.WriteAsJsonAsync(
+            new { success = false, message = "Too many requests. Please slow down and try again later." });
+    };
+    // General API: 300 req/min per IP
     opt.AddFixedWindowLimiter("api", o =>
     {
         o.Window = TimeSpan.FromMinutes(1);
-        o.PermitLimit = 1000;
+        o.PermitLimit = 300;
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit = 200;
+        o.QueueLimit = 50;
     });
+    // Auth endpoints: 10 attempts per 15 minutes (brute-force protection)
     opt.AddFixedWindowLimiter("auth", o =>
     {
         o.Window = TimeSpan.FromMinutes(15);
-        o.PermitLimit = 200;
+        o.PermitLimit = 10;
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        o.QueueLimit = 50;
+        o.QueueLimit = 5;
     });
 });
 
@@ -134,13 +175,25 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 
 // ── Controllers + Swagger ─────────────────────────────────────────────────────
-builder.Services.AddControllers().AddJsonOptions(o =>
-{
-    o.JsonSerializerOptions.PropertyNamingPolicy =
-        System.Text.Json.JsonNamingPolicy.CamelCase;
-    o.JsonSerializerOptions.DefaultIgnoreCondition =
-        System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-});
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return new BadRequestObjectResult(new { success = false, message = string.Join("; ", errors) });
+        };
+    })
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.PropertyNamingPolicy =
+            System.Text.Json.JsonNamingPolicy.CamelCase;
+        o.JsonSerializerOptions.DefaultIgnoreCondition =
+            System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

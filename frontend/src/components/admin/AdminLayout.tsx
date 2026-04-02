@@ -17,10 +17,9 @@ const navItems: NavItem[] = [
   { label: 'Sellers', path: '/admin/sellers', icon: <Users className="w-5 h-5" /> },
   { label: 'Orders', path: '/admin/orders', icon: <ShoppingCart className="w-5 h-5" /> },
   { label: 'Users', path: '/admin/users', icon: <UserCheck className="w-5 h-5" /> },
-  { label: 'Farmers', path: '/admin/farmers', icon: <Sprout className="w-5 h-5" /> },
 ]
 
-import { LayoutDashboard, Package, Tag, Users, ShoppingCart, UserCheck, Sprout } from 'lucide-react'
+import { LayoutDashboard, Package, Tag, Users, ShoppingCart, UserCheck } from 'lucide-react'
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuthStore()

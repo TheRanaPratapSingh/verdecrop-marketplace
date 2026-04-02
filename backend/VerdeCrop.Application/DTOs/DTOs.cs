@@ -5,38 +5,55 @@ using System.ComponentModel.DataAnnotations;
 namespace VerdeCrop.Application.DTOs
 {
     // ── Auth ──────────────────────────────────────────────────────────────────
-    public record SendOtpRequest([Required] string Identifier, string Purpose = "login");
-    public record VerifyOtpRequest([Required] string Identifier, [Required] string Code, string? Name = null, string? Email = null, string? Phone = null);
+    public record SendOtpRequest(
+        [Required][StringLength(200, MinimumLength = 5)] string Identifier,
+        [StringLength(20)] string Purpose = "login");
+
+    public record VerifyOtpRequest(
+        [Required][StringLength(200, MinimumLength = 5)] string Identifier,
+        [Required][StringLength(6, MinimumLength = 6)] string Code,
+        [StringLength(100)] string? Name = null,
+        [EmailAddress][StringLength(200)] string? Email = null,
+        [StringLength(20)] string? Phone = null);
+
     public record AuthResponse(string AccessToken, string RefreshToken, UserDto User);
-    public record RefreshTokenRequest([Required] string Token);
-    public record LogoutRequest([Required] string RefreshToken);
+    public record RefreshTokenRequest([Required][StringLength(500)] string Token);
+    public record LogoutRequest([Required][StringLength(500)] string RefreshToken);
 
     // ── User ──────────────────────────────────────────────────────────────────
     public record UserDto(int Id, string Name, string? Email, string? Phone, string Role, string? AvatarUrl, bool IsActive);
-    public record UpdateProfileRequest(string Name, string? Email, string? Phone);
-    public record UpdateFcmTokenRequest([Required] string Token);
+    public record UpdateProfileRequest(
+        [Required][StringLength(100, MinimumLength = 2)] string Name,
+        [EmailAddress][StringLength(200)] string? Email,
+        [StringLength(20)] string? Phone);
+    public record UpdateFcmTokenRequest([Required][StringLength(500)] string Token);
 
     // ── Address ───────────────────────────────────────────────────────────────
     public record AddressDto(int Id, string Label, string FullName, string Phone, string Street, string City, string State, string PinCode, bool IsDefault);
     public record CreateAddressRequest(
-        [Required] string Label, [Required] string FullName, [Required] string Phone,
-        [Required] string Street, [Required] string City, [Required] string State,
-        [Required] string PinCode, bool IsDefault = false);
+        [Required][StringLength(20)] string Label,
+        [Required][StringLength(100)] string FullName,
+        [Required][StringLength(20)] string Phone,
+        [Required][StringLength(200)] string Street,
+        [Required][StringLength(100)] string City,
+        [Required][StringLength(100)] string State,
+        [Required][StringLength(10, MinimumLength = 4)] string PinCode,
+        bool IsDefault = false);
 
     // ── Category ──────────────────────────────────────────────────────────────
     public record CategoryDto(int Id, string Name, string Slug, string? Description, string? IconUrl, int DisplayOrder, int ProductCount);
 
     public record CreateCategoryRequest(
-        [Required] string Name,
-        string? Description,
-        string? IconUrl,
+        [Required][StringLength(100, MinimumLength = 2)] string Name,
+        [StringLength(500)] string? Description,
+        [StringLength(500)] string? IconUrl,
         int DisplayOrder = 0,
         bool IsActive = true);
 
     public record UpdateCategoryRequest(
-        string? Name,
-        string? Description,
-        string? IconUrl,
+        [StringLength(100)] string? Name,
+        [StringLength(500)] string? Description,
+        [StringLength(500)] string? IconUrl,
         int? DisplayOrder,
         bool? IsActive);
 
@@ -47,15 +64,15 @@ namespace VerdeCrop.Application.DTOs
         string OwnerName, string? AvatarUrl);
 
     public record RegisterFarmerRequest(
-        [Required] string FarmName,
-        string? OwnerName,
-        string? Description,
-        [Required] string Location,
-        [Required] string State,
-        string? PinCode,
-        string? CertificationNumber,
-        string? BankAccountNumber,
-        string? BankIfsc,
+        [Required][StringLength(150, MinimumLength = 2)] string FarmName,
+        [StringLength(100)] string? OwnerName,
+        [StringLength(1000)] string? Description,
+        [Required][StringLength(200)] string Location,
+        [Required][StringLength(100)] string State,
+        [StringLength(10)] string? PinCode,
+        [StringLength(100)] string? CertificationNumber,
+        [StringLength(30)] string? BankAccountNumber,
+        [StringLength(15)] string? BankIfsc,
         bool? IsApproved = null
     );
 
@@ -88,17 +105,17 @@ namespace VerdeCrop.Application.DTOs
 
     // ── FIX: Added ImageUrl, ImageUrls, IsFeatured — were missing, causing images/description not to save
     public record CreateProductRequest(
-        [Required] string Name,
-        string? Description,
+        [Required][StringLength(200, MinimumLength = 2)] string Name,
+        [StringLength(2000)] string? Description,
         [Required] int CategoryId,
-        [Required][Range(0.01, double.MaxValue)] decimal Price,
-        decimal? OriginalPrice,
-        [Required] string Unit,
-        decimal MinOrderQty,
-        [Required] int StockQuantity,
+        [Required][Range(0.01, 1_000_000)] decimal Price,
+        [Range(0, 1_000_000)] decimal? OriginalPrice,
+        [Required][StringLength(20)] string Unit,
+        [Range(0, 10_000)] decimal MinOrderQty,
+        [Required][Range(0, 100_000)] int StockQuantity,
         bool IsOrganic = true,
         bool? IsFeatured = null,
-        string? ImageUrl = null,
+        [StringLength(1000)] string? ImageUrl = null,
         List<string>? ImageUrls = null
     );
 
@@ -127,7 +144,7 @@ namespace VerdeCrop.Application.DTOs
 
     // ── Order ─────────────────────────────────────────────────────────────────
     public record OrderListDto(int Id, string OrderNumber, string Status, string PaymentStatus, decimal TotalAmount,
-        int ItemCount, DateTime CreatedAt, string? EstimatedDelivery);
+        int ItemCount, DateTime CreatedAt, string? EstimatedDelivery, string? CustomerName);
 
     public record OrderDetailDto(int Id, string OrderNumber, string Status, string PaymentStatus,
         string PaymentMethod, decimal Subtotal, decimal DeliveryCharge, decimal DiscountAmount,
@@ -142,9 +159,9 @@ namespace VerdeCrop.Application.DTOs
 
     public record PlaceOrderRequest(
         [Required] int AddressId,
-        [Required] string PaymentMethod,
-        string? CouponCode,
-        string? Notes);
+        [Required][StringLength(20)] string PaymentMethod,
+        [StringLength(50)] string? CouponCode,
+        [StringLength(500)] string? Notes);
 
     public record ApplyCouponRequest([Required] string Code, [Required] decimal OrderAmount);
     public record CouponResponseDto(string Code, string DiscountType, decimal DiscountValue, decimal DiscountAmount, decimal FinalAmount);
