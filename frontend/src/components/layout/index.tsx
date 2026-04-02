@@ -38,12 +38,19 @@ export const Navbar: React.FC = () => {
   const isAdmin = user?.role?.toString().trim().toLowerCase() === 'admin'
   const isFarmer = user?.role?.toString().trim().toLowerCase() === 'farmer'
 
+  const isNavActive = (to: string) => {
+    const [path, query] = to.split('?')
+    if (query) return location.pathname === path && location.search === `?${query}`
+    return location.pathname === path && !location.search
+  }
+
   const navLinks = isFarmer
     ? [{ to: '/seller/orders', label: 'Seller Dashboard' }]
     : [
         { to: '/products', label: 'Shop' },
         { to: '/products?isOrganic=true', label: 'Organic' },
         { to: '/products?isFeatured=true', label: 'Featured' },
+        { to: '/farmers', label: 'Know Your Farmers' },
         { to: '/shop-by-farms', label: 'Shop by Farms' },
         ...(isAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
       ]
@@ -61,7 +68,7 @@ export const Navbar: React.FC = () => {
 
           <div className="hidden lg:flex items-center gap-1 flex-1">
             {navLinks.map(l => (
-              <Link key={l.to} to={l.to} className={`px-4 py-2 text-[13px] font-label font-medium tracking-wide rounded-xl transition-all duration-150 ${location.pathname === l.to ? 'bg-forest-50 text-forest-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'}`}>{l.label}</Link>
+              <Link key={l.to} to={l.to} className={`px-4 py-2 text-[13px] font-label font-medium tracking-wide rounded-xl transition-all duration-150 ${isNavActive(l.to) ? 'bg-forest-50 text-forest-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'}`}>{l.label}</Link>
             ))}
           </div>
 

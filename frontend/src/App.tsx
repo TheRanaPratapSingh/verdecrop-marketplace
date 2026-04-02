@@ -1,6 +1,6 @@
 // ── App.tsx ───────────────────────────────────────────────────────────────────
-import React, { Component, Suspense, lazy, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
+import React, { Suspense, lazy, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store'
 import { Spinner } from './components/ui'
@@ -26,6 +26,7 @@ const BecomeSellerPage    = lazy(() => import('./pages/BecomeSeller').then(m => 
 const FarmerStoriesPage   = lazy(() => import('./pages/FarmerStories').then(m => ({ default: m.FarmerStoriesPage })))
 const CertificationsPage  = lazy(() => import('./pages/Certifications').then(m => ({ default: m.CertificationsPage })))
 const ShopByFarmsPage     = lazy(() => import('./pages/ShopByFarms').then(m => ({ default: m.ShopByFarmsPage })))
+const FarmersPage         = lazy(() => import('./pages/Farmers').then(m => ({ default: m.FarmersPage })))
 const SellerOrdersPage     = lazy(() => import('./pages/SellerOrders').then(m => ({ default: m.SellerOrdersPage })))
 const SellerOrderDetailPage = lazy(() => import('./pages/SellerOrderDetail').then(m => ({ default: m.SellerOrderDetailPage })))
 const AdminDashboard      = lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })))
@@ -34,6 +35,7 @@ const AdminCategories     = lazy(() => import('./pages/admin/Categories').then(m
 const AdminSellers        = lazy(() => import('./pages/admin/Sellers').then(m => ({ default: m.AdminSellers })))
 const AdminOrders         = lazy(() => import('./pages/admin/Orders').then(m => ({ default: m.AdminOrders })))
 const AdminUsers          = lazy(() => import('./pages/admin/Users').then(m => ({ default: m.AdminUsers })))
+const AdminFarmers        = lazy(() => import('./pages/admin/Farmers').then(m => ({ default: m.AdminFarmers })))
 
 const Loader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-cream">
@@ -44,34 +46,6 @@ const Loader: React.FC = () => (
     </div>
   </div>
 )
-
-// ── Error Boundary ───────────────────────────────────────────────────────────
-interface ErrorBoundaryState { hasError: boolean; error?: Error }
-class ErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false }
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState { return { hasError: true, error } }
-  componentDidCatch(error: Error, info: React.ErrorInfo) { console.error('ErrorBoundary caught:', error, info) }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-cream p-6">
-          <div className="text-center max-w-md">
-            <div className="text-5xl mb-4">😓</div>
-            <h1 className="text-2xl font-display font-semibold text-gray-900 mb-2">Something went wrong</h1>
-            <p className="text-sm text-gray-500 font-body mb-6">An unexpected error occurred. Please try again.</p>
-            <button
-              onClick={() => { this.setState({ hasError: false, error: undefined }); window.location.href = '/' }}
-              className="inline-flex items-center justify-center px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors"
-            >
-              Go Home
-            </button>
-          </div>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
 
 const ScrollTop: React.FC = () => {
   const { pathname, search } = useLocation()
@@ -119,9 +93,8 @@ const AppRoutes: React.FC = () => {
   return (
     <>
       <ScrollTop />
-      <ErrorBoundary>
-        <Suspense fallback={<Loader />}>
-          <Routes>
+      <Suspense fallback={<Loader />}>
+        <Routes>
           <Route path="/"                element={<HomePage />} />
           <Route path="/products"        element={<ProductsPage />} />
           <Route path="/products/:slug"  element={<ProductDetailPage />} />
@@ -131,7 +104,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/contact"         element={<ContactPage />} />
           <Route path="/become-a-seller" element={<BecomeSellerPage />} />
           <Route path="/shop-by-farms"   element={<ShopByFarmsPage />} />
-          <Route path="/farmers"         element={<ShopByFarmsPage />} />
+          <Route path="/farmers"         element={<FarmersPage />} />
           <Route path="/farmer-stories"  element={<FarmerStoriesPage />} />
           <Route path="/certifications"  element={<CertificationsPage />} />
           <Route path="/login"           element={<RequireGuest><LoginPage /></RequireGuest>} />
@@ -150,10 +123,10 @@ const AppRoutes: React.FC = () => {
           <Route path="/admin/sellers"   element={<RequireAuth><AdminSellers /></RequireAuth>} />
           <Route path="/admin/orders"    element={<RequireAuth><AdminOrders /></RequireAuth>} />
           <Route path="/admin/users"     element={<RequireAuth><AdminUsers /></RequireAuth>} />
+          <Route path="/admin/farmers" element={<RequireAuth><AdminFarmers /></RequireAuth>} />
           <Route path="*"               element={<Navigate to="/" replace />} />
         </Routes>
-        </Suspense>
-      </ErrorBoundary>
+      </Suspense>
       <Toaster position="top-right" toastOptions={{
         duration: 3500,
         style: { borderRadius: '14px', fontSize: '14px', fontFamily: '"DM Sans", system-ui, sans-serif' },

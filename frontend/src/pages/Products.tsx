@@ -39,17 +39,6 @@ export const ProductsPage: React.FC = () => {
     setSearchParams(p)
   }
 
-  const setMultipleParams = (updates: Record<string, string>) => {
-    const p = new URLSearchParams(searchParams)
-    let resetPage = false
-    Object.entries(updates).forEach(([k, v]) => {
-      if (v) p.set(k, v); else p.delete(k)
-      if (k !== 'page') resetPage = true
-    })
-    if (resetPage) p.delete('page')
-    setSearchParams(p)
-  }
-
   const matchedCategory = categorySlug ? categories.find(c => c.slug === categorySlug) : undefined
   const resolvedCategoryId = categoryId || (matchedCategory ? String(matchedCategory.id) : '')
 
@@ -59,7 +48,6 @@ export const ProductsPage: React.FC = () => {
       const params: Record<string, string> = { page: String(page), pageSize: '20', sortBy }
       if (search) params.search = search
       if (resolvedCategoryId) params.categoryId = resolvedCategoryId
-      else if (categorySlug) params.categorySlug = categorySlug
       if (isOrganic) params.isOrganic = isOrganic
       if (minPrice) params.minPrice = minPrice
       if (maxPrice) params.maxPrice = maxPrice
@@ -72,7 +60,7 @@ export const ProductsPage: React.FC = () => {
       setTotal(farmerId ? filteredItems.length : (res?.totalCount || 0))
       setTotalPages(farmerId ? 1 : (res?.totalPages || 1))
     } finally { setLoading(false) }
-  }, [page, search, resolvedCategoryId, categorySlug, sortBy, isOrganic, minPrice, maxPrice, farmerId])
+  }, [page, search, resolvedCategoryId, sortBy, isOrganic, minPrice, maxPrice, farmerId])
 
   useEffect(() => { loadProducts() }, [loadProducts])
   useEffect(() => { categoryApi.getAll().then(setCategories).catch(() => {}) }, [])
@@ -94,9 +82,7 @@ export const ProductsPage: React.FC = () => {
                   ? `Products from ${farmerName || 'Selected Farm'}`
                   : resolvedCategoryId
                     ? categories.find(c => c.id === Number(resolvedCategoryId))?.name || 'Products'
-                    : categorySlug
-                      ? matchedCategory?.name || categorySlug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-                      : 'All Products'}
+                    : 'All Products'}
             </h1>
             {!loading && <p className="text-sm text-gray-500 font-body mt-0.5">{total.toLocaleString()} products</p>}
           </div>
@@ -121,7 +107,7 @@ export const ProductsPage: React.FC = () => {
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 font-body">Category</h3>
                 <div className="space-y-1.5">
                   <button
-                    onClick={() => setMultipleParams({ categoryId: '', categorySlug: '' })}
+                    onClick={() => { setParam('categoryId', ''); setParam('categorySlug', '') }}
                     className={`w-full text-left text-sm px-3 py-2 rounded-xl transition font-body ${!categoryId && !categorySlug ? 'bg-leaf-50 text-leaf-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
                   >
                     All Categories
@@ -129,7 +115,7 @@ export const ProductsPage: React.FC = () => {
                   {categories.map(cat => (
                     <button
                       key={cat.id}
-                      onClick={() => setMultipleParams({ categoryId: String(cat.id), categorySlug: cat.slug })}
+                      onClick={() => { setParam('categoryId', String(cat.id)); setParam('categorySlug', cat.slug) }}
                       className={`w-full text-left text-sm px-3 py-2 rounded-xl transition font-body flex justify-between items-center ${(categoryId === String(cat.id) || categorySlug === cat.slug) ? 'bg-leaf-50 text-leaf-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                       <span className="flex items-center gap-2">
@@ -232,7 +218,6 @@ export const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [qty, setQty] = useState(1)
   const [unitPack, setUnitPack] = useState(1)
   const [adding, setAdding] = useState(false)
@@ -246,31 +231,18 @@ export const ProductDetailPage: React.FC = () => {
   useEffect(() => {
     if (!slug) return
     setLoading(true)
-    setError(null)
-    setProduct(null)
     productApi.getBySlug(slug)
       .then(p => {
-        if (!p || !p.id) {
-          setError('Product not found')
-          setLoading(false)
-          return
-        }
         setProduct(p)
-        setLoading(false)
-        try {
-          trackEvent('view_product', {
-            product_id: p.id,
-            product_name: p.name,
-            category_name: p.categoryName,
-            price: p.price,
-          })
-        } catch { /* analytics should not break the page */ }
-      })
-      .catch((err) => {
-        console.error('Failed to load product:', err)
-        setError('Could not load product. Please try again.')
+        trackEvent('view_product', {
+          product_id: p.id,
+          product_name: p.name,
+          category_name: p.categoryName,
+          price: p.price,
+        })
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [slug])
 
   const handleAddToCart = async () => {
@@ -340,19 +312,10 @@ export const ProductDetailPage: React.FC = () => {
     </PageLayout>
   )
 
-  if (error || !product) return (
+  if (!product) return (
     <PageLayout>
       <div className="max-w-5xl mx-auto px-6 py-12">
-        <EmptyState
-          title={error ? 'Error loading product' : 'Product not found'}
-          description={error || 'This product may have been removed.'}
-          action={
-            <div className="flex gap-3">
-              {error && <Button onClick={() => { setError(null); setLoading(true); slug && productApi.getBySlug(slug).then(p => { if (p?.id) { setProduct(p); setLoading(false) } else { setError('Product not found'); setLoading(false) } }).catch(() => { setError('Could not load product.'); setLoading(false) }) }}>Retry</Button>}
-              <Link to="/products"><Button variant={error ? 'outline' : 'primary'}>Back to Shop</Button></Link>
-            </div>
-          }
-        />
+        <EmptyState title="Product not found" description="This product may have been removed." action={<Link to="/products"><Button>Back to Shop</Button></Link>} />
       </div>
     </PageLayout>
   )
@@ -379,15 +342,13 @@ export const ProductDetailPage: React.FC = () => {
   // Track product view
   useEffect(() => {
     if (product) {
-      try {
-        trackEvent('Product Viewed', {
-          product_id: product.id,
-          product_name: product.name,
-          category: product.categoryName,
-          price: product.price,
-          variant: product.imageUrls?.[0] || '',
-        })
-      } catch { /* analytics should not break the page */ }
+      trackEvent('Product Viewed', {
+        product_id: product.id,
+        product_name: product.name,
+        category: product.categoryName,
+        price: product.price,
+        variant: product.imageUrls?.[0] || '',
+      })
     }
   }, [product])
 

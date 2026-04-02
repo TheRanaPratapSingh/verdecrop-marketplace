@@ -139,6 +139,8 @@ export const farmerApi = {
   update: (id: number, data: object) => unwrap<Farmer>(api.put(`/farmers/${id}`, data)),
   delete: (id: number) => unwrap<boolean>(api.delete(`/farmers/${id}`)),
   approve: (id: number, approve: boolean) => unwrap<boolean>(api.put(`/farmers/${id}/approve`, approve)),
+  uploadPhoto: (id: number, form: FormData) =>
+    unwrap<{ url: string }>(api.post(`/farmers/${id}/avatar`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
 }
 
 // ── Products ─────────────────────────────────────────────────────────────────
