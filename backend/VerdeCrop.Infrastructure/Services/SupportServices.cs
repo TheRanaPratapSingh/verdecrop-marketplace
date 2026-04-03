@@ -554,23 +554,16 @@ namespace VerdeCrop.Infrastructure.Services
 
         public async Task<List<CategoryDto>> GetAllAsync()
         {
-            try
-            {
-                var result = await _uow.Categories.Query()
-                    .Where(c => c.IsActive)
-                    .OrderBy(c => c.DisplayOrder)
-                    .Select(c => new CategoryDto(
-                        c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
-                        c.DisplayOrder,
-                        c.Products.Where(p => p.IsActive).Count(),
-                        c.IsActive, c.ShowOnHome))
-                    .ToListAsync();
-                return result;
-            }
-            catch
-            {
-                return new List<CategoryDto>();
-            }
+            var result = await _uow.Categories.Query()
+                .Where(c => c.IsActive)
+                .OrderBy(c => c.DisplayOrder)
+                .Select(c => new CategoryDto(
+                    c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
+                    c.DisplayOrder,
+                    c.Products.Where(p => p.IsActive).Count(),
+                    c.IsActive, c.ShowOnHome))
+                .ToListAsync();
+            return result;
         }
 
         public async Task<CategoryDto?> GetByIdAsync(int id)
