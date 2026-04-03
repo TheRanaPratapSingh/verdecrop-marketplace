@@ -7,12 +7,15 @@ import { productApi, categoryApi, farmerApi } from '../../services/api'
 import { useAuthStore } from '../../store'
 import type { Product, Category, Farmer } from '../../types'
 
+const UNIT_OPTIONS = ['g', 'kg', 'ml', 'L', 'piece', 'dozen', 'pack'] as const
+
 const emptyFormState = {
   name: '',
   categoryId: 0,
   categoryName: '',
   price: '',
   stock: '',
+  unit: 'kg',
   status: 'active',
   description: '',
   imageUrl: '',
@@ -104,7 +107,7 @@ export const AdminProducts: React.FC = () => {
       categoryName: formData.categoryName,
       price: Number(formData.price),
       originalPrice: Number(formData.price),
-      unit: 'kg',
+      unit: formData.unit || 'kg',
       minOrderQty: 1,
       stockQuantity: Number(formData.stock),
       imageUrl: formData.imageUrl || formData.imageUrls?.[0],
@@ -153,6 +156,7 @@ export const AdminProducts: React.FC = () => {
       categoryName: product.categoryName,
       price: String(product.price),
       stock: String(product.stockQuantity),
+      unit: product.unit || 'kg',
       status: product.isActive ? 'active' : 'inactive',
       description: product.description ?? '',
       imageUrl: product.imageUrl ?? '',
@@ -365,13 +369,27 @@ export const AdminProducts: React.FC = () => {
                   onChange={e => setFormData({ ...formData, price: e.target.value })}
                   placeholder="e.g., 80"
                 />
-                <Input
-                  label="Stock Quantity"
-                  type="number"
-                  value={formData.stock}
-                  onChange={e => setFormData({ ...formData, stock: e.target.value })}
-                  placeholder="e.g., 100"
-                />
+                <div>
+                  <label className="block text-sm font-label font-medium text-gray-700 mb-1">Stock Quantity &amp; Unit</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={formData.stock}
+                      onChange={e => setFormData({ ...formData, stock: e.target.value })}
+                      placeholder="e.g., 100"
+                      className="flex-1"
+                    />
+                    <select
+                      value={formData.unit}
+                      onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500 min-w-[90px]"
+                    >
+                      {UNIT_OPTIONS.map(u => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <div className="flex items-center gap-3">
                   <input
                     id="isOrganic"
