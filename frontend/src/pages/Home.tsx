@@ -281,7 +281,7 @@ const HomePage: React.FC = () => {
             </p>
           </div>
           <div className="relative z-10 flex flex-col items-center gap-3 flex-shrink-0">
-            <Link to="/farmers/register" className="inline-flex items-center gap-2.5 px-8 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 whitespace-nowrap">
+            <Link to="/become-a-seller" className="inline-flex items-center gap-2.5 px-8 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 whitespace-nowrap">
               Start Selling Free <ArrowRight className="w-4 h-4" />
             </Link>
             <p className="text-xs text-stone-500 font-body text-center">No setup fee · Instant approval · 24/7 support</p>
