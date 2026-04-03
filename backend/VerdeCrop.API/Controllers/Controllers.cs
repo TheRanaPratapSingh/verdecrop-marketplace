@@ -249,6 +249,17 @@ namespace VerdeCrop.API.Controllers
             return cat == null ? NotFound() : Ok(ApiResponse.Ok(cat));
         }
 
+        [HttpPost]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> Create([FromBody] CreateCategoryRequest req)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
+            var cat = await _categories.CreateAsync(req);
+            return Ok(ApiResponse.Ok(cat, "Category created"));
+        }
+
         [HttpPut("{id}")]
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateCategoryRequest req)

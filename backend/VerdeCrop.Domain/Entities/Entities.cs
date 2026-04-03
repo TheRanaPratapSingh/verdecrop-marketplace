@@ -73,6 +73,7 @@ namespace VerdeCrop.Domain.Entities
         public string? IconUrl { get; set; }
         public int DisplayOrder { get; set; } = 0;
         public bool IsActive { get; set; } = true;
+        public bool ShowOnHome { get; set; } = false;
         public ICollection<Product> Products { get; set; } = new List<Product>();
     }
 

@@ -41,21 +41,23 @@ namespace VerdeCrop.Application.DTOs
         bool IsDefault = false);
 
     // ── Category ──────────────────────────────────────────────────────────────
-    public record CategoryDto(int Id, string Name, string Slug, string? Description, string? IconUrl, int DisplayOrder, int ProductCount);
+    public record CategoryDto(int Id, string Name, string Slug, string? Description, string? IconUrl, int DisplayOrder, int ProductCount, bool IsActive, bool ShowOnHome);
 
     public record CreateCategoryRequest(
         [Required][StringLength(100, MinimumLength = 2)] string Name,
         [StringLength(500)] string? Description,
         [StringLength(500)] string? IconUrl,
         int DisplayOrder = 0,
-        bool IsActive = true);
+        bool IsActive = true,
+        bool ShowOnHome = false);
 
     public record UpdateCategoryRequest(
         [StringLength(100)] string? Name,
         [StringLength(500)] string? Description,
         [StringLength(500)] string? IconUrl,
         int? DisplayOrder,
-        bool? IsActive);
+        bool? IsActive,
+        bool? ShowOnHome);
 
     // ── Farmer ────────────────────────────────────────────────────────────────
     public record FarmerDto(int Id, int UserId, string FarmName, string? Description, string Location, string State,

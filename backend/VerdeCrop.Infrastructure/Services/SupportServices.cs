@@ -562,7 +562,8 @@ namespace VerdeCrop.Infrastructure.Services
                     .Select(c => new CategoryDto(
                         c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
                         c.DisplayOrder,
-                        c.Products.Where(p => p.IsActive).Count()))
+                        c.Products.Where(p => p.IsActive).Count(),
+                        c.IsActive, c.ShowOnHome))
                     .ToListAsync();
                 return result;
             }
@@ -581,7 +582,8 @@ namespace VerdeCrop.Infrastructure.Services
                     .Select(c => new CategoryDto(
                         c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
                         c.DisplayOrder,
-                        c.Products.Where(p => p.IsActive).Count()))
+                        c.Products.Where(p => p.IsActive).Count(),
+                        c.IsActive, c.ShowOnHome))
                     .FirstOrDefaultAsync();
                 return result;
             }
@@ -600,7 +602,8 @@ namespace VerdeCrop.Infrastructure.Services
                     .Select(c => new CategoryDto(
                         c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
                         c.DisplayOrder,
-                        c.Products.Where(p => p.IsActive).Count()))
+                        c.Products.Where(p => p.IsActive).Count(),
+                        c.IsActive, c.ShowOnHome))
                     .FirstOrDefaultAsync();
                 return result;
             }
@@ -624,7 +627,8 @@ namespace VerdeCrop.Infrastructure.Services
                 Description = req.Description,
                 IconUrl = req.IconUrl,
                 DisplayOrder = req.DisplayOrder,
-                IsActive = req.IsActive
+                IsActive = req.IsActive,
+                ShowOnHome = req.ShowOnHome
             };
             await _uow.Categories.AddAsync(category);
             await _uow.SaveChangesAsync();
@@ -646,6 +650,7 @@ namespace VerdeCrop.Infrastructure.Services
             if (req.IconUrl != null) category.IconUrl = req.IconUrl;
             if (req.DisplayOrder.HasValue) category.DisplayOrder = req.DisplayOrder.Value;
             if (req.IsActive.HasValue) category.IsActive = req.IsActive.Value;
+            if (req.ShowOnHome.HasValue) category.ShowOnHome = req.ShowOnHome.Value;
 
             category.UpdatedAt = DateTime.UtcNow;
             await _uow.Categories.UpdateAsync(category);
@@ -669,6 +674,6 @@ namespace VerdeCrop.Infrastructure.Services
 
         private static CategoryDto ToDto(Category c) => new(
             c.Id, c.Name, c.Slug, c.Description, c.IconUrl,
-            c.DisplayOrder, c.Products?.Count(p => p.IsActive) ?? 0);
+            c.DisplayOrder, c.Products?.Count(p => p.IsActive) ?? 0, c.IsActive, c.ShowOnHome);
     }
 }
