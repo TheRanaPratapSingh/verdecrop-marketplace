@@ -172,12 +172,12 @@ namespace VerdeCrop.Infrastructure.Data
             // SEED DATA
             // ===============================
             mb.Entity<Category>().HasData(
-                new Category { Id = 1, Name = "Vegetables", Slug = "vegetables", IconUrl = "🥦", DisplayOrder = 1, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Category { Id = 2, Name = "Fruits", Slug = "fruits", IconUrl = "🍎", DisplayOrder = 2, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Category { Id = 3, Name = "Grains & Pulses", Slug = "grains-pulses", IconUrl = "🌾", DisplayOrder = 3, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Category { Id = 4, Name = "Dairy", Slug = "dairy", IconUrl = "🥛", DisplayOrder = 4, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Category { Id = 5, Name = "Herbs & Spices", Slug = "herbs-spices", IconUrl = "🌿", DisplayOrder = 5, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Category { Id = 6, Name = "Honey & Jam", Slug = "honey-jam", IconUrl = "🍯", DisplayOrder = 6, IsActive = true, CreatedAt = DateTime.UtcNow }
+                new Category { Id = 1, Name = "Vegetables", Slug = "vegetables", IconUrl = "🥦", DisplayOrder = 1, IsActive = true, ShowOnHome = true, CreatedAt = DateTime.UtcNow },
+                new Category { Id = 2, Name = "Fruits", Slug = "fruits", IconUrl = "🍎", DisplayOrder = 2, IsActive = true, ShowOnHome = true, CreatedAt = DateTime.UtcNow },
+                new Category { Id = 3, Name = "Grains & Pulses", Slug = "grains-pulses", IconUrl = "🌾", DisplayOrder = 3, IsActive = true, ShowOnHome = true, CreatedAt = DateTime.UtcNow },
+                new Category { Id = 4, Name = "Dairy", Slug = "dairy", IconUrl = "🥛", DisplayOrder = 4, IsActive = true, ShowOnHome = true, CreatedAt = DateTime.UtcNow },
+                new Category { Id = 5, Name = "Herbs & Spices", Slug = "herbs-spices", IconUrl = "🌿", DisplayOrder = 5, IsActive = true, ShowOnHome = true, CreatedAt = DateTime.UtcNow },
+                new Category { Id = 6, Name = "Honey & Jam", Slug = "honey-jam", IconUrl = "🍯", DisplayOrder = 6, IsActive = true, ShowOnHome = true, CreatedAt = DateTime.UtcNow }
             );
         }
     }
