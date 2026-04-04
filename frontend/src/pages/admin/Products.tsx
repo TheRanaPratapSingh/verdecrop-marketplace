@@ -191,18 +191,19 @@ export const AdminProducts: React.FC = () => {
   return (
     <AdminLayout>
       <div>
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
           <div>
-            <h2 className="text-3xl font-display font-bold text-gray-100 mb-1">Products</h2>
-            <p className="text-gray-400">Manage your product inventory and details</p>
+            <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-100 mb-1">Products</h2>
+            <p className="text-gray-400 text-sm">Manage your product inventory and details</p>
           </div>
-          <Button variant="primary" className="gap-2 px-6" onClick={() => { resetForm(); setShowModal(true) }}>
-            <Plus className="w-5 h-5" /> Add Product
+          <Button variant="primary" className="gap-2 px-5 self-start sm:self-auto" onClick={() => { resetForm(); setShowModal(true) }}>
+            <Plus className="w-4 h-4" /> Add Product
           </Button>
         </div>
 
         <Card className="bg-white border border-gray-200 overflow-hidden rounded-2xl shadow-sm">
-          <div className="overflow-x-auto">
+          {/* ── DESKTOP TABLE (lg+) ─────────────────────────────────────────── */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
@@ -217,51 +218,57 @@ export const AdminProducts: React.FC = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray-500">
-                      <Spinner /> Loading products...
-                    </td>
-                  </tr>
+                  <tr><td colSpan={7} className="py-8 text-center text-gray-500"><Spinner /> Loading...</td></tr>
                 ) : products.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray-500">
-                      No products found
-                    </td>
-                  </tr>
+                  <tr><td colSpan={7} className="py-8 text-center text-gray-500">No products found</td></tr>
                 ) : (
                   products.map(product => (
                     <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-6 text-sm text-gray-900 font-medium">{product.name}</td>
+                      <td className="py-4 px-6 text-sm text-gray-900 font-medium max-w-[180px] truncate">{product.name}</td>
                       <td className="py-4 px-6 text-sm text-gray-700">{product.categoryName || '-'}</td>
                       <td className="py-4 px-6 text-sm text-gray-900 font-semibold">₹{product.price}</td>
                       <td className="py-4 px-6 text-sm text-gray-900">{product.stockQuantity}</td>
+                      <td className="py-4 px-6"><Badge variant={product.isFeatured ? 'orange' : 'gray'}>{product.isFeatured ? 'Yes' : 'No'}</Badge></td>
+                      <td className="py-4 px-6"><Badge variant={product.isActive ? 'green' : 'gray'}>{product.isActive ? 'active' : 'inactive'}</Badge></td>
                       <td className="py-4 px-6">
-                        <Badge variant={product.isFeatured ? 'orange' : 'gray'}>{product.isFeatured ? 'Yes' : 'No'}</Badge>
-                      </td>
-                      <td className="py-4 px-6">
-                        <Badge variant={product.isActive ? 'green' : 'gray'}>{product.isActive ? 'active' : 'inactive'}</Badge>
-                      </td>
-                      <td className="py-4 px-6 flex gap-2">
-                        <button
-                          aria-label="Edit product"
-                          className="p-1.5 text-gray-600 hover:text-white hover:bg-green-600 rounded-lg transition-all"
-                          onClick={() => startEdit(product)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          aria-label="Delete product"
-                          className="p-1.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all"
-                          onClick={() => handleDelete(product.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex gap-2">
+                          <button aria-label="Edit" className="p-1.5 text-gray-600 hover:text-white hover:bg-green-600 rounded-lg transition-all" onClick={() => startEdit(product)}><Edit2 className="w-4 h-4" /></button>
+                          <button aria-label="Delete" className="p-1.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all" onClick={() => handleDelete(product.id)}><Trash2 className="w-4 h-4" /></button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* ── MOBILE CARD LIST (< lg) ──────────────────────────────────────── */}
+          <div className="lg:hidden divide-y divide-gray-100">
+            {loading ? (
+              <div className="py-10 text-center text-gray-500"><Spinner /> Loading...</div>
+            ) : products.length === 0 ? (
+              <div className="py-10 text-center text-gray-500">No products found</div>
+            ) : (
+              products.map(product => (
+                <div key={product.id} className="p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{product.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{product.categoryName || 'No category'}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span className="text-sm font-bold text-gray-900">₹{product.price}</span>
+                      <span className="text-xs text-gray-500">· Stock: {product.stockQuantity}</span>
+                      <Badge variant={product.isActive ? 'green' : 'gray'} >{product.isActive ? 'Active' : 'Inactive'}</Badge>
+                      {product.isFeatured && <Badge variant="orange">Featured</Badge>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0 mt-0.5">
+                    <button aria-label="Edit" className="p-2 text-gray-600 hover:text-white hover:bg-green-600 rounded-lg transition-all" onClick={() => startEdit(product)}><Edit2 className="w-4 h-4" /></button>
+                    <button aria-label="Delete" className="p-2 text-red-500 hover:text-white hover:bg-red-600 rounded-lg transition-all" onClick={() => handleDelete(product.id)}><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </Card>
 

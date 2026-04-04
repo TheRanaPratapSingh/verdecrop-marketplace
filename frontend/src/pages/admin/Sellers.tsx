@@ -213,12 +213,12 @@ export const AdminSellers: React.FC = () => {
   return (
     <AdminLayout>
       <div>
-        <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
-            <h2 className="text-3xl font-display font-bold text-gray-100 mb-1">Seller Management</h2>
-            <p className="text-gray-300">Modern dashboard for premium partner onboarding.</p>
+            <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-100 mb-1">Seller Management</h2>
+            <p className="text-gray-300 text-sm">Modern dashboard for premium partner onboarding.</p>
           </div>
-          <Button variant="primary" className="gap-2 px-6 py-3" onClick={openAddModal}>
+          <Button variant="primary" className="gap-2 px-5 self-start sm:self-auto" onClick={openAddModal}>
             + Add Seller
           </Button>
         </div>
