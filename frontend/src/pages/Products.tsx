@@ -49,6 +49,7 @@ export const ProductsPage: React.FC = () => {
       const params: Record<string, string> = { page: String(page), pageSize: '20', sortBy }
       if (search) params.search = search
       if (resolvedCategoryId) params.categoryId = resolvedCategoryId
+      else if (categorySlug) params.categorySlug = categorySlug
       if (isOrganic) params.isOrganic = isOrganic
       if (minPrice) params.minPrice = minPrice
       if (maxPrice) params.maxPrice = maxPrice
@@ -61,7 +62,7 @@ export const ProductsPage: React.FC = () => {
       setTotal(farmerId ? filteredItems.length : (res?.totalCount || 0))
       setTotalPages(farmerId ? 1 : (res?.totalPages || 1))
     } finally { setLoading(false) }
-  }, [page, search, resolvedCategoryId, sortBy, isOrganic, minPrice, maxPrice, farmerId])
+  }, [page, search, resolvedCategoryId, categorySlug, sortBy, isOrganic, minPrice, maxPrice, farmerId])
 
   useEffect(() => { loadProducts() }, [loadProducts])
   useEffect(() => { categoryApi.getAll().then(setCategories).catch(() => {}) }, [])
