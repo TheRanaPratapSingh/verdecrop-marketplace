@@ -1,12 +1,13 @@
 ﻿import React, { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Sprout, Award } from 'lucide-react'
+import { ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Award } from 'lucide-react'
 import { categoryApi, productApi } from '../services/api'
 import { PageLayout } from '../components/layout'
 import { ProductGrid } from '../components/product'
 import { SEO } from '../components/SEO'
 import type { Category, Product } from '../types'
 import toast from 'react-hot-toast'
+import { HeroSlider } from '../components/HeroSlider'
 
 // Helper: Map category slugs to emoji and colors
 const getCategoryStyle = (slug?: string) => {
@@ -70,60 +71,10 @@ const HomePage: React.FC = () => {
         description="Buy 100% certified organic vegetables, fruits, grains & more directly from 50+ trusted Indian farmers. No chemicals, no middlemen – farm fresh to your door."
         canonical="https://graamo.in/"
       />
-      {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-forest-950">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_30%_50%,rgba(46,139,50,0.18)_0%,transparent_70%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_60%_at_80%_30%,rgba(21,86,32,0.12)_0%,transparent_70%)]" />
-        <div className="absolute top-20 right-[15%] w-64 h-64 rounded-full bg-forest-800/20 blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-[30%] w-48 h-48 rounded-full bg-forest-700/15 blur-2xl animate-float" style={{ animationDelay: '2s' }} />
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      {/* ── HERO SLIDER ───────────────────────────────────────────────────── */}
+      <HeroSlider />
 
-        <div className="relative max-w-7xl mx-auto px-6 sm:px-10 py-20 w-full">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-2.5 mb-6 animate-fade-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-forest-700/30 border border-forest-600/30 rounded-full">
-                <Sprout className="w-3.5 h-3.5 text-forest-300" />
-                <span className="text-xs font-label font-semibold text-forest-200 tracking-widest uppercase">100% Certified Organic</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full">
-                <span className="text-xs font-label font-medium text-stone-300 tracking-wider">Farm-Fresh · No Pesticides</span>
-              </div>
-            </div>
-
-            <h1 className="font-display text-6xl sm:text-7xl lg:text-8xl font-semibold text-white leading-[0.92] tracking-tight mb-6 animate-fade-up" style={{ animationDelay: '0.2s', opacity: 0 }}>
-              Pure Organic,<br />
-              <span className="text-forest-300 italic">Straight from</span><br />
-              the Farm
-            </h1>
-
-            <p className="text-stone-300 text-lg font-body leading-relaxed max-w-xl mb-10 animate-fade-up" style={{ animationDelay: '0.3s', opacity: 0 }}>
-              Connect directly with 50+ certified organic farmers. No chemicals, no preservatives — just nature's finest delivered to your door.
-            </p>
-
-            <div className="flex flex-wrap gap-4 animate-fade-up" style={{ animationDelay: '0.4s', opacity: 0 }}>
-              <Link to="/products" className="inline-flex items-center gap-2.5 px-7 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 tracking-wide">
-                Shop Now <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link to="/farmers" className="inline-flex items-center gap-2.5 px-7 py-4 border border-white/20 text-white font-label font-medium text-sm rounded-2xl hover:bg-white/8 active:scale-[0.98] transition-all duration-200 tracking-wide">
-                Meet Our Farmers
-              </Link>
-            </div>
-
-            <div className="flex gap-10 mt-14 animate-fade-up" style={{ animationDelay: '0.5s', opacity: 0 }}>
-              {[['50+', 'Certified Farmers'], ['2,000+', 'Organic Products'], ['500+', 'Happy Families']].map(([n, l]) => (
-                <div key={l}>
-                  <div className="font-display text-3xl font-semibold text-white">{n}</div>
-                  <div className="text-xs font-label text-stone-400 tracking-wide mt-0.5">{l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-cream to-transparent" />
-      </section>
-
-      {/* ── CATEGORY BANNERS ─────────────────────────────────────────────────── */}
+      {/* ── CATEGORY BANNERS
       <section className="max-w-7xl mx-auto px-6 sm:px-10 -mt-16 relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {displayCategories.length === 0 ? (
