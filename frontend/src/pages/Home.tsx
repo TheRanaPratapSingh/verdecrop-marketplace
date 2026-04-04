@@ -31,6 +31,57 @@ const ICON_MAP: { keywords: string[]; Icon: React.ElementType; bg: string; icon:
   { keywords: ['vegan', 'plant', 'satvik', 'sattva', 'pura'],           Icon: Vegan,          bg: '#f0fdf4', icon: '#166534' },
 ]
 
+// ── Category highlight cards (static, prominent quick-links) ────────────────
+const CATEGORY_HIGHLIGHTS: {
+  title: string
+  subtitle: string
+  emoji: string
+  gradient: string
+  textColor: string
+  path: string
+}[] = [
+  {
+    title: 'Satvik Pura Fast',
+    subtitle: 'For Fast',
+    emoji: '🌿',
+    gradient: 'linear-gradient(135deg, #2d5a27 0%, #3d7a35 100%)',
+    textColor: '#ffffff',
+    path: '/products?q=satvik',
+  },
+  {
+    title: 'Organic Products',
+    subtitle: 'Organic products',
+    emoji: '🫘',
+    gradient: 'linear-gradient(135deg, #3d6b30 0%, #4e8c3e 100%)',
+    textColor: '#ffffff',
+    path: '/products?q=organic',
+  },
+  {
+    title: 'Herbs & Spices',
+    subtitle: 'Indian spices',
+    emoji: '🌶️',
+    gradient: 'linear-gradient(135deg, #4a6741 0%, #5d8451 100%)',
+    textColor: '#ffffff',
+    path: '/products?q=spices',
+  },
+  {
+    title: 'Seasonal Vegetables',
+    subtitle: 'Fresh organic vegetables',
+    emoji: '🥦',
+    gradient: 'linear-gradient(135deg, #2e6b1f 0%, #3d8c28 100%)',
+    textColor: '#ffffff',
+    path: '/products?q=vegetables',
+  },
+  {
+    title: 'Farm Fresh Fruits',
+    subtitle: 'Naturally grown fruits',
+    emoji: '🍊',
+    gradient: 'linear-gradient(135deg, #b84c15 0%, #d4622a 100%)',
+    textColor: '#ffffff',
+    path: '/products?q=fruits',
+  },
+]
+
 const getCategoryIcon = (name: string): { Icon: React.ElementType; bg: string; icon: string } => {
   const lower = name.toLowerCase()
   for (const entry of ICON_MAP) {
@@ -88,6 +139,61 @@ const HomePage: React.FC = () => {
         canonical="https://graamo.in/"
       />
       <HeroSlider />
+
+      {/* ── CATEGORY HIGHLIGHT CARDS ─────────────────────────────────────────── */}
+      <section className="py-8 sm:py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10">
+          {/* Mobile: horizontal scroll, Desktop: flex row */}
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 scrollbar-hide snap-x snap-mandatory sm:grid sm:grid-cols-5">
+            {CATEGORY_HIGHLIGHTS.map((cat, i) => (
+              <Link
+                key={cat.title}
+                to={cat.path}
+                className="group relative flex-shrink-0 w-52 sm:w-auto snap-start rounded-2xl overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-400 transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl"
+                style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
+              >
+                {/* Gradient background */}
+                <div
+                  className="absolute inset-0 transition-opacity duration-300"
+                  style={{ background: cat.gradient }}
+                />
+                {/* Subtle shine on hover */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/10" />
+
+                {/* Content */}
+                <div className="relative z-10 flex items-center gap-3 p-5 pr-3">
+                  {/* Emoji icon */}
+                  <span className="text-3xl flex-shrink-0 drop-shadow-sm transition-transform duration-300 group-hover:scale-110 select-none">
+                    {cat.emoji}
+                  </span>
+
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="font-label font-bold text-sm leading-snug"
+                      style={{ color: cat.textColor }}
+                    >
+                      {cat.title}
+                    </p>
+                    <p
+                      className="text-xs font-body mt-0.5 opacity-75"
+                      style={{ color: cat.textColor }}
+                    >
+                      {cat.subtitle}
+                    </p>
+                  </div>
+
+                  {/* Arrow */}
+                  <ArrowRight
+                    className="w-4 h-4 flex-shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200"
+                    style={{ color: cat.textColor }}
+                  />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ── SHOP BY CATEGORY ─────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 py-14 sm:py-20">
