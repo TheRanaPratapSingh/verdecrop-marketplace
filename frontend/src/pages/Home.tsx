@@ -274,7 +274,7 @@ const HomePage: React.FC = () => {
               <span className="text-xs font-label font-semibold text-forest-300 tracking-widest uppercase">For Organic Farmers</span>
             </div>
             <h2 className="font-display text-4xl md:text-5xl font-semibold text-white leading-tight mb-4">
-              Sell directly to<br />50,000+ families
+              Sell directly to<br />5000+ families
             </h2>
             <p className="text-stone-400 font-body text-base leading-relaxed max-w-md">
               Join Graamo and reach health-conscious consumers who pay fair prices for quality organic produce. Zero commission on your first 100 orders.
