@@ -519,8 +519,8 @@ namespace VerdeCrop.API.Controllers
         [HttpDelete("items/{id}")]
         public async Task<IActionResult> RemoveItem(int id)
         {
-            await _cart.RemoveItemAsync(CurrentUserId, id);
-            return Ok(ApiResponse.Ok(true));
+            var cart = await _cart.RemoveItemAsync(CurrentUserId, id);
+            return cart == null ? NotFound(ApiResponse.Fail("Item not found")) : Ok(ApiResponse.Ok(cart));
         }
 
         [HttpDelete]

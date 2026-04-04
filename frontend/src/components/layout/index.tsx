@@ -451,8 +451,28 @@ export const CartDrawer: React.FC = () => {
   if (!isOpen) return null
 
   const handleRemove = async (itemId: number) => {
+    if (!cart) return
+    // Optimistic update: remove item from local state immediately
+    const optimistic: typeof cart = {
+      ...cart,
+      items: cart.items.filter(i => i.id !== itemId),
+      subtotal: cart.items.filter(i => i.id !== itemId).reduce((s, i) => s + i.total, 0),
+      itemCount: cart.items.filter(i => i.id !== itemId).length,
+    }
+    setCart(optimistic)
     setRemoving(itemId)
-    try { const updated = await cartApi.removeItem(itemId); setCart(updated ?? cart) } finally { setRemoving(null) }
+    try {
+      const updated = await cartApi.removeItem(itemId)
+      // Confirm with server response (authoritative state)
+      if (updated && typeof updated === 'object' && 'items' in updated) {
+        setCart(updated)
+      }
+    } catch {
+      // Rollback on error
+      setCart(cart)
+    } finally {
+      setRemoving(null)
+    }
   }
 
   const delivery = (cart?.subtotal ?? 0) >= 500 ? 0 : 49

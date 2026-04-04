@@ -110,7 +110,7 @@ namespace VerdeCrop.Application.Interfaces
         Task<CartDto?> GetCartAsync(int userId);
         Task<CartDto?> AddItemAsync(int userId, AddToCartRequest req);
         Task<CartDto?> UpdateItemAsync(int userId, int itemId, decimal quantity);
-        Task<bool> RemoveItemAsync(int userId, int itemId);
+        Task<CartDto?> RemoveItemAsync(int userId, int itemId);
         Task<bool> ClearCartAsync(int userId);
     }
 

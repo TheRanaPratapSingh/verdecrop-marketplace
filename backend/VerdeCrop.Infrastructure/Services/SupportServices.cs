@@ -56,14 +56,14 @@ namespace VerdeCrop.Infrastructure.Services
             return await GetCartAsync(userId);
         }
 
-        public async Task<bool> RemoveItemAsync(int userId, int itemId)
+        public async Task<CartDto?> RemoveItemAsync(int userId, int itemId)
         {
             var cart = await GetOrCreateCartAsync(userId);
             var item = await _uow.CartItems.FirstOrDefaultAsync(i => i.Id == itemId && i.CartId == cart.Id);
-            if (item == null) return false;
+            if (item == null) return null;
             await _uow.CartItems.DeleteAsync(item);
             await _uow.SaveChangesAsync();
-            return true;
+            return await GetCartAsync(userId);
         }
 
         public async Task<bool> ClearCartAsync(int userId)
