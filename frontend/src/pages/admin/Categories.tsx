@@ -111,13 +111,13 @@ export const AdminCategories: React.FC = () => {
   return (
     <AdminLayout>
       <div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div className="flex items-center justify-between mb-12">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-100 mb-1">Categories</h2>
-            <p className="text-gray-400 text-sm">Manage your product categories</p>
+            <h2 className="text-3xl font-display font-bold text-gray-100 mb-1">Categories</h2>
+            <p className="text-gray-400">Manage your product categories</p>
           </div>
-          <Button variant="primary" className="gap-2 px-5 self-start sm:self-auto" onClick={() => { resetForm(); setShowModal(true) }}>
-            <Plus className="w-4 h-4" /> Add Category
+          <Button variant="primary" className="gap-2 px-6" onClick={() => { resetForm(); setShowModal(true) }}>
+            <Plus className="w-5 h-5" /> Add Category
           </Button>
         </div>
 
@@ -126,16 +126,16 @@ export const AdminCategories: React.FC = () => {
             <Spinner size="lg" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.length === 0 ? (
               <div className="col-span-full text-center py-12">
                 <p className="text-gray-500 text-lg">No categories found</p>
               </div>
             ) : (
               categories.map(cat => (
-                <Card key={cat.id} className="bg-white border border-gray-200 p-4 rounded-2xl hover:shadow-xl hover:border-green-300 transition-all duration-300 hover:-translate-y-1 group overflow-hidden">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl flex items-center justify-center overflow-hidden border border-green-100 group-hover:border-green-400 transition-colors flex-shrink-0">
+                <Card key={cat.id} className="bg-white border border-gray-200 p-6 rounded-2xl hover:shadow-xl hover:border-green-300 transition-all duration-300 hover:-translate-y-1 group overflow-hidden">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl flex items-center justify-center overflow-hidden border border-green-100 group-hover:border-green-400 transition-colors">
                       {cat.iconUrl ? (
                         <img
                           src={cat.iconUrl}
@@ -146,36 +146,37 @@ export const AdminCategories: React.FC = () => {
                           }}
                         />
                       ) : (
-                        <span className="text-2xl">📦</span>
+                        <span className="text-3xl">📦</span>
                       )}
                     </div>
-                    <Badge variant="green" className="font-semibold text-xs">{cat.productCount || 0}</Badge>
+                    <Badge variant="green" className="font-semibold">{cat.productCount || 0} products</Badge>
                   </div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-2 truncate group-hover:text-green-700 transition-colors">{cat.name}</h3>
-                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                    <Badge variant={cat.showOnHome ? 'green' : 'gray'} className="text-[10px]">
-                      {cat.showOnHome ? 'On Home' : 'Hidden'}
+                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-green-700 transition-colors">{cat.name}</h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant={cat.showOnHome ? 'green' : 'gray'}>
+                      {cat.showOnHome ? 'Shown on Home' : 'Hidden on Home'}
                     </Badge>
+                    <span className="text-xs text-gray-400">{cat.productCount || 0} products</span>
                   </div>
-                  <p className="text-xs text-gray-600 mb-4 line-clamp-2">{cat.description || 'No description'}</p>
-                  <div className="flex gap-1.5 pt-3 border-t border-gray-100">
+                  <p className="text-sm text-gray-600 mb-6 line-clamp-2">{cat.description || 'No description'}</p>
+                  <div className="flex gap-2 pt-4 border-t border-gray-100">
                     <button
                       onClick={() => toggleShowOnHome(cat)}
-                      className={`flex-1 p-2 text-xs font-medium rounded-lg transition-all duration-200 ${cat.showOnHome ? 'text-gray-700 bg-gray-100 hover:bg-gray-200' : 'text-blue-700 bg-blue-50 hover:bg-blue-100'}`}
+                      className={`flex-1 p-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${cat.showOnHome ? 'text-gray-700 bg-gray-100 hover:bg-gray-200' : 'text-blue-700 bg-blue-50 hover:bg-blue-100'}`}
                     >
-                      {cat.showOnHome ? 'Hide' : 'Show'}
+                      {cat.showOnHome ? 'Hide from Home' : 'Show on Home'}
                     </button>
                     <button
                       onClick={() => startEdit(cat)}
-                      className="flex-1 p-2 text-xs font-medium text-green-700 hover:text-white hover:bg-green-600 bg-green-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-1"
+                      className="flex-1 p-2.5 text-sm font-medium text-green-700 hover:text-white hover:bg-green-600 bg-green-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 group/btn"
                     >
-                      <Edit2 className="w-3 h-3" /> Edit
+                      <Edit2 className="w-4 h-4 group-hover/btn:scale-110 transition-transform" /> Edit
                     </button>
                     <button
                       onClick={() => handleDelete(cat.id)}
-                      className="flex-1 p-2 text-xs font-medium text-red-700 hover:text-white hover:bg-red-600 bg-red-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-1"
+                      className="flex-1 p-2.5 text-sm font-medium text-red-700 hover:text-white hover:bg-red-600 bg-red-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 group/btn"
                     >
-                      <Trash2 className="w-3 h-3" /> Del
+                      <Trash2 className="w-4 h-4 group-hover/btn:scale-110 transition-transform" /> Delete
                     </button>
                   </div>
                 </Card>

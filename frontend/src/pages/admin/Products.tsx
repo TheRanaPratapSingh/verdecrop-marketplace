@@ -7,22 +7,12 @@ import { productApi, categoryApi, farmerApi } from '../../services/api'
 import { useAuthStore } from '../../store'
 import type { Product, Category, Farmer } from '../../types'
 
-const UNIT_OPTIONS = ['g', 'kg', 'ml', 'L', 'piece', 'dozen', 'pack'] as const
-
-const QUANTITY_PRESETS: Record<string, string[]> = {
-  g:  ['25', '50', '100', '250', '500', '1000'],
-  ml: ['100', '250', '500', '1000'],
-  kg: ['0.5', '1', '2', '5', '10'],
-  L:  ['0.5', '1', '2', '5'],
-}
-
 const emptyFormState = {
   name: '',
   categoryId: 0,
   categoryName: '',
   price: '',
   stock: '',
-  unit: 'kg',
   status: 'active',
   description: '',
   imageUrl: '',
@@ -114,7 +104,7 @@ export const AdminProducts: React.FC = () => {
       categoryName: formData.categoryName,
       price: Number(formData.price),
       originalPrice: Number(formData.price),
-      unit: formData.unit || 'kg',
+      unit: 'kg',
       minOrderQty: 1,
       stockQuantity: Number(formData.stock),
       imageUrl: formData.imageUrl || formData.imageUrls?.[0],
@@ -163,7 +153,6 @@ export const AdminProducts: React.FC = () => {
       categoryName: product.categoryName,
       price: String(product.price),
       stock: String(product.stockQuantity),
-      unit: product.unit || 'kg',
       status: product.isActive ? 'active' : 'inactive',
       description: product.description ?? '',
       imageUrl: product.imageUrl ?? '',
@@ -191,19 +180,18 @@ export const AdminProducts: React.FC = () => {
   return (
     <AdminLayout>
       <div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div className="flex items-center justify-between mb-12">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-display font-bold text-gray-100 mb-1">Products</h2>
-            <p className="text-gray-400 text-sm">Manage your product inventory and details</p>
+            <h2 className="text-3xl font-display font-bold text-gray-100 mb-1">Products</h2>
+            <p className="text-gray-400">Manage your product inventory and details</p>
           </div>
-          <Button variant="primary" className="gap-2 px-5 self-start sm:self-auto" onClick={() => { resetForm(); setShowModal(true) }}>
-            <Plus className="w-4 h-4" /> Add Product
+          <Button variant="primary" className="gap-2 px-6" onClick={() => { resetForm(); setShowModal(true) }}>
+            <Plus className="w-5 h-5" /> Add Product
           </Button>
         </div>
 
         <Card className="bg-white border border-gray-200 overflow-hidden rounded-2xl shadow-sm">
-          {/* ── DESKTOP TABLE (lg+) ─────────────────────────────────────────── */}
-          <div className="hidden lg:block overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
@@ -218,57 +206,51 @@ export const AdminProducts: React.FC = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} className="py-8 text-center text-gray-500"><Spinner /> Loading...</td></tr>
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-gray-500">
+                      <Spinner /> Loading products...
+                    </td>
+                  </tr>
                 ) : products.length === 0 ? (
-                  <tr><td colSpan={7} className="py-8 text-center text-gray-500">No products found</td></tr>
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-gray-500">
+                      No products found
+                    </td>
+                  </tr>
                 ) : (
                   products.map(product => (
                     <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-6 text-sm text-gray-900 font-medium max-w-[180px] truncate">{product.name}</td>
+                      <td className="py-4 px-6 text-sm text-gray-900 font-medium">{product.name}</td>
                       <td className="py-4 px-6 text-sm text-gray-700">{product.categoryName || '-'}</td>
                       <td className="py-4 px-6 text-sm text-gray-900 font-semibold">₹{product.price}</td>
                       <td className="py-4 px-6 text-sm text-gray-900">{product.stockQuantity}</td>
-                      <td className="py-4 px-6"><Badge variant={product.isFeatured ? 'orange' : 'gray'}>{product.isFeatured ? 'Yes' : 'No'}</Badge></td>
-                      <td className="py-4 px-6"><Badge variant={product.isActive ? 'green' : 'gray'}>{product.isActive ? 'active' : 'inactive'}</Badge></td>
                       <td className="py-4 px-6">
-                        <div className="flex gap-2">
-                          <button aria-label="Edit" className="p-1.5 text-gray-600 hover:text-white hover:bg-green-600 rounded-lg transition-all" onClick={() => startEdit(product)}><Edit2 className="w-4 h-4" /></button>
-                          <button aria-label="Delete" className="p-1.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all" onClick={() => handleDelete(product.id)}><Trash2 className="w-4 h-4" /></button>
-                        </div>
+                        <Badge variant={product.isFeatured ? 'orange' : 'gray'}>{product.isFeatured ? 'Yes' : 'No'}</Badge>
+                      </td>
+                      <td className="py-4 px-6">
+                        <Badge variant={product.isActive ? 'green' : 'gray'}>{product.isActive ? 'active' : 'inactive'}</Badge>
+                      </td>
+                      <td className="py-4 px-6 flex gap-2">
+                        <button
+                          aria-label="Edit product"
+                          className="p-1.5 text-gray-600 hover:text-white hover:bg-green-600 rounded-lg transition-all"
+                          onClick={() => startEdit(product)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          aria-label="Delete product"
+                          className="p-1.5 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-all"
+                          onClick={() => handleDelete(product.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-          </div>
-
-          {/* ── MOBILE CARD LIST (< lg) ──────────────────────────────────────── */}
-          <div className="lg:hidden divide-y divide-gray-100">
-            {loading ? (
-              <div className="py-10 text-center text-gray-500"><Spinner /> Loading...</div>
-            ) : products.length === 0 ? (
-              <div className="py-10 text-center text-gray-500">No products found</div>
-            ) : (
-              products.map(product => (
-                <div key={product.id} className="p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{product.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 truncate">{product.categoryName || 'No category'}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <span className="text-sm font-bold text-gray-900">₹{product.price}</span>
-                      <span className="text-xs text-gray-500">· Stock: {product.stockQuantity}</span>
-                      <Badge variant={product.isActive ? 'green' : 'gray'} >{product.isActive ? 'Active' : 'Inactive'}</Badge>
-                      {product.isFeatured && <Badge variant="orange">Featured</Badge>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5 flex-shrink-0 mt-0.5">
-                    <button aria-label="Edit" className="p-2 text-gray-600 hover:text-white hover:bg-green-600 rounded-lg transition-all" onClick={() => startEdit(product)}><Edit2 className="w-4 h-4" /></button>
-                    <button aria-label="Delete" className="p-2 text-red-500 hover:text-white hover:bg-red-600 rounded-lg transition-all" onClick={() => handleDelete(product.id)}><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </div>
-              ))
-            )}
           </div>
         </Card>
 
@@ -383,72 +365,13 @@ export const AdminProducts: React.FC = () => {
                   onChange={e => setFormData({ ...formData, price: e.target.value })}
                   placeholder="e.g., 80"
                 />
-                <div>
-                  <label className="block text-sm font-label font-medium text-gray-700 mb-1">Stock Quantity &amp; Unit</label>
-                  {/* Unit selector */}
-                  <div className="flex gap-2 mb-2">
-                    {UNIT_OPTIONS.map(u => (
-                      <button
-                        key={u}
-                        type="button"
-                        onClick={() => setFormData(f => ({
-                          ...f,
-                          unit: u,
-                          // clear stock only if it was a preset value of the previous unit
-                          stock: (QUANTITY_PRESETS[f.unit] ?? []).includes(f.stock) ? '' : f.stock,
-                        }))}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-label font-semibold border transition-all duration-150 ${
-                          formData.unit === u
-                            ? 'bg-forest-600 border-forest-600 text-white shadow-sm'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-forest-400 hover:text-forest-600'
-                        }`}
-                      >
-                        {u}
-                      </button>
-                    ))}
-                  </div>
-                  {/* Quick-pick preset chips */}
-                  {QUANTITY_PRESETS[formData.unit] && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {QUANTITY_PRESETS[formData.unit].map(preset => {
-                        const label = formData.unit === 'g' && preset === '1000'
-                          ? '1kg'
-                          : formData.unit === 'ml' && preset === '1000'
-                          ? '1L'
-                          : `${preset}${formData.unit}`
-                        const active = formData.stock === preset
-                        return (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => setFormData(f => ({ ...f, stock: active ? '' : preset }))}
-                            className={`px-3 py-1 rounded-full text-xs font-label font-medium border transition-all duration-150 ${
-                              active
-                                ? 'bg-forest-50 border-forest-400 text-forest-700 shadow-sm'
-                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-forest-300 hover:text-forest-600 hover:bg-forest-50'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                  {/* Custom / manual input */}
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.stock}
-                      onChange={e => setFormData(f => ({ ...f, stock: e.target.value }))}
-                      placeholder="Or enter custom quantity…"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-forest-500 pr-14"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-label font-semibold text-gray-400 pointer-events-none">
-                      {formData.unit}
-                    </span>
-                  </div>
-                </div>
+                <Input
+                  label="Stock Quantity"
+                  type="number"
+                  value={formData.stock}
+                  onChange={e => setFormData({ ...formData, stock: e.target.value })}
+                  placeholder="e.g., 100"
+                />
                 <div className="flex items-center gap-3">
                   <input
                     id="isOrganic"

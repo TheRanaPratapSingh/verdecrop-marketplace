@@ -1,93 +1,25 @@
 ﻿import React, { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import {
-  ArrowRight, Leaf, Shield, Truck, Star, Sprout, Award,
-  Apple, Wheat, Droplets, Flame, Bean, FlaskConical,
-  Salad, Cookie, Milk, ShoppingBasket, TreeDeciduous, Flower2,
-  Package, Cherry, Vegan, GlassWater, Wind,
-} from 'lucide-react'
+import { ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Sprout, Award } from 'lucide-react'
 import { categoryApi, productApi } from '../services/api'
 import { PageLayout } from '../components/layout'
 import { ProductGrid } from '../components/product'
 import { SEO } from '../components/SEO'
 import type { Category, Product } from '../types'
-import { HeroSlider } from '../components/HeroSlider'
 import toast from 'react-hot-toast'
 
-// ── Map category name keywords → Lucide icon + accent color ─────────────────
-const ICON_MAP: { keywords: string[]; Icon: React.ElementType; bg: string; icon: string }[] = [
-  { keywords: ['vegetable', 'veggie', 'sabzi', 'greens', 'seasonal'],   Icon: Salad,          bg: '#e8f5e8', icon: '#1e6e24' },
-  { keywords: ['fruit', 'fruits', 'citrus', 'berry', 'mango'],          Icon: Apple,          bg: '#fff3e0', icon: '#c0621e' },
-  { keywords: ['grain', 'wheat', 'atta', 'flour', 'rice', 'whole'],     Icon: Wheat,          bg: '#faf3e0', icon: '#8b6914' },
-  { keywords: ['pulse', 'lentil', 'dal', 'bean', 'legume', 'organic'],  Icon: Bean,           bg: '#f3ede3', icon: '#7c4a1e' },
-  { keywords: ['oil', 'ghee', 'fat', 'pressed', 'cold'],                Icon: Droplets,       bg: '#f0f7f0', icon: '#1e6e24' },
-  { keywords: ['spice', 'herb', 'masala', 'season', 'turmeric'],        Icon: Flame,          bg: '#fff0f0', icon: '#c0391e' },
-  { keywords: ['milk', 'dairy', 'curd', 'yogurt', 'paneer', 'ghee'],    Icon: Milk,           bg: '#f0f7ff', icon: '#1a5fa8' },
-  { keywords: ['tea', 'coffee', 'drink', 'beverage', 'juice'],          Icon: GlassWater,     bg: '#f3f0ff', icon: '#5b21b6' },
-  { keywords: ['snack', 'cookie', 'biscuit', 'breakfast', 'millet'],    Icon: Cookie,         bg: '#fefce8', icon: '#a16207' },
-  { keywords: ['honey', 'sweet', 'jaggery', 'sugar'],                   Icon: FlaskConical,   bg: '#fffbeb', icon: '#b45309' },
-  { keywords: ['nature', 'forest', 'tree', 'herbal', 'ayurved'],        Icon: TreeDeciduous,  bg: '#ecfdf5', icon: '#065f46' },
-  { keywords: ['flower', 'rose', 'hibiscus', 'saffron'],                Icon: Flower2,        bg: '#fff0f8', icon: '#9d174d' },
-  { keywords: ['vegan', 'plant', 'satvik', 'sattva', 'pura'],           Icon: Vegan,          bg: '#f0fdf4', icon: '#166534' },
-]
-
-// ── Category highlight cards (static, prominent quick-links) ────────────────
-const CATEGORY_HIGHLIGHTS: {
-  title: string
-  subtitle: string
-  emoji: string
-  gradient: string
-  textColor: string
-  path: string
-}[] = [
-  {
-    title: 'Satvik Pura Fast',
-    subtitle: 'For Fast',
-    emoji: '🌿',
-    gradient: 'linear-gradient(135deg, #2d5a27 0%, #3d7a35 100%)',
-    textColor: '#ffffff',
-    path: '/products?q=satvik',
-  },
-  {
-    title: 'Organic Products',
-    subtitle: 'Organic products',
-    emoji: '🫘',
-    gradient: 'linear-gradient(135deg, #3d6b30 0%, #4e8c3e 100%)',
-    textColor: '#ffffff',
-    path: '/products?q=organic',
-  },
-  {
-    title: 'Herbs & Spices',
-    subtitle: 'Indian spices',
-    emoji: '🌶️',
-    gradient: 'linear-gradient(135deg, #4a6741 0%, #5d8451 100%)',
-    textColor: '#ffffff',
-    path: '/products?q=spices',
-  },
-  {
-    title: 'Seasonal Vegetables',
-    subtitle: 'Fresh organic vegetables',
-    emoji: '🥦',
-    gradient: 'linear-gradient(135deg, #2e6b1f 0%, #3d8c28 100%)',
-    textColor: '#ffffff',
-    path: '/products?q=vegetables',
-  },
-  {
-    title: 'Farm Fresh Fruits',
-    subtitle: 'Naturally grown fruits',
-    emoji: '🍊',
-    gradient: 'linear-gradient(135deg, #b84c15 0%, #d4622a 100%)',
-    textColor: '#ffffff',
-    path: '/products?q=fruits',
-  },
-]
-
-const getCategoryIcon = (name: string): { Icon: React.ElementType; bg: string; icon: string } => {
-  const lower = name.toLowerCase()
-  for (const entry of ICON_MAP) {
-    if (entry.keywords.some(k => lower.includes(k))) return entry
+// Helper: Map category slugs to emoji and colors
+const getCategoryStyle = (slug?: string) => {
+  const styleMap: Record<string, { emoji: string; from: string; to: string }> = {
+    'seasonal-vegetables': { emoji: '🥦', from: '#2d8f3c', to: '#1e5e2a' },
+    'farm-fresh-fruits': { emoji: '🍊', from: '#d97d3c', to: '#a85a2a' },
+    'whole-grains': { emoji: '🌾', from: '#9b8b5c', to: '#6b6a42' },
+    'dairy-milk': { emoji: '🥛', from: '#d4a574', to: '#a07c4f' },
+    'spices-seasonings': { emoji: '🧂', from: '#8b5a3c', to: '#5c3d27' },
+    'organics-pulses': { emoji: '🫘', from: '#6b4423', to: '#4a2f1a' },
+    'cold-pressed-oils': { emoji: '🫒', from: '#8b7355', to: '#5c4a38' },
   }
-  return { Icon: ShoppingBasket, bg: '#f0f7f0', icon: '#1e6e24' }
+  return styleMap[slug || ''] || { emoji: '🌿', from: '#5a7f5a', to: '#3d5342' }
 }
 
 const HomePage: React.FC = () => {
@@ -129,7 +61,7 @@ const HomePage: React.FC = () => {
   }, [])
 
   const homeCategories = categories.filter(c => c.showOnHome)
-  void homeCategories // kept for potential future use
+  const displayCategories = (homeCategories.length > 0 ? homeCategories : categories).slice(0, 5)
 
   return (
     <PageLayout>
@@ -138,133 +70,125 @@ const HomePage: React.FC = () => {
         description="Buy 100% certified organic vegetables, fruits, grains & more directly from 500+ trusted Indian farmers. No chemicals, no middlemen – farm fresh to your door."
         canonical="https://graamo.in/"
       />
-      <HeroSlider />
+      {/* ── HERO ──────────────────────────────────────────────────────────── */}
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-forest-950">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_30%_50%,rgba(46,139,50,0.18)_0%,transparent_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_60%_at_80%_30%,rgba(21,86,32,0.12)_0%,transparent_70%)]" />
+        <div className="absolute top-20 right-[15%] w-64 h-64 rounded-full bg-forest-800/20 blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-[30%] w-48 h-48 rounded-full bg-forest-700/15 blur-2xl animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
-      {/* ── CATEGORY HIGHLIGHT CARDS ─────────────────────────────────────────── */}
-      <section className="py-8 sm:py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10">
-          {/* Mobile: horizontal scroll, Desktop: flex row */}
-          <div className="flex gap-3 sm:gap-4 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 scrollbar-hide snap-x snap-mandatory sm:grid sm:grid-cols-5">
-            {CATEGORY_HIGHLIGHTS.map((cat, i) => (
-              <Link
-                key={cat.title}
-                to={cat.path}
-                className="group relative flex-shrink-0 w-52 sm:w-auto snap-start rounded-2xl overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-400 transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl"
-                style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
-              >
-                {/* Gradient background */}
-                <div
-                  className="absolute inset-0 transition-opacity duration-300"
-                  style={{ background: cat.gradient }}
-                />
-                {/* Subtle shine on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/10" />
+        <div className="relative max-w-7xl mx-auto px-6 sm:px-10 py-20 w-full">
+          <div className="max-w-3xl">
+            <div className="flex items-center gap-2.5 mb-6 animate-fade-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-forest-700/30 border border-forest-600/30 rounded-full">
+                <Sprout className="w-3.5 h-3.5 text-forest-300" />
+                <span className="text-xs font-label font-semibold text-forest-200 tracking-widest uppercase">100% Certified Organic</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full">
+                <span className="text-xs font-label font-medium text-stone-300 tracking-wider">Farm-Fresh · No Pesticides</span>
+              </div>
+            </div>
 
-                {/* Content */}
-                <div className="relative z-10 flex items-center gap-3 p-5 pr-3">
-                  {/* Emoji icon */}
-                  <span className="text-3xl flex-shrink-0 drop-shadow-sm transition-transform duration-300 group-hover:scale-110 select-none">
-                    {cat.emoji}
-                  </span>
+            <h1 className="font-display text-6xl sm:text-7xl lg:text-8xl font-semibold text-white leading-[0.92] tracking-tight mb-6 animate-fade-up" style={{ animationDelay: '0.2s', opacity: 0 }}>
+              Pure Organic,<br />
+              <span className="text-forest-300 italic">Straight from</span><br />
+              the Farm
+            </h1>
 
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="font-label font-bold text-sm leading-snug"
-                      style={{ color: cat.textColor }}
-                    >
-                      {cat.title}
-                    </p>
-                    <p
-                      className="text-xs font-body mt-0.5 opacity-75"
-                      style={{ color: cat.textColor }}
-                    >
-                      {cat.subtitle}
-                    </p>
-                  </div>
+            <p className="text-stone-300 text-lg font-body leading-relaxed max-w-xl mb-10 animate-fade-up" style={{ animationDelay: '0.3s', opacity: 0 }}>
+              Connect directly with 500+ certified organic farmers. No chemicals, no preservatives — just nature's finest delivered to your door.
+            </p>
 
-                  {/* Arrow */}
-                  <ArrowRight
-                    className="w-4 h-4 flex-shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200"
-                    style={{ color: cat.textColor }}
-                  />
-                </div>
+            <div className="flex flex-wrap gap-4 animate-fade-up" style={{ animationDelay: '0.4s', opacity: 0 }}>
+              <Link to="/products" className="inline-flex items-center gap-2.5 px-7 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 tracking-wide">
+                Shop Now <ArrowRight className="w-4 h-4" />
               </Link>
-            ))}
+              <Link to="/farmers" className="inline-flex items-center gap-2.5 px-7 py-4 border border-white/20 text-white font-label font-medium text-sm rounded-2xl hover:bg-white/8 active:scale-[0.98] transition-all duration-200 tracking-wide">
+                Meet Our Farmers
+              </Link>
+            </div>
+
+            <div className="flex gap-10 mt-14 animate-fade-up" style={{ animationDelay: '0.5s', opacity: 0 }}>
+              {[['500+', 'Certified Farmers'], ['2,000+', 'Organic Products'], ['50k+', 'Happy Families']].map(([n, l]) => (
+                <div key={l}>
+                  <div className="font-display text-3xl font-semibold text-white">{n}</div>
+                  <div className="text-xs font-label text-stone-400 tracking-wide mt-0.5">{l}</div>
+                </div>
+              ))}
+            </div>
           </div>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-cream to-transparent" />
+      </section>
+
+      {/* ── CATEGORY BANNERS ─────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 sm:px-10 -mt-16 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {displayCategories.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-sm text-stone-400">No categories available</div>
+          ) : (
+            displayCategories.map((cat) => {
+              const { emoji, from, to } = getCategoryStyle(cat.slug)
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/products?categoryId=${cat.id}`}
+                  className="group relative overflow-hidden rounded-3xl p-6 flex items-center gap-4 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300"
+                  style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+                >
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 to-transparent" />
+                  <span className="text-4xl flex-shrink-0">{emoji}</span>
+                  <div className="relative z-10">
+                    <p className="font-label font-semibold text-white text-base leading-tight">{cat.name}</p>
+                    <p className="text-white/60 text-xs font-body mt-0.5">{cat.description || `${cat.productCount} products`}</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-white/40 ml-auto group-hover:translate-x-1 group-hover:text-white/70 transition-all duration-200 flex-shrink-0" />
+                </Link>
+              )
+            })
+          )}
         </div>
       </section>
 
-      {/* ── SHOP BY CATEGORY ─────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 py-14 sm:py-20">
-        {/* Section header */}
-        <div className="flex items-end justify-between mb-10">
+      {/* ── CATEGORIES GRID ──────────────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-6 sm:px-10 py-16">
+        <div className="flex items-end justify-between mb-8">
           <div>
-            <p className="font-label text-xs font-semibold tracking-widest uppercase text-forest-600 mb-2">Browse</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-stone-900 leading-tight">Shop by Category</h2>
+            <p className="section-label mb-2">Browse</p>
+            <h2 className="font-display text-4xl font-semibold text-stone-900">Shop by Category</h2>
           </div>
-          <Link
-            to="/products"
-            className="hidden sm:inline-flex items-center gap-1.5 text-sm font-label font-medium text-forest-600 hover:text-forest-800 transition-colors"
-          >
+          <Link to="/products" className="hidden sm:flex items-center gap-1.5 text-sm font-label font-medium text-forest-600 hover:text-forest-800 transition-colors">
             View all <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
         {loading ? (
-          /* Skeleton */
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="rounded-3xl bg-stone-100 animate-pulse" style={{ height: 140 }} />
-            ))}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-stone-100 rounded-3xl h-28 animate-pulse" />)}
           </div>
         ) : categories.length === 0 ? (
-          <p className="text-stone-400 font-body text-sm py-8">No categories yet.</p>
+          <p className="text-stone-400 font-body text-sm py-8">No categories yet — seed data needed.</p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-            {categories.map((cat, i) => {
-              const { Icon, bg, icon } = getCategoryIcon(cat.name)
-              return (
-                <Link
-                  key={cat.id}
-                  to={`/products?categoryId=${cat.id}`}
-                  className="group flex flex-col items-center gap-3 py-6 px-3 bg-white rounded-3xl border border-stone-100 shadow-card hover:shadow-card-hover hover:-translate-y-1 hover:border-forest-200 transition-all duration-300 animate-fade-up focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-400"
-                  style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'both' }}
-                >
-                  {/* Icon container */}
-                  <div
-                    className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110 flex-shrink-0"
-                    style={{ backgroundColor: bg }}
-                  >
-                    <Icon
-                      className="w-8 h-8 sm:w-9 sm:h-9 transition-colors duration-200"
-                      style={{ color: icon }}
-                      strokeWidth={1.6}
-                    />
-                  </div>
-                  {/* Name */}
-                  <span className="text-xs sm:text-[13px] font-label font-semibold text-stone-700 group-hover:text-forest-700 text-center leading-snug transition-colors line-clamp-2 px-1">
-                    {cat.name}
-                  </span>
-                  {/* Item count */}
-                  <span className="text-[10px] sm:text-xs font-body text-stone-400 group-hover:text-forest-500 transition-colors">
-                    {cat.productCount} {cat.productCount === 1 ? 'item' : 'items'}
-                  </span>
-                </Link>
-              )
-            })}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {categories.map((cat, i) => (
+              <Link
+                key={cat.id}
+                to={`/products?categoryId=${cat.id}`}
+                className="group flex flex-col items-center gap-2.5 py-5 px-3 bg-white rounded-3xl shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 animate-fade-up"
+                style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
+              >
+                {/* ── FIXED: renders image path correctly, falls back to emoji ── */}
+                <div className="w-12 h-12 rounded-2xl bg-forest-50 group-hover:bg-forest-100 flex items-center justify-center transition-colors duration-200 overflow-hidden">
+                  <CategoryIcon iconUrl={cat.iconUrl} name={cat.name} />
+                </div>
+                <span className="text-[11px] font-label font-semibold text-stone-700 group-hover:text-forest-700 text-center leading-tight transition-colors">{cat.name}</span>
+                <span className="text-[10px] text-stone-400 font-body">{cat.productCount} items</span>
+              </Link>
+            ))}
           </div>
         )}
-
-        {/* Mobile "View all" */}
-        <div className="mt-8 flex justify-center sm:hidden">
-          <Link
-            to="/products"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-label font-semibold text-sm border border-forest-300 text-forest-700 hover:bg-forest-50 transition-all duration-200"
-          >
-            View all categories <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
       </section>
 
       {/* ── FEATURED PRODUCTS ────────────────────────────────────────────────── */}
@@ -357,7 +281,7 @@ const HomePage: React.FC = () => {
             </p>
           </div>
           <div className="relative z-10 flex flex-col items-center gap-3 flex-shrink-0">
-            <Link to="/become-a-seller" className="inline-flex items-center gap-2.5 px-8 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 whitespace-nowrap">
+            <Link to="/farmers/register" className="inline-flex items-center gap-2.5 px-8 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 whitespace-nowrap">
               Start Selling Free <ArrowRight className="w-4 h-4" />
             </Link>
             <p className="text-xs text-stone-500 font-body text-center">No setup fee · Instant approval · 24/7 support</p>

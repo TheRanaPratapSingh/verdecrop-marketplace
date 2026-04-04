@@ -21,25 +21,19 @@ const WOMEN_STORIES = [
     name: 'Sita Devi',
     village: 'Sitapur, Uttar Pradesh',
     quote: '"Graamo gave me a direct market. I no longer depend on middlemen. My children go to school because of this income."',
-    income: '₹14,000/month',
     crop: 'Organic Wheat & Pulses',
-    img: 'https://images.unsplash.com/photo-1593113630400-ea4288922559?w=400&q=80&auto=format&fit=crop',
   },
   {
     name: 'Kamla Bai',
     village: 'Wardha, Maharashtra',
     quote: '"I grow turmeric the way my grandmother taught me — no chemicals, just patience and love. Graamo lets the world taste that."',
-    income: '₹11,500/month',
     crop: 'Turmeric & Spices',
-    img: 'https://images.unsplash.com/photo-1601233749202-95d04d5b3c00?w=400&q=80&auto=format&fit=crop',
   },
   {
     name: 'Meera Kumari',
     village: 'Anand, Gujarat',
     quote: '"Three years ago I had no savings. Today I own land. Graamo is not just a marketplace — it is my independence."',
-    income: '₹18,200/month',
     crop: 'Cold-Pressed Groundnut Oil',
-    img: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=400&q=80&auto=format&fit=crop',
   },
 ]
 
@@ -216,25 +210,10 @@ export const AboutUsPage: React.FC = () => (
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-        {WOMEN_STORIES.map(({ name, village, quote, income, crop, img }) => (
+        {WOMEN_STORIES.map(({ name, village, quote, crop }) => (
           <div key={name} className="group bg-white rounded-3xl overflow-hidden border border-stone-100 shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300">
-            {/* Image */}
-            <div className="relative h-52 overflow-hidden">
-              <img
-                src={img}
-                alt={name}
-                loading="lazy"
-                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-stone-900/70 via-transparent to-transparent" />
-              {/* Income badge */}
-              <div className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/95 shadow-sm">
-                <TrendingUp className="w-3 h-3 text-forest-600" />
-                <span className="font-label text-xs font-bold text-forest-700">{income}</span>
-              </div>
-            </div>
             {/* Content */}
-            <div className="p-5">
+            <div className="p-5 pt-6">
               <div className="flex items-start gap-2 mb-3">
                 <div className="w-8 h-8 rounded-xl bg-pink-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Heart className="w-4 h-4 text-pink-500" strokeWidth={2} />

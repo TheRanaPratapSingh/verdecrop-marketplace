@@ -5,7 +5,6 @@ import { useAuthStore, useCartStore, useNotifStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
 import { resolveAssetUrl } from '../../lib/image'
-import toast from 'react-hot-toast'
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore()
@@ -452,37 +451,8 @@ export const CartDrawer: React.FC = () => {
   if (!isOpen) return null
 
   const handleRemove = async (itemId: number) => {
-    if (!cart) return
     setRemoving(itemId)
-
-    // ── 1. Optimistic update: remove item from local state immediately ──────
-    const filteredItems = cart.items.filter(i => i.id !== itemId)
-    const removedItem   = cart.items.find(i => i.id === itemId)
-    const optimisticCart: typeof cart = {
-      ...cart,
-      items:     filteredItems,
-      itemCount: filteredItems.reduce((sum, i) => sum + i.quantity, 0),
-      subtotal:  filteredItems.reduce((sum, i) => sum + i.total, 0),
-    }
-    setCart(optimisticCart)
-
-    // ── 2. Confirm with server; reconcile if response is a valid Cart ────────
-    try {
-      const serverCart = await cartApi.removeItem(itemId)
-      // Server returned a full Cart object — use it as source of truth
-      if (serverCart && typeof serverCart === 'object' && 'items' in serverCart) {
-        setCart(serverCart)
-      }
-      // Server returned null/204 — optimistic cart already in place, keep it
-    } catch {
-      // API failed — roll back to previous cart so user isn't confused
-      if (removedItem) {
-        setCart(cart)
-      }
-      toast.error('Could not remove item. Please try again.')
-    } finally {
-      setRemoving(null)
-    }
+    try { const updated = await cartApi.removeItem(itemId); setCart(updated ?? cart) } finally { setRemoving(null) }
   }
 
   const delivery = (cart?.subtotal ?? 0) >= 500 ? 0 : 49
@@ -536,12 +506,7 @@ export const CartDrawer: React.FC = () => {
                 <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit}</p>
                 <p className="text-[15px] font-display font-semibold text-forest-700 mt-1">₹{item.total.toFixed(0)}</p>
               </div>
-              <button
-                onClick={() => handleRemove(item.id)}
-                disabled={removing === item.id}
-                className="p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5 opacity-0 group-hover:opacity-100 sm:opacity-100 disabled:opacity-50"
-                aria-label={`Remove ${item.productName}`}
-              >
+              <button onClick={() => handleRemove(item.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5">
                 {removing === item.id ? <Spinner size="sm" /> : <X className="w-3.5 h-3.5" />}
               </button>
             </div>

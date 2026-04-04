@@ -690,248 +690,88 @@ export const ProfilePage: React.FC = () => {
     setShowAddrModal(false)
   }
 
-  const TABS = [
-    { id: 'profile',   label: 'Profile',   icon: User },
-    { id: 'addresses', label: 'Addresses', icon: MapPin },
-    { id: 'security',  label: 'Security',  icon: CreditCard },
-  ]
-
   return (
     <PageLayout>
-      {/* ── HERO BANNER ────────────────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden" style={{ background: 'linear-gradient(135deg,#071c0a 0%,#0e3615 45%,#13461b 100%)', minHeight: 220 }}>
-        {/* Decorative orbs */}
-        <div className="absolute -top-16 -right-16 w-72 h-72 rounded-full pointer-events-none animate-float" style={{ background: 'radial-gradient(circle,rgba(46,139,50,0.28) 0%,transparent 70%)' }} />
-        <div className="absolute bottom-0 left-1/3 w-56 h-56 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle,rgba(85,124,73,0.18) 0%,transparent 70%)', animationDelay: '2s' }} />
-        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle,#fff 1px,transparent 1px)', backgroundSize: '24px 24px' }} />
-
-        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-8 py-10 flex flex-col sm:flex-row items-center sm:items-end gap-6">
-          {/* Avatar */}
-          <div className="relative flex-shrink-0">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden border-2 border-forest-400/40 shadow-2xl" style={{ boxShadow: '0 0 0 4px rgba(46,139,50,0.2), 0 8px 32px rgba(0,0,0,0.5)' }}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-leaf-700 to-leaf-500 rounded-3xl p-6 mb-6 flex items-center gap-5 text-white relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full" />
+          <div className="relative">
+            <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
               {user?.avatarUrl
-                ? <img src={resolveAssetUrl(user.avatarUrl)} alt={user.name} className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#2d8a32,#175820)' }}>
-                    <span className="text-4xl font-display font-bold text-white">{user?.name?.[0]?.toUpperCase()}</span>
-                  </div>}
+                ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                : <span className="text-3xl font-bold font-display">{user?.name?.[0]?.toUpperCase()}</span>}
             </div>
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
-              style={{ background: 'linear-gradient(135deg,#4ea352,#2d8a32)', boxShadow: '0 4px 12px rgba(46,139,50,0.5)' }}
-            >
-              <Camera className="w-3.5 h-3.5 text-white" />
+            <button onClick={() => fileRef.current?.click()} className="absolute -bottom-1 -right-1 bg-white text-leaf-600 rounded-full p-1.5 shadow hover:shadow-md transition">
+              <Camera className="w-3.5 h-3.5" />
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
           </div>
-
-          {/* Name / meta */}
-          <div className="text-center sm:text-left pb-1">
-            <p className="text-forest-300 font-label text-xs tracking-widest uppercase mb-1">My Account</p>
-            <h1 className="text-white font-display font-semibold leading-tight" style={{ fontSize: 'clamp(1.5rem,3.5vw,2.2rem)' }}>{user?.name}</h1>
-            <p className="text-forest-300/80 font-body text-sm mt-0.5">{user?.email || user?.phone}</p>
-            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-forest-400/30 bg-forest-400/10">
-              <div className="w-1.5 h-1.5 rounded-full bg-forest-400" />
-              <span className="text-forest-300 font-label text-xs tracking-wider uppercase">{user?.role}</span>
-            </div>
-          </div>
-
-          {/* Quick stats */}
-          <div className="sm:ml-auto flex gap-4 sm:gap-6 pb-1">
-            {[
-              { value: addresses.length.toString(), label: 'Addresses' },
-              { value: '—', label: 'Orders' },
-            ].map(s => (
-              <div key={s.label} className="text-center">
-                <p className="text-white font-display font-semibold text-xl">{s.value}</p>
-                <p className="text-forest-300/70 font-label text-[10px] tracking-wider uppercase mt-0.5">{s.label}</p>
-              </div>
-            ))}
+          <div className="relative z-10">
+            <h1 className="text-2xl font-display font-bold">{user?.name}</h1>
+            <p className="text-leaf-100 text-sm font-body">{user?.email || user?.phone}</p>
+            <Badge variant="green" className="mt-1 capitalize">{user?.role}</Badge>
           </div>
         </div>
-      </div>
 
-      {/* ── CONTENT ────────────────────────────────────────────────────────── */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8">
+        <TabGroup tabs={[{id:'profile',label:'Profile'},{id:'addresses',label:'Addresses'},{id:'security',label:'Security'}]} active={tab} onChange={setTab} className="mb-6" />
 
-        {/* Premium tab bar */}
-        <div className="flex gap-1 p-1 rounded-2xl mb-8 border border-stone-200 bg-white shadow-card" style={{ width: 'fit-content' }}>
-          {TABS.map(t => {
-            const Icon = t.icon
-            const active = tab === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className="relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-label text-sm font-medium tracking-wide transition-all duration-200"
-                style={active ? {
-                  background: 'linear-gradient(135deg,#1e6e24,#2d8a32)',
-                  color: '#fff',
-                  boxShadow: '0 2px 12px rgba(30,110,36,0.35)',
-                } : { color: '#6e5844' }}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* ── PROFILE TAB ── */}
         {tab === 'profile' && (
-          <div className="animate-fade-up">
-            <div className="bg-white rounded-3xl border border-stone-100 shadow-card overflow-hidden">
-              <div className="px-6 py-5 border-b border-stone-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#f0f7f0,#dceedd)' }}>
-                  <User className="w-4 h-4 text-forest-600" />
-                </div>
-                <div>
-                  <p className="font-label font-semibold text-stone-800 text-sm">Personal Information</p>
-                  <p className="text-stone-400 text-xs font-body">Update your name, email and phone</p>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
-                  {/* Full Name */}
-                  <div className="space-y-1.5">
-                    <label className="block font-label text-xs font-semibold text-stone-500 tracking-wider uppercase">Full Name</label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <input
-                        type="text"
-                        value={form.name}
-                        onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-200 bg-stone-50 font-body text-sm text-stone-800 placeholder-stone-300 outline-none focus:border-forest-400 focus:bg-white focus:ring-2 focus:ring-forest-400/20 transition-all duration-200"
-                        placeholder="Your full name"
-                      />
-                    </div>
-                  </div>
-                  {/* Email */}
-                  <div className="space-y-1.5">
-                    <label className="block font-label text-xs font-semibold text-stone-500 tracking-wider uppercase">Email Address</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <input
-                        type="email"
-                        value={form.email}
-                        onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-200 bg-stone-50 font-body text-sm text-stone-800 placeholder-stone-300 outline-none focus:border-forest-400 focus:bg-white focus:ring-2 focus:ring-forest-400/20 transition-all duration-200"
-                        placeholder="you@example.com"
-                      />
-                    </div>
-                  </div>
-                  {/* Phone */}
-                  <div className="space-y-1.5">
-                    <label className="block font-label text-xs font-semibold text-stone-500 tracking-wider uppercase">Phone Number</label>
-                    <div className="relative">
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <input
-                        type="tel"
-                        value={form.phone}
-                        onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-200 bg-stone-50 font-body text-sm text-stone-800 placeholder-stone-300 outline-none focus:border-forest-400 focus:bg-white focus:ring-2 focus:ring-forest-400/20 transition-all duration-200"
-                        placeholder="+91 XXXXX XXXXX"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-stone-100">
-                  <p className="text-xs text-stone-400 font-body">Your data is encrypted and secure.</p>
-                  <button
-                    onClick={saveProfile}
-                    disabled={saving}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-label font-semibold text-sm text-white transition-all duration-200 disabled:opacity-60 hover:opacity-90 active:scale-95"
-                    style={{ background: 'linear-gradient(135deg,#1e6e24,#2d8a32)', boxShadow: '0 4px 16px rgba(30,110,36,0.35)' }}
-                  >
-                    {saving ? <Spinner size="sm" /> : <Save className="w-4 h-4" />}
-                    Save Changes
-                  </button>
-                </div>
-              </div>
+          <Card className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <Input label="Full Name" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} leftIcon={<User className="w-4 h-4" />} />
+              <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} leftIcon={<Mail className="w-4 h-4" />} />
+              <Input label="Phone" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} leftIcon={<Phone className="w-4 h-4" />} />
             </div>
-          </div>
+            <Button onClick={saveProfile} loading={saving}><Save className="w-4 h-4" /> Save Changes</Button>
+          </Card>
         )}
 
-        {/* ── ADDRESSES TAB ── */}
         {tab === 'addresses' && (
-          <div className="animate-fade-up space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-display font-semibold text-stone-800 text-lg">Saved Addresses</h2>
-                <p className="text-stone-400 font-body text-xs mt-0.5">{addresses.length} address{addresses.length !== 1 ? 'es' : ''} saved</p>
-              </div>
-              <button
-                onClick={() => { setEditAddr(null); setAddrForm({}); setShowAddrModal(true) }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-label font-semibold text-sm text-white transition-all duration-200 hover:opacity-90 active:scale-95"
-                style={{ background: 'linear-gradient(135deg,#1e6e24,#2d8a32)', boxShadow: '0 4px 12px rgba(30,110,36,0.3)' }}
-              >
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-display font-semibold text-gray-900">Saved Addresses</h2>
+              <Button size="sm" onClick={() => { setEditAddr(null); setAddrForm({}); setShowAddrModal(true) }}>
                 <Plus className="w-4 h-4" /> Add New
-              </button>
+              </Button>
             </div>
-
-            {addresses.length === 0 && (
-              <div className="text-center py-16 bg-white rounded-3xl border border-stone-100 shadow-card">
-                <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#f0f7f0,#dceedd)' }}>
-                  <MapPin className="w-6 h-6 text-forest-500" />
-                </div>
-                <p className="font-display font-semibold text-stone-700 mb-1">No addresses yet</p>
-                <p className="text-stone-400 font-body text-sm">Add a delivery address to speed up checkout.</p>
-              </div>
-            )}
-
             <div className="grid sm:grid-cols-2 gap-4">
               {addresses.map(addr => (
-                <div key={addr.id} className={`group relative bg-white rounded-2xl border-2 p-5 transition-all duration-200 hover:shadow-card-hover ${addr.isDefault ? 'border-forest-400' : 'border-stone-100 hover:border-forest-200'}`}>
-                  {addr.isDefault && (
-                    <div className="absolute top-4 right-4 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-forest-50 border border-forest-200">
-                      <div className="w-1.5 h-1.5 rounded-full bg-forest-500" />
-                      <span className="text-forest-700 font-label text-[10px] font-semibold tracking-wider uppercase">Default</span>
-                    </div>
-                  )}
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg,#f0f7f0,#dceedd)' }}>
-                      <Home className="w-4 h-4 text-forest-600" />
-                    </div>
-                    <div>
-                      <p className="font-label font-semibold text-stone-800 text-sm">{addr.label} <span className="font-normal text-stone-400">·</span> {addr.fullName}</p>
-                      <p className="text-stone-500 font-body text-xs mt-0.5 leading-relaxed">{addr.street}</p>
-                      <p className="text-stone-500 font-body text-xs">{addr.city}, {addr.state} – {addr.pinCode}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 pt-3 border-t border-stone-100">
-                    <button onClick={() => { setEditAddr(addr); setAddrForm(addr); setShowAddrModal(true) }}
-                      className="flex items-center gap-1.5 text-xs font-label font-medium text-stone-500 hover:text-forest-600 transition-colors">
+                <Card key={addr.id} className={`p-4 border-2 ${addr.isDefault ? 'border-leaf-400' : 'border-transparent'}`}>
+                  {addr.isDefault && <Badge variant="green" size="sm" className="mb-2">Default</Badge>}
+                  <p className="font-semibold text-sm text-gray-800 font-body">{addr.label} · {addr.fullName}</p>
+                  <p className="text-sm text-gray-500 font-body">{addr.street}</p>
+                  <p className="text-sm text-gray-500 font-body">{addr.city}, {addr.state} – {addr.pinCode}</p>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => { setEditAddr(addr); setAddrForm(addr); setShowAddrModal(true) }} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                       <Edit2 className="w-3 h-3" /> Edit
                     </button>
-                    <button onClick={async () => { await userApi.deleteAddress(addr.id); setAddresses(a => a.filter(x => x.id !== addr.id)) }}
-                      className="flex items-center gap-1.5 text-xs font-label font-medium text-stone-500 hover:text-red-500 transition-colors">
+                    <button onClick={async () => { await userApi.deleteAddress(addr.id); setAddresses(a => a.filter(x => x.id !== addr.id)) }} className="text-xs text-red-500 hover:underline flex items-center gap-1">
                       <Trash2 className="w-3 h-3" /> Delete
                     </button>
                     {!addr.isDefault && (
-                      <button onClick={async () => { await userApi.setDefaultAddress(addr.id); setAddresses(a => a.map(x => ({ ...x, isDefault: x.id === addr.id }))) }}
-                        className="ml-auto text-xs font-label font-semibold text-forest-600 hover:text-forest-700 transition-colors">
+                      <button onClick={async () => { await userApi.setDefaultAddress(addr.id); setAddresses(a => a.map(x => ({...x, isDefault: x.id === addr.id}))) }} className="text-xs text-leaf-600 hover:underline ml-auto">
                         Set Default
                       </button>
                     )}
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
-
             {showAddrModal && (
               <Modal isOpen onClose={() => setShowAddrModal(false)} title={editAddr ? 'Edit Address' : 'Add Address'}>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label="Label" placeholder="Home / Work" value={addrForm.label || ''} onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))} />
-                    <Input label="Full Name" value={addrForm.fullName || ''} onChange={e => setAddrForm(f => ({ ...f, fullName: e.target.value }))} />
+                    <Input label="Label" placeholder="Home" value={addrForm.label||''} onChange={e => setAddrForm(f => ({...f, label: e.target.value}))} />
+                    <Input label="Full Name" value={addrForm.fullName||''} onChange={e => setAddrForm(f => ({...f, fullName: e.target.value}))} />
                   </div>
-                  <Input label="Phone" value={addrForm.phone || ''} onChange={e => setAddrForm(f => ({ ...f, phone: e.target.value }))} />
-                  <Input label="Street / Area" value={addrForm.street || ''} onChange={e => setAddrForm(f => ({ ...f, street: e.target.value }))} />
+                  <Input label="Phone" value={addrForm.phone||''} onChange={e => setAddrForm(f => ({...f, phone: e.target.value}))} />
+                  <Input label="Street / Area" value={addrForm.street||''} onChange={e => setAddrForm(f => ({...f, street: e.target.value}))} />
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label="City" value={addrForm.city || ''} onChange={e => setAddrForm(f => ({ ...f, city: e.target.value }))} />
-                    <Input label="State" value={addrForm.state || ''} onChange={e => setAddrForm(f => ({ ...f, state: e.target.value }))} />
+                    <Input label="City" value={addrForm.city||''} onChange={e => setAddrForm(f => ({...f, city: e.target.value}))} />
+                    <Input label="State" value={addrForm.state||''} onChange={e => setAddrForm(f => ({...f, state: e.target.value}))} />
                   </div>
-                  <Input label="Pincode" value={addrForm.pinCode || ''} onChange={e => setAddrForm(f => ({ ...f, pinCode: e.target.value }))} />
+                  <Input label="Pincode" value={addrForm.pinCode||''} onChange={e => setAddrForm(f => ({...f, pinCode: e.target.value}))} />
                   <div className="flex gap-3 pt-1">
                     <Button variant="outline" className="flex-1" onClick={() => setShowAddrModal(false)}>Cancel</Button>
                     <Button className="flex-1" onClick={saveAddress}><Save className="w-4 h-4" /> Save</Button>
@@ -942,52 +782,21 @@ export const ProfilePage: React.FC = () => {
           </div>
         )}
 
-        {/* ── SECURITY TAB ── */}
         {tab === 'security' && (
-          <div className="animate-fade-up space-y-4">
+          <Card className="p-6 space-y-4">
             {[
-              {
-                title: 'OTP Login',
-                desc: 'Sign in with a one-time password sent to your registered mobile or email.',
-                badge: 'Active',
-                badgeColor: '#1e6e24',
-                badgeBg: '#f0f7f0',
-                dotColor: '#2d8a32',
-                icon: Phone,
-                iconBg: 'linear-gradient(135deg,#f0f7f0,#dceedd)',
-                iconColor: '#1e6e24',
-              },
-              {
-                title: 'Two-Factor Authentication',
-                desc: 'Add an extra verification step to protect your account from unauthorised access.',
-                badge: 'Off',
-                badgeColor: '#9e876c',
-                badgeBg: '#faf9f7',
-                dotColor: '#b8a48f',
-                icon: CreditCard,
-                iconBg: 'linear-gradient(135deg,#faf9f7,#f2efe9)',
-                iconColor: '#9e876c',
-              },
-            ].map(item => {
-              const Icon = item.icon
-              return (
-                <div key={item.title} className="flex items-center gap-4 bg-white rounded-2xl border border-stone-100 p-5 shadow-card hover:shadow-card-hover transition-all duration-200">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: item.iconBg }}>
-                    <Icon className="w-5 h-5" style={{ color: item.iconColor }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-label font-semibold text-stone-800 text-sm">{item.title}</p>
-                    <p className="text-stone-400 font-body text-xs mt-0.5 leading-relaxed">{item.desc}</p>
-                  </div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border flex-shrink-0"
-                    style={{ background: item.badgeBg, borderColor: item.badgeColor + '33' }}>
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.dotColor }} />
-                    <span className="font-label text-xs font-semibold tracking-wider" style={{ color: item.badgeColor }}>{item.badge}</span>
-                  </div>
+              { title: 'OTP Login', desc: 'Login via OTP on registered mobile/email', badge: 'Active', variant: 'green' as const },
+              { title: 'Two-Factor Auth', desc: 'Extra security layer', badge: 'Off', variant: 'gray' as const },
+            ].map(item => (
+              <div key={item.title} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                <div>
+                  <p className="font-semibold text-gray-800 font-body text-sm">{item.title}</p>
+                  <p className="text-xs text-gray-500 font-body">{item.desc}</p>
                 </div>
-              )
-            })}
-          </div>
+                <Badge variant={item.variant}>{item.badge}</Badge>
+              </div>
+            ))}
+          </Card>
         )}
       </div>
     </PageLayout>

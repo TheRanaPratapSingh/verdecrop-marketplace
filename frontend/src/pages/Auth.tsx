@@ -90,7 +90,7 @@ const AuthLayout: React.FC<{ children: React.ReactNode; title: string; subtitle:
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3 relative z-10">
-        {[['500+', 'Farmers'], ['2000+', 'Products'], ['50k+', 'Families']].map(([n, l]) => (
+        {[['50+', 'Farmers'], ['2000+', 'Products'], ['50k+', 'Families']].map(([n, l]) => (
           <div key={l} className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/20">
             <p className="text-white font-display font-bold text-lg">{n}</p>
             <p className="text-emerald-50/80 text-xs font-body">{l}</p>
