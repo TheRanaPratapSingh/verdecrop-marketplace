@@ -115,6 +115,19 @@ namespace VerdeCrop.Domain.Entities
         public bool IsActive { get; set; } = true;
         public decimal Rating { get; set; } = 0;
         public int ReviewCount { get; set; } = 0;
+        // Extended seller fields
+        public string? Subcategory { get; set; }
+        public List<string> Tags { get; set; } = new();
+        public string? Village { get; set; }
+        public string? CertificationType { get; set; }
+        public List<string> QuantityOptions { get; set; } = new();
+        public DateTime? HarvestDate { get; set; }
+        public int? ShelfLifeDays { get; set; }
+        public string? FreshnessGuarantee { get; set; }
+        public string? DeliveryTime { get; set; }
+        public List<string> AvailableCities { get; set; } = new();
+        public bool IsFarmToHome { get; set; } = false;
+        public string Status { get; set; } = "approved"; // pending | approved | rejected
         public Category Category { get; set; } = null!;
         public FarmerProfile Farmer { get; set; } = null!;
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

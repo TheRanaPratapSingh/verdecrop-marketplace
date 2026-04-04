@@ -28,6 +28,8 @@ const CertificationsPage  = lazy(() => import('./pages/Certifications').then(m =
 const ShopByFarmsPage     = lazy(() => import('./pages/ShopByFarms').then(m => ({ default: m.ShopByFarmsPage })))
 const SellerOrdersPage     = lazy(() => import('./pages/SellerOrders').then(m => ({ default: m.SellerOrdersPage })))
 const SellerOrderDetailPage = lazy(() => import('./pages/SellerOrderDetail').then(m => ({ default: m.SellerOrderDetailPage })))
+const SellerProductsPage  = lazy(() => import('./pages/SellerProducts').then(m => ({ default: m.SellerProductsPage })))
+const SellerAddProductPage = lazy(() => import('./pages/SellerAddProduct').then(m => ({ default: m.SellerAddProductPage })))
 const AdminDashboard      = lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })))
 const AdminProducts       = lazy(() => import('./pages/admin/Products').then(m => ({ default: m.AdminProducts })))
 const AdminCategories     = lazy(() => import('./pages/admin/Categories').then(m => ({ default: m.AdminCategories })))
@@ -113,6 +115,9 @@ const AppRoutes: React.FC = () => {
           <Route path="/wishlist"        element={<RequireAuth><WishlistPage /></RequireAuth>} />
           <Route path="/seller/orders"   element={<RequireAuth role="farmer"><SellerOrdersPage /></RequireAuth>} />
           <Route path="/seller/orders/:id" element={<RequireAuth role="farmer"><SellerOrderDetailPage /></RequireAuth>} />
+          <Route path="/seller/products" element={<RequireAuth role="farmer"><SellerProductsPage /></RequireAuth>} />
+          <Route path="/seller/products/new" element={<RequireAuth role="farmer"><SellerAddProductPage /></RequireAuth>} />
+          <Route path="/seller/products/:id/edit" element={<RequireAuth role="farmer"><SellerAddProductPage /></RequireAuth>} />
           <Route path="/profile"         element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/notifications"   element={<RequireAuth><NotificationsPage /></RequireAuth>} />
           <Route path="/admin"           element={<RequireAuth><AdminDashboard /></RequireAuth>} />

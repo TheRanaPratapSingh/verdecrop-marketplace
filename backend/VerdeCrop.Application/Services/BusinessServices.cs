@@ -355,7 +355,7 @@ namespace VerdeCrop.Application.Services
         public async Task<ProductDetailDto?> CreateAsync(int farmerId, CreateProductRequest req)
         {
             if (farmerId <= 0) return null;
-            return await CreateInternalAsync(farmerId, req);
+            return await CreateInternalAsync(farmerId, req, isAdminCreated: false);
         }
 
         // ── FIX: Was completely missing — referenced in controller ────────────
@@ -364,10 +364,10 @@ namespace VerdeCrop.Application.Services
             if (farmerId <= 0) return null;
             var farmer = await _uow.FarmerProfiles.GetByIdAsync(farmerId);
             if (farmer == null) return null;
-            return await CreateInternalAsync(farmerId, req);
+            return await CreateInternalAsync(farmerId, req, isAdminCreated: true);
         }
 
-        private async Task<ProductDetailDto?> CreateInternalAsync(int farmerId, CreateProductRequest req)
+        private async Task<ProductDetailDto?> CreateInternalAsync(int farmerId, CreateProductRequest req, bool isAdminCreated = false)
         {
             var slug = GenerateSlug(req.Name);
 
@@ -375,7 +375,7 @@ namespace VerdeCrop.Application.Services
             {
                 Name = req.Name,
                 Slug = slug,
-                Description = req.Description,                        // ✅ FIXED
+                Description = req.Description,
                 CategoryId = req.CategoryId,
                 FarmerId = farmerId,
                 Price = req.Price,
@@ -384,19 +384,33 @@ namespace VerdeCrop.Application.Services
                 MinOrderQty = req.MinOrderQty,
                 StockQuantity = req.StockQuantity,
                 IsOrganic = req.IsOrganic,
-                IsFeatured = req.IsFeatured ?? false,                // ✅ FIXED
-                ImageUrl = req.ImageUrl,                           // ✅ FIXED
-                ImageUrls = req.ImageUrls ?? new List<string>(),    // ✅ FIXED
+                IsFeatured = req.IsFeatured ?? false,
+                ImageUrl = req.ImageUrl,
+                ImageUrls = req.ImageUrls ?? new List<string>(),
+                // Extended fields
+                Subcategory = req.Subcategory,
+                Tags = req.Tags ?? new List<string>(),
+                Village = req.Village,
+                CertificationType = req.CertificationType,
+                QuantityOptions = req.QuantityOptions ?? new List<string>(),
+                HarvestDate = req.HarvestDate,
+                ShelfLifeDays = req.ShelfLifeDays,
+                FreshnessGuarantee = req.FreshnessGuarantee,
+                DeliveryTime = req.DeliveryTime,
+                AvailableCities = req.AvailableCities ?? new List<string>(),
+                IsFarmToHome = req.IsFarmToHome,
+                // Approval: admin-created products are immediately active; seller-created go to pending
+                Status = isAdminCreated ? "approved" : "pending",
+                IsActive = isAdminCreated,
             };
 
-            // If primary ImageUrl not provided but list has items, use first
             if (string.IsNullOrEmpty(product.ImageUrl) && product.ImageUrls.Count > 0)
                 product.ImageUrl = product.ImageUrls[0];
 
             await _uow.Products.AddAsync(product);
             await _uow.SaveChangesAsync();
             await _cache.DeleteAsync("featured_products");
-            return await GetByIdAsync(product.Id);
+            return await GetByIdRawAsync(product.Id);
         }
 
         // ── FIX: Now saves CategoryId, ImageUrl, ImageUrls on update ─────────
@@ -410,7 +424,7 @@ namespace VerdeCrop.Application.Services
 
             if (req.Name != null) product.Name = req.Name;
             if (req.Description != null) product.Description = req.Description;
-            if (req.CategoryId.HasValue) product.CategoryId = req.CategoryId.Value;  // ✅ FIXED
+            if (req.CategoryId.HasValue) product.CategoryId = req.CategoryId.Value;
             if (req.Price.HasValue) product.Price = req.Price.Value;
             if (req.OriginalPrice.HasValue) product.OriginalPrice = req.OriginalPrice;
             if (req.Unit != null) product.Unit = req.Unit;
@@ -420,7 +434,7 @@ namespace VerdeCrop.Application.Services
             if (req.IsFeatured.HasValue) product.IsFeatured = req.IsFeatured.Value;
             if (req.IsActive.HasValue) product.IsActive = req.IsActive.Value;
 
-            // ✅ FIXED: Image updates were completely missing
+            // Image updates
             if (!string.IsNullOrEmpty(req.ImageUrl))
             {
                 product.ImageUrl = req.ImageUrl;
@@ -434,11 +448,24 @@ namespace VerdeCrop.Application.Services
                     product.ImageUrl = req.ImageUrls[0];
             }
 
+            // Extended field updates
+            if (req.Subcategory != null) product.Subcategory = req.Subcategory;
+            if (req.Tags != null) product.Tags = req.Tags;
+            if (req.Village != null) product.Village = req.Village;
+            if (req.CertificationType != null) product.CertificationType = req.CertificationType;
+            if (req.QuantityOptions != null) product.QuantityOptions = req.QuantityOptions;
+            if (req.HarvestDate.HasValue) product.HarvestDate = req.HarvestDate;
+            if (req.ShelfLifeDays.HasValue) product.ShelfLifeDays = req.ShelfLifeDays;
+            if (req.FreshnessGuarantee != null) product.FreshnessGuarantee = req.FreshnessGuarantee;
+            if (req.DeliveryTime != null) product.DeliveryTime = req.DeliveryTime;
+            if (req.AvailableCities != null) product.AvailableCities = req.AvailableCities;
+            if (req.IsFarmToHome.HasValue) product.IsFarmToHome = req.IsFarmToHome.Value;
+
             product.UpdatedAt = DateTime.UtcNow;
             await _uow.Products.UpdateAsync(product);
             await _uow.SaveChangesAsync();
             await _cache.DeleteAsync("featured_products");
-            return await GetByIdAsync(product.Id);
+            return await GetByIdRawAsync(product.Id);
         }
 
         public async Task<bool> DeleteAsync(int productId, int farmerId)
@@ -481,6 +508,111 @@ namespace VerdeCrop.Application.Services
                 .Replace("'", "")
                 .Replace(",", "");
             return slug + "-" + Guid.NewGuid().ToString("N")[..6];
+        }
+
+        private async Task<ProductDetailDto?> GetByIdRawAsync(int id)
+        {
+            try
+            {
+                return await _uow.Products.Query()
+                    .Where(p => p.Id == id)
+                    .Select(p => new ProductDetailDto(
+                        p.Id, p.Name, p.Slug, p.Description,
+                        p.CategoryId, p.Category != null ? p.Category.Name : "",
+                        p.FarmerId, p.Farmer != null ? p.Farmer.FarmName : "",
+                        p.Farmer != null ? p.Farmer.Location : "",
+                        p.Price, p.OriginalPrice, p.Unit, p.MinOrderQty, p.StockQuantity,
+                        p.ImageUrl, p.ImageUrls, p.IsOrganic, p.IsFeatured,
+                        p.Rating, p.ReviewCount, p.IsActive,
+                        new List<ReviewDto>()))
+                    .FirstOrDefaultAsync();
+            }
+            catch { return null; }
+        }
+
+        public async Task<PagedResult<SellerProductDto>> GetSellerProductsAsync(int farmerId, int page, int pageSize)
+        {
+            try
+            {
+                var query = _uow.Products.Query().Where(p => p.FarmerId == farmerId);
+                var total = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(p => new SellerProductDto(
+                        p.Id, p.Name, p.Slug,
+                        p.CategoryId, p.Category != null ? p.Category.Name : "",
+                        p.Price, p.OriginalPrice, p.Unit,
+                        p.StockQuantity, p.ImageUrl,
+                        p.IsOrganic, p.IsFeatured, p.IsActive,
+                        p.Rating, p.ReviewCount,
+                        p.Status, p.CreatedAt))
+                    .ToListAsync();
+                return new PagedResult<SellerProductDto>(items, total, page, pageSize,
+                    (int)Math.Ceiling((double)total / pageSize));
+            }
+            catch { return new PagedResult<SellerProductDto>(new List<SellerProductDto>(), 0, page, pageSize, 0); }
+        }
+
+        public async Task<SellerProductDetailDto?> GetSellerProductByIdAsync(int productId, int farmerId)
+        {
+            try
+            {
+                var query = _uow.Products.Query().Where(p => p.Id == productId);
+                if (farmerId > 0) query = query.Where(p => p.FarmerId == farmerId);
+                return await query.Select(p => new SellerProductDetailDto(
+                    p.Id, p.Name, p.Slug, p.Description,
+                    p.CategoryId, p.Category != null ? p.Category.Name : "",
+                    p.FarmerId, p.Farmer != null ? p.Farmer.FarmName : "",
+                    p.Farmer != null ? p.Farmer.Location : "",
+                    p.Price, p.OriginalPrice, p.Unit, p.MinOrderQty, p.StockQuantity,
+                    p.ImageUrl, p.ImageUrls, p.IsOrganic, p.IsFeatured, p.IsActive,
+                    p.Rating, p.ReviewCount, p.Status, p.CreatedAt,
+                    p.Subcategory, p.Tags, p.Village, p.CertificationType,
+                    p.QuantityOptions, p.HarvestDate, p.ShelfLifeDays,
+                    p.FreshnessGuarantee, p.DeliveryTime, p.AvailableCities, p.IsFarmToHome))
+                    .FirstOrDefaultAsync();
+            }
+            catch { return null; }
+        }
+
+        public async Task<PagedResult<SellerProductDto>> GetPendingProductsAsync(int page, int pageSize)
+        {
+            try
+            {
+                var query = _uow.Products.Query().Where(p => p.Status == "pending");
+                var total = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(p => new SellerProductDto(
+                        p.Id, p.Name, p.Slug,
+                        p.CategoryId, p.Category != null ? p.Category.Name : "",
+                        p.Price, p.OriginalPrice, p.Unit,
+                        p.StockQuantity, p.ImageUrl,
+                        p.IsOrganic, p.IsFeatured, p.IsActive,
+                        p.Rating, p.ReviewCount,
+                        p.Status, p.CreatedAt))
+                    .ToListAsync();
+                return new PagedResult<SellerProductDto>(items, total, page, pageSize,
+                    (int)Math.Ceiling((double)total / pageSize));
+            }
+            catch { return new PagedResult<SellerProductDto>(new List<SellerProductDto>(), 0, page, pageSize, 0); }
+        }
+
+        public async Task<bool> ApproveProductAsync(int productId, bool approve)
+        {
+            var product = await _uow.Products.GetByIdAsync(productId);
+            if (product == null) return false;
+            product.Status = approve ? "approved" : "rejected";
+            product.IsActive = approve;
+            product.UpdatedAt = DateTime.UtcNow;
+            await _uow.Products.UpdateAsync(product);
+            await _uow.SaveChangesAsync();
+            await _cache.DeleteAsync("featured_products");
+            return true;
         }
 
         private static ProductListDto ToListDto(Product p) => new(

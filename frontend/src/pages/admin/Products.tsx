@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { AdminLayout } from '../../components/admin/AdminLayout'
 import { Card, Button, Badge, Modal, Input, Spinner } from '../../components/ui'
-import { Plus, Edit2, Trash2 } from 'lucide-react'
+import { Plus, Edit2, Trash2, Clock, CheckCircle2, XCircle, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { productApi, categoryApi, farmerApi } from '../../services/api'
 import { useAuthStore } from '../../store'
-import type { Product, Category, Farmer } from '../../types'
+import type { Product, Category, Farmer, SellerProduct } from '../../types'
 
 const emptyFormState = {
   name: '',
@@ -24,6 +24,10 @@ const emptyFormState = {
 export const AdminProducts: React.FC = () => {
   const user = useAuthStore(state => state.user)
   const [products, setProducts] = useState<Product[]>([])
+  const [pendingProducts, setPendingProducts] = useState<SellerProduct[]>([])
+  const [pendingLoading, setPendingLoading] = useState(false)
+  const [approvingId, setApprovingId] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all')
   const [categories, setCategories] = useState<Category[]>([])
   const [sellers, setSellers] = useState<Farmer[]>([])
   const [sellerId, setSellerId] = useState<number | null>(null)
@@ -74,7 +78,38 @@ export const AdminProducts: React.FC = () => {
     fetchCategories()
     fetchProducts()
     fetchSellers()
+    fetchPendingProducts()
   }, [])
+
+  const fetchPendingProducts = async () => {
+    setPendingLoading(true)
+    try {
+      const data = await productApi.getPending({ page: 1, pageSize: 100 })
+      setPendingProducts(data.items ?? [])
+    } catch {
+      // silently fail
+    } finally {
+      setPendingLoading(false)
+    }
+  }
+
+  const handleApprove = async (id: number, approve: boolean, name: string) => {
+    setApprovingId(id)
+    try {
+      await productApi.approve(id, approve)
+      setPendingProducts(prev => prev.filter(p => p.id !== id))
+      if (approve) {
+        await fetchProducts()
+        toast.success(`✅ "${name}" approved and is now live!`)
+      } else {
+        toast.success(`"${name}" rejected`)
+      }
+    } catch {
+      toast.error('Failed to update product status')
+    } finally {
+      setApprovingId(null)
+    }
+  }
 
   const resetForm = () => {
     setFormData({ ...emptyFormState })
@@ -180,7 +215,7 @@ export const AdminProducts: React.FC = () => {
   return (
     <AdminLayout>
       <div>
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-3xl font-display font-bold text-gray-100 mb-1">Products</h2>
             <p className="text-gray-400">Manage your product inventory and details</p>
@@ -190,7 +225,74 @@ export const AdminProducts: React.FC = () => {
           </Button>
         </div>
 
-        <Card className="bg-white border border-gray-200 overflow-hidden rounded-2xl shadow-sm">
+        {/* ── Tabs ────────────────────────────────────────────────────────── */}
+        <div className="flex gap-2 mb-6">
+          <button onClick={() => setActiveTab('all')}
+            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>
+            All Products ({products.length})
+          </button>
+          <button onClick={() => setActiveTab('pending')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'pending' ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>
+            <Clock className="w-4 h-4" />
+            Pending Review
+            {pendingProducts.length > 0 && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${activeTab === 'pending' ? 'bg-white/20' : 'bg-amber-500 text-white'}`}>
+                {pendingProducts.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* ── Pending Products Section ─────────────────────────────────────── */}
+        {activeTab === 'pending' && (
+          <div className="space-y-3 mb-8">
+            {pendingLoading ? (
+              <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+            ) : pendingProducts.length === 0 ? (
+              <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/10">
+                <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                <p className="text-gray-300 font-medium">All products reviewed!</p>
+                <p className="text-gray-500 text-sm mt-1">No products pending approval</p>
+              </div>
+            ) : pendingProducts.map(p => (
+              <div key={p.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-gray-700 overflow-hidden shrink-0">
+                  {p.imageUrl
+                    ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-gray-500 text-2xl">📦</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-gray-100 text-sm truncate">{p.name}</h4>
+                    {p.isOrganic && <span className="text-[10px] bg-green-800 text-green-200 px-2 py-0.5 rounded-full">Organic</span>}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">{p.categoryName} • ₹{p.price}/{p.unit}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Stock: {p.stockQuantity} • Submitted {new Date(p.createdAt).toLocaleDateString('en-IN')}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="ghost" size="xs" onClick={() => window.open(`/products/${p.id}`, '_blank')}
+                    className="text-gray-400 hover:text-gray-200">
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button variant="danger" size="xs" loading={approvingId === p.id}
+                    onClick={() => handleApprove(p.id, false, p.name)}
+                    disabled={approvingId !== null}>
+                    <XCircle className="w-3.5 h-3.5 mr-1" /> Reject
+                  </Button>
+                  <Button variant="primary" size="xs" loading={approvingId === p.id}
+                    onClick={() => handleApprove(p.id, true, p.name)}
+                    disabled={approvingId !== null}>
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── All Products Table ───────────────────────────────────────────── */}
+        {activeTab === 'all' && (
+          <Card className="bg-white border border-gray-200 overflow-hidden rounded-2xl shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -253,6 +355,7 @@ export const AdminProducts: React.FC = () => {
             </table>
           </div>
         </Card>
+        )}
 
         {showModal && (
           <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm() }}>

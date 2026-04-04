@@ -103,6 +103,11 @@ namespace VerdeCrop.Application.Interfaces
         Task<string?> UploadImageAsync(int productId, Stream fileStream, string fileName);
         Task<List<ProductListDto>> GetFeaturedAsync(int count = 8);
         Task<List<ProductListDto>> GetByFarmerAsync(int farmerId);
+        // Seller / admin approval
+        Task<PagedResult<SellerProductDto>> GetSellerProductsAsync(int farmerId, int page, int pageSize);
+        Task<SellerProductDetailDto?> GetSellerProductByIdAsync(int productId, int farmerId);
+        Task<PagedResult<SellerProductDto>> GetPendingProductsAsync(int page, int pageSize);
+        Task<bool> ApproveProductAsync(int productId, bool approve);
     }
 
     public interface ICartService

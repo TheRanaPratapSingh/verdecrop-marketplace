@@ -429,7 +429,7 @@ namespace VerdeCrop.API.Controllers
             if (farmerProfile == null || !farmerProfile.IsApproved)
                 return Forbid();
             var p = await _products.CreateAsync(farmerProfile.Id, req);
-            return Ok(ApiResponse.Ok(p, "Product created"));
+            return Ok(ApiResponse.Ok(p, "Product submitted for review"));
         }
 
         [HttpPost("admin")]
@@ -467,6 +467,54 @@ namespace VerdeCrop.API.Controllers
             }
             await _products.DeleteAsync(id, farmerId);
             return Ok(ApiResponse.Ok(true));
+        }
+
+        [HttpGet("seller/my")]
+        [Authorize(Roles = "farmer")]
+        public async Task<IActionResult> GetMyProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var farmerProfile = await _farmers.GetByUserIdAsync(CurrentUserId);
+            if (farmerProfile == null) return NotFound(ApiResponse.Fail("Seller profile not found"));
+            var result = await _products.GetSellerProductsAsync(
+                farmerProfile.Id,
+                InputValidator.ClampPage(page),
+                InputValidator.ClampPageSize(pageSize, 50));
+            return Ok(ApiResponse.Ok(result));
+        }
+
+        [HttpGet("seller/{id:int}")]
+        [Authorize(Roles = "farmer,admin")]
+        public async Task<IActionResult> GetSellerProductById(int id)
+        {
+            int farmerId = 0;
+            if (CurrentUserRole == "farmer")
+            {
+                var fp = await _farmers.GetByUserIdAsync(CurrentUserId);
+                farmerId = fp?.Id ?? -1;
+                if (farmerId <= 0) return Forbid();
+            }
+            var p = await _products.GetSellerProductByIdAsync(id, farmerId);
+            return p == null ? NotFound() : Ok(ApiResponse.Ok(p));
+        }
+
+        [HttpGet("pending")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> GetPending([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var result = await _products.GetPendingProductsAsync(
+                InputValidator.ClampPage(page),
+                InputValidator.ClampPageSize(pageSize, 50));
+            return Ok(ApiResponse.Ok(result));
+        }
+
+        [HttpPut("{id}/approve")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> Approve(int id, [FromBody] ApproveProductRequest req)
+        {
+            var result = await _products.ApproveProductAsync(id, req.Approve);
+            return result
+                ? Ok(ApiResponse.Ok(true, req.Approve ? "Product approved" : "Product rejected"))
+                : NotFound(ApiResponse.Fail("Product not found"));
         }
 
         [HttpPost("{id}/images")]

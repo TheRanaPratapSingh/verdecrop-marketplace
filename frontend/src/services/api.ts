@@ -2,7 +2,7 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import type {
   AuthResponse, User, Category, Farmer, Product, Cart,
   Address, Order, Review, Notification, PagedResult,
-  ApiResponse, DashboardStats, WishlistItem
+  ApiResponse, DashboardStats, WishlistItem, SellerProduct, SellerProductDetail
 } from '../types'
 import { useAuthStore } from '../store'
 
@@ -156,6 +156,16 @@ export const productApi = {
   delete: (id: number) => unwrap<boolean>(api.delete(`/products/${id}`)),
   uploadImage: (id: number, form: FormData) =>
     unwrap<{ url: string }>(api.post(`/products/${id}/images`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
+  // Seller endpoints
+  getMyProducts: (params?: { page?: number; pageSize?: number }) =>
+    unwrap<PagedResult<SellerProduct>>(api.get('/products/seller/my', { params })),
+  getSellerById: (id: number) =>
+    unwrap<SellerProductDetail>(api.get(`/products/seller/${id}`)),
+  // Admin endpoints
+  getPending: (params?: { page?: number; pageSize?: number }) =>
+    unwrap<PagedResult<SellerProduct>>(api.get('/products/pending', { params })),
+  approve: (id: number, approve: boolean, note?: string) =>
+    unwrap<boolean>(api.put(`/products/${id}/approve`, { approve, note })),
 }
 
 // ── Cart ─────────────────────────────────────────────────────────────────────

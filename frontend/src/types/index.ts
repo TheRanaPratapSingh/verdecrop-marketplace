@@ -193,3 +193,45 @@ export interface DashboardStats {
   pendingFarmerApprovals: number
   revenueChart: Array<{ label: string; revenue: number; orders: number }>
 }
+
+export type ProductStatus = 'pending' | 'approved' | 'rejected'
+
+export interface SellerProduct {
+  id: number
+  name: string
+  slug: string
+  categoryId: number
+  categoryName: string
+  price: number
+  originalPrice?: number
+  unit: string
+  stockQuantity: number
+  imageUrl?: string
+  isOrganic: boolean
+  isFeatured: boolean
+  isActive: boolean
+  rating: number
+  reviewCount: number
+  status: ProductStatus
+  createdAt: string
+}
+
+export interface SellerProductDetail extends SellerProduct {
+  description?: string
+  farmerId: number
+  farmerName: string
+  farmLocation: string
+  minOrderQty: number
+  imageUrls: string[]
+  subcategory?: string
+  tags: string[]
+  village?: string
+  certificationType?: string
+  quantityOptions: string[]
+  harvestDate?: string
+  shelfLifeDays?: number
+  freshnessGuarantee?: string
+  deliveryTime?: string
+  availableCities: string[]
+  isFarmToHome: boolean
+}

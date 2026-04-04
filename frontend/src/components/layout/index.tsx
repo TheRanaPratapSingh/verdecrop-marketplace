@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout } from 'lucide-react'
+import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus } from 'lucide-react'
 import { useAuthStore, useCartStore, useNotifStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
@@ -54,7 +54,10 @@ export const Navbar: React.FC = () => {
   const isFarmer = user?.role?.toString().trim().toLowerCase() === 'farmer'
 
   const navLinks = isFarmer
-    ? [{ to: '/seller/orders', label: 'Seller Dashboard' }]
+    ? [
+        { to: '/seller/products', label: 'My Products' },
+        { to: '/seller/orders', label: 'Orders' },
+      ]
     : [
         { to: '/products', label: 'Shop' },
         { to: '/products?isOrganic=true', label: 'Organic' },
@@ -141,6 +144,17 @@ export const Navbar: React.FC = () => {
                   <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
                 </Link>
               </div>
+            )}
+
+            {/* Seller Add Product CTA — desktop only */}
+            {isFarmer && (
+              <Link
+                to="/seller/products/new"
+                className="hidden lg:flex items-center gap-1.5 px-4 py-2 text-[13px] font-label font-semibold text-white bg-forest-700 rounded-xl shadow-sm hover:bg-forest-600 hover:scale-[1.02] active:scale-[0.97] transition-all duration-200"
+              >
+                <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                Add Product
+              </Link>
             )}
 
             {/* Search */}
@@ -241,7 +255,10 @@ export const Navbar: React.FC = () => {
                       <div className="py-1">
                         {(
                           isFarmer
-                            ? [{ to: '/seller/orders', icon: LayoutDashboard, label: 'Seller Dashboard' }]
+                            ? [
+                                { to: '/seller/products', icon: LayoutDashboard, label: 'My Products' },
+                                { to: '/seller/orders', icon: Package, label: 'Seller Orders' },
+                              ]
                             : [
                                 { to: '/profile', icon: User, label: 'My Profile' },
                                 { to: '/orders', icon: Package, label: 'My Orders' },
@@ -391,7 +408,10 @@ export const Navbar: React.FC = () => {
             {isAuthenticated ? (
               <div className="border-t border-stone-100 px-3 py-3 space-y-0.5">
                 {isFarmer
-                  ? <Link to="/seller/orders" className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><LayoutDashboard className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Seller Dashboard</Link>
+                  ? <>
+                      <Link to="/seller/products" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><LayoutDashboard className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Products</Link>
+                      <Link to="/seller/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Package className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Seller Orders</Link>
+                    </>
                   : <>
                     <Link to="/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><User className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Profile</Link>
                     <Link to="/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Package className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Orders</Link>

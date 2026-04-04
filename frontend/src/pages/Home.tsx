@@ -14,41 +14,42 @@ import toast from 'react-hot-toast'
 import { HeroSlider } from '../components/HeroSlider'
 
 // Category highlight cards (static, curated)
+// nameKeyword is matched against real category names loaded from the API
 const CATEGORY_HIGHLIGHTS = [
   {
     title: 'Satvik Pura Fast',
     subtitle: 'For Fast',
     emoji: '🌿',
     gradient: 'linear-gradient(135deg, #2d5a27 0%, #3d7a35 100%)',
-    path: '/products?categorySlug=satvik-pura-fast',
+    nameKeyword: 'satvik',
   },
   {
     title: 'Organic Products',
     subtitle: 'Organic products',
     emoji: '🫘',
     gradient: 'linear-gradient(135deg, #3d6b30 0%, #4e8c3e 100%)',
-    path: '/products?categorySlug=organic-products',
+    nameKeyword: 'organic',
   },
   {
     title: 'Herbs & Spices',
     subtitle: 'Indian spices',
     emoji: '🌶️',
     gradient: 'linear-gradient(135deg, #4a6741 0%, #5d8451 100%)',
-    path: '/products?categorySlug=herbs-spices',
+    nameKeyword: 'herb',
   },
   {
     title: 'Seasonal Vegetables',
     subtitle: 'Fresh organic vegetables',
     emoji: '🥦',
     gradient: 'linear-gradient(135deg, #2e6b1f 0%, #3d8c28 100%)',
-    path: '/products?categorySlug=seasonal-vegetables',
+    nameKeyword: 'vegetable',
   },
   {
     title: 'Farm Fresh Fruits',
     subtitle: 'Naturally grown fruits',
     emoji: '🍊',
     gradient: 'linear-gradient(135deg, #b84c15 0%, #d4622a 100%)',
-    path: '/products?categorySlug=farm-fresh-fruits',
+    nameKeyword: 'fruit',
   },
 ]
 
@@ -135,22 +136,26 @@ const HomePage: React.FC = () => {
       {/* ── CATEGORY HIGHLIGHT CARDS ─────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 py-8 sm:py-10">
         <div className="flex sm:grid sm:grid-cols-5 gap-4 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 scrollbar-hide snap-x snap-mandatory sm:snap-none">
-          {CATEGORY_HIGHLIGHTS.map((cat) => (
-            <Link
-              key={cat.title}
-              to={cat.path}
-              className="group relative flex-shrink-0 w-52 sm:w-auto rounded-2xl p-5 flex items-center gap-3 snap-start overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300"
-              style={{ background: cat.gradient }}
-            >
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
-              <span className="text-3xl flex-shrink-0 group-hover:scale-110 transition-transform duration-200">{cat.emoji}</span>
-              <div className="relative z-10 flex-1 min-w-0">
-                <p className="font-label font-semibold text-white text-sm leading-tight">{cat.title}</p>
-                <p className="text-white/60 text-xs font-body mt-0.5 truncate">{cat.subtitle}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-white/40 flex-shrink-0 group-hover:translate-x-0.5 group-hover:text-white/70 transition-all duration-200" />
-            </Link>
-          ))}
+          {CATEGORY_HIGHLIGHTS.map((highlight) => {
+            const matched = categories.find(c => c.name.toLowerCase().includes(highlight.nameKeyword))
+            const to = matched ? `/products?categoryId=${matched.id}` : `/products?search=${highlight.nameKeyword}`
+            return (
+              <Link
+                key={highlight.title}
+                to={to}
+                className="group relative flex-shrink-0 w-52 sm:w-auto rounded-2xl p-5 flex items-center gap-3 snap-start overflow-hidden shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300"
+                style={{ background: highlight.gradient }}
+              >
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+                <span className="text-3xl flex-shrink-0 group-hover:scale-110 transition-transform duration-200">{highlight.emoji}</span>
+                <div className="relative z-10 flex-1 min-w-0">
+                  <p className="font-label font-semibold text-white text-sm leading-tight">{highlight.title}</p>
+                  <p className="text-white/60 text-xs font-body mt-0.5 truncate">{highlight.subtitle}</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-white/40 flex-shrink-0 group-hover:translate-x-0.5 group-hover:text-white/70 transition-all duration-200" />
+              </Link>
+            )
+          })}
         </div>
       </section>
 

@@ -118,7 +118,19 @@ namespace VerdeCrop.Application.DTOs
         bool IsOrganic = true,
         bool? IsFeatured = null,
         [StringLength(1000)] string? ImageUrl = null,
-        List<string>? ImageUrls = null
+        List<string>? ImageUrls = null,
+        // Extended seller fields
+        [StringLength(100)] string? Subcategory = null,
+        List<string>? Tags = null,
+        [StringLength(200)] string? Village = null,
+        [StringLength(20)] string? CertificationType = null,
+        List<string>? QuantityOptions = null,
+        DateTime? HarvestDate = null,
+        [Range(0, 3650)] int? ShelfLifeDays = null,
+        [StringLength(500)] string? FreshnessGuarantee = null,
+        [StringLength(50)] string? DeliveryTime = null,
+        List<string>? AvailableCities = null,
+        bool IsFarmToHome = false
     );
 
     // ── FIX: Added CategoryId, ImageUrl, ImageUrls — were missing, updates couldn't change these fields
@@ -135,8 +147,49 @@ namespace VerdeCrop.Application.DTOs
         bool? IsFeatured,
         bool? IsActive,
         string? ImageUrl,
-        List<string>? ImageUrls
+        List<string>? ImageUrls,
+        // Extended seller fields
+        string? Subcategory = null,
+        List<string>? Tags = null,
+        string? Village = null,
+        string? CertificationType = null,
+        List<string>? QuantityOptions = null,
+        DateTime? HarvestDate = null,
+        int? ShelfLifeDays = null,
+        string? FreshnessGuarantee = null,
+        string? DeliveryTime = null,
+        List<string>? AvailableCities = null,
+        bool? IsFarmToHome = null
     );
+
+    // ── Seller Product ─────────────────────────────────────────────────────────
+    public record SellerProductDto(
+        int Id, string Name, string Slug,
+        int CategoryId, string CategoryName,
+        decimal Price, decimal? OriginalPrice, string Unit,
+        int StockQuantity, string? ImageUrl,
+        bool IsOrganic, bool IsFeatured, bool IsActive,
+        decimal Rating, int ReviewCount,
+        string Status, DateTime CreatedAt);
+
+    public record SellerProductDetailDto(
+        int Id, string Name, string Slug, string? Description,
+        int CategoryId, string CategoryName,
+        int FarmerId, string FarmerName, string FarmLocation,
+        decimal Price, decimal? OriginalPrice, string Unit,
+        decimal MinOrderQty, int StockQuantity,
+        string? ImageUrl, List<string> ImageUrls,
+        bool IsOrganic, bool IsFeatured, bool IsActive,
+        decimal Rating, int ReviewCount,
+        string Status, DateTime CreatedAt,
+        string? Subcategory, List<string> Tags,
+        string? Village, string? CertificationType,
+        List<string> QuantityOptions, DateTime? HarvestDate,
+        int? ShelfLifeDays, string? FreshnessGuarantee,
+        string? DeliveryTime, List<string> AvailableCities,
+        bool IsFarmToHome);
+
+    public record ApproveProductRequest(bool Approve, string? Note = null);
 
     // ── Cart ──────────────────────────────────────────────────────────────────
     public record CartDto(int Id, List<CartItemDto> Items, decimal Subtotal, decimal ItemCount);
