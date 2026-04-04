@@ -9,6 +9,13 @@ import type { Product, Category, Farmer } from '../../types'
 
 const UNIT_OPTIONS = ['g', 'kg', 'ml', 'L', 'piece', 'dozen', 'pack'] as const
 
+const QUANTITY_PRESETS: Record<string, string[]> = {
+  g:  ['25', '50', '100', '250', '500', '1000'],
+  ml: ['100', '250', '500', '1000'],
+  kg: ['0.5', '1', '2', '5', '10'],
+  L:  ['0.5', '1', '2', '5'],
+}
+
 const emptyFormState = {
   name: '',
   categoryId: 0,
@@ -371,23 +378,68 @@ export const AdminProducts: React.FC = () => {
                 />
                 <div>
                   <label className="block text-sm font-label font-medium text-gray-700 mb-1">Stock Quantity &amp; Unit</label>
-                  <div className="flex gap-2">
-                    <Input
+                  {/* Unit selector */}
+                  <div className="flex gap-2 mb-2">
+                    {UNIT_OPTIONS.map(u => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setFormData(f => ({
+                          ...f,
+                          unit: u,
+                          // clear stock only if it was a preset value of the previous unit
+                          stock: (QUANTITY_PRESETS[f.unit] ?? []).includes(f.stock) ? '' : f.stock,
+                        }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-label font-semibold border transition-all duration-150 ${
+                          formData.unit === u
+                            ? 'bg-forest-600 border-forest-600 text-white shadow-sm'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-forest-400 hover:text-forest-600'
+                        }`}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Quick-pick preset chips */}
+                  {QUANTITY_PRESETS[formData.unit] && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {QUANTITY_PRESETS[formData.unit].map(preset => {
+                        const label = formData.unit === 'g' && preset === '1000'
+                          ? '1kg'
+                          : formData.unit === 'ml' && preset === '1000'
+                          ? '1L'
+                          : `${preset}${formData.unit}`
+                        const active = formData.stock === preset
+                        return (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setFormData(f => ({ ...f, stock: active ? '' : preset }))}
+                            className={`px-3 py-1 rounded-full text-xs font-label font-medium border transition-all duration-150 ${
+                              active
+                                ? 'bg-forest-50 border-forest-400 text-forest-700 shadow-sm'
+                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-forest-300 hover:text-forest-600 hover:bg-forest-50'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {/* Custom / manual input */}
+                  <div className="relative">
+                    <input
                       type="number"
+                      min="0"
                       value={formData.stock}
-                      onChange={e => setFormData({ ...formData, stock: e.target.value })}
-                      placeholder="e.g., 100"
-                      className="flex-1"
+                      onChange={e => setFormData(f => ({ ...f, stock: e.target.value }))}
+                      placeholder="Or enter custom quantity…"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-forest-500 pr-14"
                     />
-                    <select
-                      value={formData.unit}
-                      onChange={e => setFormData({ ...formData, unit: e.target.value })}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500 min-w-[90px]"
-                    >
-                      {UNIT_OPTIONS.map(u => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-label font-semibold text-gray-400 pointer-events-none">
+                      {formData.unit}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
