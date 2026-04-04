@@ -180,27 +180,36 @@ export const HeroSlider: React.FC = () => {
   const [current,  setCurrent]  = useState(0)
   const [incoming, setIncoming] = useState<number | null>(null)
   const [paused,   setPaused]   = useState(false)
-  const fadingRef = useRef(false)
+  const fadingRef  = useRef(false)
+  const currentRef = useRef(0)   // mirrors `current` so interval never captures a stale closure
 
   const goTo = useCallback((target: number) => {
-    if (fadingRef.current || target === current) return
+    if (fadingRef.current || target === currentRef.current) return
     fadingRef.current = true
     setIncoming(target)
     setTimeout(() => {
+      currentRef.current = target
       setCurrent(target)
       setIncoming(null)
       fadingRef.current = false
     }, FADE_MS)
-  }, [current])
+  }, []) // no deps — reads refs, never captures state
 
-  const advance = useCallback(() => goTo((current + 1) % SLIDES.length), [current, goTo])
-  const retreat = useCallback(() => goTo((current - 1 + SLIDES.length) % SLIDES.length), [current, goTo])
+  const advance = useCallback(
+    () => goTo((currentRef.current + 1) % SLIDES.length),
+    [goTo], // stable: goTo never changes
+  )
+
+  const retreat = useCallback(
+    () => goTo((currentRef.current - 1 + SLIDES.length) % SLIDES.length),
+    [goTo],
+  )
 
   useEffect(() => {
     if (paused) return
     const t = setInterval(advance, INTERVAL_MS)
     return () => clearInterval(t)
-  }, [paused, advance])
+  }, [paused, advance]) // advance is now stable → effect runs only when paused toggles
 
   const slide = SLIDES[current]
 
