@@ -1,6 +1,10 @@
 ﻿import React, { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Award } from 'lucide-react'
+import {
+  ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Award,
+  Wheat, Droplets, Apple, Carrot, Flame, Sprout, Bean,
+  UtensilsCrossed, Package, type LucideIcon,
+} from 'lucide-react'
 import { categoryApi, productApi } from '../services/api'
 import { PageLayout } from '../components/layout'
 import { ProductGrid } from '../components/product'
@@ -47,6 +51,21 @@ const CATEGORY_HIGHLIGHTS = [
     path: '/products?q=fruits',
   },
 ]
+
+// Icon mapping: category slug → Lucide icon + accent color
+const CATEGORY_ICON_MAP: Record<string, { icon: LucideIcon; bg: string; color: string }> = {
+  'seasonal-vegetables': { icon: Carrot,           bg: 'bg-emerald-50',  color: 'text-emerald-700' },
+  'farm-fresh-fruits':   { icon: Apple,            bg: 'bg-orange-50',   color: 'text-orange-600'  },
+  'whole-grains':        { icon: Wheat,            bg: 'bg-amber-50',    color: 'text-amber-700'   },
+  'dairy-milk':          { icon: Droplets,         bg: 'bg-sky-50',      color: 'text-sky-600'     },
+  'spices-seasonings':   { icon: Flame,            bg: 'bg-red-50',      color: 'text-red-600'     },
+  'organics-pulses':     { icon: Bean,             bg: 'bg-lime-50',     color: 'text-lime-700'    },
+  'cold-pressed-oils':   { icon: Droplets,         bg: 'bg-yellow-50',   color: 'text-yellow-600'  },
+  'satvik-pura-fast':    { icon: UtensilsCrossed,  bg: 'bg-green-50',    color: 'text-green-700'   },
+  'organic-products':    { icon: Sprout,           bg: 'bg-teal-50',     color: 'text-teal-700'    },
+  'herbs-spices':        { icon: Flame,            bg: 'bg-rose-50',     color: 'text-rose-600'    },
+}
+const DEFAULT_CAT_ICON = { icon: Package, bg: 'bg-forest-50', color: 'text-forest-700' }
 
 // Helper: Map category slugs to emoji and colors
 const getCategoryStyle = (slug?: string) => {
@@ -177,28 +196,34 @@ const HomePage: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-stone-100 rounded-3xl h-28 animate-pulse" />)}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-stone-100 rounded-2xl h-36 animate-pulse" />
+            ))}
           </div>
         ) : categories.length === 0 ? (
           <p className="text-stone-400 font-body text-sm py-8">No categories yet — seed data needed.</p>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-            {categories.map((cat, i) => (
-              <Link
-                key={cat.id}
-                to={`/products?categoryId=${cat.id}`}
-                className="group flex flex-col items-center gap-2.5 py-5 px-3 bg-white rounded-3xl shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 animate-fade-up"
-                style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
-              >
-                {/* ── FIXED: renders image path correctly, falls back to emoji ── */}
-                <div className="w-12 h-12 rounded-2xl bg-forest-50 group-hover:bg-forest-100 flex items-center justify-center transition-colors duration-200 overflow-hidden">
-                  <CategoryIcon iconUrl={cat.iconUrl} name={cat.name} />
-                </div>
-                <span className="text-[11px] font-label font-semibold text-stone-700 group-hover:text-forest-700 text-center leading-tight transition-colors">{cat.name}</span>
-                <span className="text-[10px] text-stone-400 font-body">{cat.productCount} items</span>
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {categories.map((cat, i) => {
+              const { icon: CatIcon, bg, color } = CATEGORY_ICON_MAP[cat.slug ?? ''] ?? DEFAULT_CAT_ICON
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/products?categoryId=${cat.id}`}
+                  className="group flex flex-col items-center gap-3 py-6 px-4 bg-white rounded-2xl border border-stone-100 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-forest-200 transition-all duration-300 animate-fade-up"
+                  style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
+                >
+                  <div className={`w-16 h-16 ${bg} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
+                    <CatIcon className={`w-8 h-8 ${color}`} strokeWidth={1.5} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-label font-semibold text-stone-800 group-hover:text-forest-700 leading-tight transition-colors">{cat.name}</p>
+                    <p className="text-[11px] text-stone-400 font-body mt-0.5">{cat.productCount} items</p>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         )}
       </section>
