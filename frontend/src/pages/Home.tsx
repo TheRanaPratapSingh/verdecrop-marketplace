@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+﻿import React, { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Leaf, Shield, Truck, Star, ChevronRight, Sprout, Award } from 'lucide-react'
 import { categoryApi, productApi } from '../services/api'
@@ -74,7 +74,7 @@ const HomePage: React.FC = () => {
       <HeroSlider />
 
             {/* ── CATEGORY BANNERS ─────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 sm:px-10 -mt-16 relative z-10">
+      <section className="max-w-7xl mx-auto px-6 sm:px-10 py-10 relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {displayCategories.length === 0 ? (
             <div className="col-span-full text-center py-8 text-sm text-stone-400">No categories available</div>
