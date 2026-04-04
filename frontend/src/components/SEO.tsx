@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet-async'
 const SITE_NAME = 'Graamo'
 const BASE_URL  = 'https://graamo.in'   // canonical root — update when domain is live
 const DEFAULT_TITLE       = 'Graamo – Organic Marketplace'
-const DEFAULT_DESCRIPTION = 'Buy 100% certified organic vegetables, fruits, grains & more directly from 500+ trusted Indian farmers. No chemicals, no middlemen – farm fresh to your door.'
+const DEFAULT_DESCRIPTION = 'Buy 100% certified organic vegetables, fruits, grains & more directly from 50+ trusted Indian farmers. No chemicals, no middlemen – farm fresh to your door.'
 const DEFAULT_OG_IMAGE    = `${BASE_URL}/og-default.jpg`   // 1200×630 image in /public
 
 interface SEOProps {

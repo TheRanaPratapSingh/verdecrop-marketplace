@@ -10,10 +10,10 @@ import {
 // ── DATA ─────────────────────────────────────────────────────────────────────
 
 const IMPACT = [
-  { value: '500+',  label: 'Certified Farmers',      color: '#2d8a32' },
+  { value: '50+',   label: 'Certified Farmers',      color: '#2d8a32' },
   { value: '60%',   label: 'Women-Led Farms',         color: '#c05c8a' },
   { value: '20+',   label: 'Villages Impacted',       color: '#c07830' },
-  { value: '50k+',  label: 'Families Nourished',      color: '#1a5fa8' },
+  { value: '500+',  label: 'Families Nourished',      color: '#1a5fa8' },
 ]
 
 const WOMEN_STORIES = [
@@ -79,7 +79,7 @@ export const AboutUsPage: React.FC = () => (
   <PageLayout>
     <SEO
       title="About Us"
-      description="Graamo connects 500+ certified organic farmers — 60% women-led — directly with Indian families. From fields to families, with love."
+      description="Graamo connects 50+ certified organic farmers — 60% women-led — directly with Indian families. From fields to families, with love."
       canonical="https://graamo.in/about-us"
     />
 
@@ -144,7 +144,7 @@ export const AboutUsPage: React.FC = () => (
           </div>
           {/* Floating stat pill */}
           <div className="absolute -bottom-5 -right-4 sm:-right-6 glass rounded-2xl px-5 py-3.5 shadow-xl border border-white/60">
-            <p className="font-label font-bold text-forest-800 text-lg leading-tight">500+</p>
+            <p className="font-label font-bold text-forest-800 text-lg leading-tight">50+</p>
             <p className="text-stone-500 font-body text-xs mt-0.5">Organic Farmers</p>
           </div>
         </div>

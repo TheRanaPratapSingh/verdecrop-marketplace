@@ -28,7 +28,7 @@ export const ShopByFarmsPage: React.FC = () => {
     <PageLayout>
       <SEO
         title="Shop by Farms"
-        description="Browse 500+ verified organic farms across India. Shop fresh vegetables, fruits, grains and more directly from the farmers who grow them."
+        description="Browse 50+ verified organic farms across India. Shop fresh vegetables, fruits, grains and more directly from the farmers who grow them."
         canonical="https://graamo.in/shop-by-farms"
       />
       <section className="relative overflow-hidden bg-gradient-to-b from-cream via-stone-50 to-stone-100">

@@ -67,7 +67,7 @@ const HomePage: React.FC = () => {
     <PageLayout>
       <SEO
         titleOverride="Graamo – Organic Marketplace"
-        description="Buy 100% certified organic vegetables, fruits, grains & more directly from 500+ trusted Indian farmers. No chemicals, no middlemen – farm fresh to your door."
+        description="Buy 100% certified organic vegetables, fruits, grains & more directly from 50+ trusted Indian farmers. No chemicals, no middlemen – farm fresh to your door."
         canonical="https://graamo.in/"
       />
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
@@ -97,7 +97,7 @@ const HomePage: React.FC = () => {
             </h1>
 
             <p className="text-stone-300 text-lg font-body leading-relaxed max-w-xl mb-10 animate-fade-up" style={{ animationDelay: '0.3s', opacity: 0 }}>
-              Connect directly with 500+ certified organic farmers. No chemicals, no preservatives — just nature's finest delivered to your door.
+              Connect directly with 50+ certified organic farmers. No chemicals, no preservatives — just nature's finest delivered to your door.
             </p>
 
             <div className="flex flex-wrap gap-4 animate-fade-up" style={{ animationDelay: '0.4s', opacity: 0 }}>
@@ -110,7 +110,7 @@ const HomePage: React.FC = () => {
             </div>
 
             <div className="flex gap-10 mt-14 animate-fade-up" style={{ animationDelay: '0.5s', opacity: 0 }}>
-              {[['500+', 'Certified Farmers'], ['2,000+', 'Organic Products'], ['50k+', 'Happy Families']].map(([n, l]) => (
+              {[['50+', 'Certified Farmers'], ['2,000+', 'Organic Products'], ['500+', 'Happy Families']].map(([n, l]) => (
                 <div key={l}>
                   <div className="font-display text-3xl font-semibold text-white">{n}</div>
                   <div className="text-xs font-label text-stone-400 tracking-wide mt-0.5">{l}</div>
@@ -217,7 +217,7 @@ const HomePage: React.FC = () => {
               { icon: Award, title: 'Certified Organic', desc: 'Every product third-party certified pesticide-free by licensed bodies', color: 'text-forest-600', bg: 'bg-forest-50' },
               { icon: Truck, title: 'Farm to Doorstep', desc: 'Direct from farm — no middlemen, maximum freshness guaranteed', color: 'text-blue-600', bg: 'bg-blue-50' },
               { icon: Shield, title: 'Quality Guaranteed', desc: 'Not satisfied? Full refund within 24 hours, no questions asked', color: 'text-amber-600', bg: 'bg-amber-50' },
-              { icon: Star, title: '50k+ Families Trust Us', desc: 'Loved by health-conscious households across 20+ cities in India', color: 'text-purple-600', bg: 'bg-purple-50' },
+              { icon: Star, title: '500+ Families Trust Us', desc: 'Loved by health-conscious households across 20+ cities in India', color: 'text-purple-600', bg: 'bg-purple-50' },
             ].map(({ icon: Icon, title, desc, color, bg }) => (
               <div key={title} className="group flex flex-col items-center text-center p-7 rounded-3xl hover:bg-stone-50 transition-colors duration-200 cursor-default">
                 <div className={`w-14 h-14 ${bg} rounded-2xl flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-200`}>
