@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useRef, useState } from 'react'
+﻿import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ChevronLeft, ChevronRight, Heart, Leaf, Sprout } from 'lucide-react'
 
@@ -65,8 +65,8 @@ const SLIDES: Slide[] = [
   },
 ]
 
-const INTERVAL_MS = 4500
-const FADE_MS = 550
+const INTERVAL_MS = 6000
+const FADE_MS = 700
 const BadgeIcon: React.FC<{ type: BadgeIconType; color: string }> = ({ type, color }) => {
   const cls = 'w-3.5 h-3.5 flex-shrink-0'
   if (type === 'heart') return <Heart  className={cls} style={{ color }} strokeWidth={2} />
@@ -76,14 +76,24 @@ const BadgeIcon: React.FC<{ type: BadgeIconType; color: string }> = ({ type, col
 
 interface LayerProps { slide: Slide; animKey: number; visible: boolean; isTop: boolean }
 
-const SlideLayer: React.FC<LayerProps> = ({ slide, animKey, visible, isTop }) => (
+const SlideLayer: React.FC<LayerProps> = ({ slide, animKey, visible, isTop }) => {
+  // For the incoming (top) layer: mount at opacity 0, then transition to 1 on next frame
+  const [opacity, setOpacity] = useState(isTop ? 0 : 1)
+  useLayoutEffect(() => {
+    if (isTop) {
+      const raf = requestAnimationFrame(() => setOpacity(1))
+      return () => cancelAnimationFrame(raf)
+    }
+  }, [isTop])
+
+  return (
   <div
     className="absolute inset-0 flex items-center"
     style={{
       backgroundColor: slide.bgColor,
       zIndex:     isTop ? 2 : 1,
-      opacity:    visible ? 1 : 0,
-      transition: isTop ? 'none' : ('opacity ' + FADE_MS + 'ms ease'),
+      opacity:    isTop ? opacity : (visible ? 1 : 0),
+      transition: `opacity ${FADE_MS}ms ease`,
       willChange: 'opacity',
     }}
   >
@@ -164,7 +174,8 @@ const SlideLayer: React.FC<LayerProps> = ({ slide, animKey, visible, isTop }) =>
       </div>
     </div>
   </div>
-)
+  )
+}
 export const HeroSlider: React.FC = () => {
   const [current,  setCurrent]  = useState(0)
   const [incoming, setIncoming] = useState<number | null>(null)
