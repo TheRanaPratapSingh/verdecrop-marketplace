@@ -254,8 +254,6 @@ export const HeroSlider: React.FC = () => {
             />
           </div>
         </div>
-
-        <style dangerouslySetInnerHTML={{ __html: '@keyframes hsProgress{from{width:0%}to{width:100%}}@keyframes hsu{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}' }} />
       </section>
 
       <div className="h-px bg-gradient-to-r from-transparent via-stone-200 to-transparent" />

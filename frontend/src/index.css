@@ -90,3 +90,13 @@
     @apply text-xs font-label font-semibold tracking-widest2 text-forest-600 uppercase;
   }
 }
+
+/* ── HeroSlider keyframes ─────────────────────────────────────────────────── */
+@keyframes hsProgress {
+  from { width: 0% }
+  to   { width: 100% }
+}
+@keyframes hsu {
+  from { opacity: 0; transform: translateY(18px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
