@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, ShoppingCart, Leaf, Star } from 'lucide-react'
+import { Heart, ShoppingCart, Leaf, Star, Minus, Plus } from 'lucide-react'
 import { useAuthStore, useCartStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner } from '../ui'
@@ -61,9 +61,14 @@ export const CategoryIcon: React.FC<{
 // ── ProductCard ───────────────────────────────────────────────────────────────
 export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const { isAuthenticated } = useAuthStore()
-  const { setCart, openCart } = useCartStore()
+  const { cart, setCart, openCart } = useCartStore()
   const [adding, setAdding] = useState(false)
+  const [updating, setUpdating] = useState(false)
   const [wishlisted, setWishlisted] = useState(false)
+
+  // Derive current quantity from cart store
+  const cartItem = cart?.items.find(i => i.productId === product.id)
+  const cartQty = cartItem?.quantity ?? 0
   const productBaseImage = resolveAssetUrl(product.imageUrl) || resolveLocalUrl(product.imageUrl) || resolveProductImage(product.slug, product.name)
   const [imageSrc, setImageSrc] = useState<string | undefined>(productBaseImage)
   const [imageFallbacked, setImageFallbacked] = useState(false)
@@ -85,8 +90,8 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
     if (!isAuthenticated) { toast.error('Please login to add to cart'); return }
     setAdding(true)
     try {
-      const cart = await cartApi.addItem(product.id, 1)
-      setCart(cart)
+      const updated = await cartApi.addItem(product.id, 1)
+      setCart(updated)
       toast.success(`${product.name} added!`, {
         style: { borderRadius: '14px', background: '#175820', color: '#fff' },
         icon: '🛒'
@@ -94,6 +99,30 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
       openCart()
     } catch { toast.error('Could not add to cart') }
     finally { setAdding(false) }
+  }
+
+  const handleIncrease = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!cartItem) return
+    setUpdating(true)
+    try {
+      const updated = await cartApi.updateItem(cartItem.id, cartItem.quantity + 1)
+      setCart(updated)
+    } catch { toast.error('Could not update cart') }
+    finally { setUpdating(false) }
+  }
+
+  const handleDecrease = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!cartItem) return
+    setUpdating(true)
+    try {
+      const updated = cartItem.quantity === 1
+        ? await cartApi.removeItem(cartItem.id)
+        : await cartApi.updateItem(cartItem.id, cartItem.quantity - 1)
+      setCart(updated)
+    } catch { toast.error('Could not update cart') }
+    finally { setUpdating(false) }
   }
 
   const discount = product.originalPrice && product.originalPrice > product.price
@@ -176,13 +205,38 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
               <span className="text-[10px] text-stone-400 font-body">/{product.unit}</span>
             </div>
 
-            <button
-              onClick={handleAddToCart}
-              disabled={adding || product.stockQuantity === 0}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-forest-700 hover:bg-forest-600 active:bg-forest-800 text-white text-sm font-label font-semibold rounded-xl shadow-btn hover:shadow-btn-hover active:scale-[0.97] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {adding ? <Spinner size="sm" /> : <><ShoppingCart className="w-4 h-4" strokeWidth={2} />Add to Cart</>}
-            </button>
+            {cartQty > 0 ? (
+              <div
+                onClick={e => e.preventDefault()}
+                className="w-full flex items-center justify-between bg-forest-700 rounded-xl overflow-hidden shadow-btn h-10"
+              >
+                <button
+                  onClick={handleDecrease}
+                  disabled={updating}
+                  className="flex items-center justify-center w-10 h-10 text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"
+                >
+                  <Minus className="w-4 h-4" strokeWidth={2.5} />
+                </button>
+                <span className="flex-1 text-center text-white text-sm font-label font-bold">
+                  {updating ? <Spinner size="sm" /> : cartQty}
+                </span>
+                <button
+                  onClick={handleIncrease}
+                  disabled={updating}
+                  className="flex items-center justify-center w-10 h-10 text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4" strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                disabled={adding || product.stockQuantity === 0}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-forest-700 hover:bg-forest-600 active:bg-forest-800 text-white text-sm font-label font-semibold rounded-xl shadow-btn hover:shadow-btn-hover active:scale-[0.97] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {adding ? <Spinner size="sm" /> : <><ShoppingCart className="w-4 h-4" strokeWidth={2} />Add to Cart</>}
+              </button>
+            )}
           </div>
         </div>
       </div>

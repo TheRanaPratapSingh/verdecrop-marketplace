@@ -8,6 +8,7 @@ import {
 import { categoryApi, productApi } from '../services/api'
 import { PageLayout } from '../components/layout'
 import { ProductGrid } from '../components/product'
+import { ProductRow } from '../components/product/ProductRow'
 import { SEO } from '../components/SEO'
 import type { Category, Product } from '../types'
 import toast from 'react-hot-toast'
@@ -235,17 +236,13 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* ── FEATURED PRODUCTS ────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 sm:px-10 pb-16">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <p className="section-label mb-2">Handpicked</p>
-            <h2 className="font-display text-4xl font-semibold text-stone-900">Featured This Season</h2>
-          </div>
-          <Link to="/products?isFeatured=true" className="hidden sm:flex items-center gap-1.5 text-sm font-label font-medium text-forest-600 hover:text-forest-800 transition-colors">
-            See all <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-        <ProductGrid products={featured} loading={loading} />
+      <section className="max-w-7xl mx-auto px-0 sm:px-10 pb-10">
+        <ProductRow
+          title="Featured This Season"
+          products={featured}
+          loading={loading}
+          seeAllLink="/products?isFeatured=true"
+        />
       </section>
 
       {/* ── SUBSCRIPTION BANNER ──────────────────────────────────────────────── */}
