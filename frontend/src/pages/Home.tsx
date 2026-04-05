@@ -8,6 +8,7 @@ import {
 import { categoryApi, productApi } from '../services/api'
 import { PageLayout } from '../components/layout'
 import { ProductGrid } from '../components/product'
+import { CategorySection } from '../components/product/CategorySection'
 import { ProductRow } from '../components/product/ProductRow'
 import { SEO } from '../components/SEO'
 import type { Category, Product } from '../types'
@@ -90,6 +91,8 @@ const HomePage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([])
   const [featured, setFeatured] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [categoryProducts, setCategoryProducts] = useState<Record<number, Product[]>>({})
+  const [sectionsLoading, setSectionsLoading] = useState(false)
 
   useEffect(() => {
     const state = location.state as { registrationSuccess?: boolean; welcomeMessage?: string } | null
@@ -121,6 +124,27 @@ const HomePage: React.FC = () => {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  // Fetch products for each showOnHome category (uses real DB data — no keyword matching)
+  useEffect(() => {
+    const homeCats = categories.filter(c => c.showOnHome)
+    if (homeCats.length === 0) return
+    setSectionsLoading(true)
+    Promise.all(
+      homeCats.map(cat =>
+        productApi
+          .getAll({ categoryId: cat.id, pageSize: 6, page: 1 })
+          .then(res => ({ categoryId: cat.id, products: res.items ?? [] }))
+          .catch(() => ({ categoryId: cat.id, products: [] })),
+      ),
+    )
+      .then(results => {
+        const map: Record<number, Product[]> = {}
+        results.forEach(r => { map[r.categoryId] = r.products })
+        setCategoryProducts(map)
+      })
+      .finally(() => setSectionsLoading(false))
+  }, [categories])
 
   const homeCategories = categories.filter(c => c.showOnHome)
   const displayCategories = (homeCategories.length > 0 ? homeCategories : categories).slice(0, 5)
@@ -234,6 +258,25 @@ const HomePage: React.FC = () => {
           </div>
         )}
       </section>
+
+      {/* ── CATEGORY PRODUCT SECTIONS ────────────────────────────────────────── */}
+      {(homeCategories.length > 0 || sectionsLoading) && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-10 pb-10 space-y-12">
+          {homeCategories.map(cat => {
+            const isEmojiIcon = !!cat.iconUrl && [...cat.iconUrl].length <= 2
+            return (
+              <CategorySection
+                key={cat.id}
+                title={cat.name}
+                emoji={isEmojiIcon ? cat.iconUrl : undefined}
+                products={categoryProducts[cat.id] ?? []}
+                loading={sectionsLoading}
+                seeAllLink={`/products?categoryId=${cat.id}`}
+              />
+            )
+          })}
+        </section>
+      )}
 
       {/* ── FEATURED PRODUCTS ────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-0 sm:px-10 pb-10">

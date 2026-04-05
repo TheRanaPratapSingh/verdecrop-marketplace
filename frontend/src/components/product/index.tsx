@@ -300,3 +300,6 @@ export const CategoryCard: React.FC<{ category: Category }> = ({ category }) => 
     <span className="text-[10px] text-stone-400 font-body">{category.productCount} items</span>
   </Link>
 )
+
+export { CategorySection } from './CategorySection'
+export type { CategorySectionProps } from './CategorySection'
