@@ -24,6 +24,8 @@ namespace VerdeCrop.Infrastructure.Data
         public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
         public DbSet<Coupon> Coupons => Set<Coupon>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<Subscription> Subscriptions => Set<Subscription>();
+        public DbSet<SubscriptionItem> SubscriptionItems => Set<SubscriptionItem>();
 
         protected override void OnModelCreating(ModelBuilder mb)
         {
@@ -167,6 +169,25 @@ namespace VerdeCrop.Infrastructure.Data
                 .HasOne(p => p.Order)
                 .WithMany(o => o.Payments)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // ===============================
+            // SUBSCRIPTION CONFIG
+            // ===============================
+            mb.Entity<Subscription>(e => {
+                e.Property(s => s.Price).HasPrecision(10, 2);
+                e.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(s => s.Address).WithMany().HasForeignKey(s => s.AddressId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            mb.Entity<SubscriptionItem>(e => {
+                e.Property(i => i.Quantity).HasPrecision(8, 3);
+                e.HasOne(i => i.Subscription).WithMany(s => s.Items).HasForeignKey(i => i.SubscriptionId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(i => i.Product).WithMany().HasForeignKey(i => i.ProductId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            mb.Entity<Order>(e2 => {
+                e2.HasOne<Subscription>().WithMany(s => s.GeneratedOrders).HasForeignKey(o => o.SubscriptionId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            });
 
             // ===============================
             // SEED DATA

@@ -46,6 +46,8 @@ namespace VerdeCrop.Application.Interfaces
         IRepository<WishlistItem> WishlistItems { get; }
         IRepository<Coupon> Coupons { get; }
         IRepository<Notification> Notifications { get; }
+        IRepository<Subscription> Subscriptions { get; }
+        IRepository<SubscriptionItem> SubscriptionItems { get; }
         Task<int> SaveChangesAsync();
     }
 
@@ -84,11 +86,13 @@ namespace VerdeCrop.Application.Interfaces
         Task<FarmerDto?> GetByIdAsync(int id);
         Task<FarmerDto?> GetByUserIdAsync(int userId);
         Task<FarmerDto?> RegisterAsync(int userId, RegisterFarmerRequest req);
-        // Admin create: create a new user with role 'farmer' and attach farmer profile
         Task<FarmerDto?> CreateAdminAsync(string ownerName, RegisterFarmerRequest req);
         Task<FarmerDto?> UpdateAsync(int farmerId, RegisterFarmerRequest req);
         Task<bool> DeleteAsync(int farmerId);
         Task<bool> ApproveAsync(int farmerId, bool approve);
+        Task<FarmerDto?> SetPremiumAsync(int farmerId, string plan, DateTime? expiresAt);
+        Task<FarmerDto?> SetWomenLedAsync(int farmerId, bool isWomenLed, string? story);
+        Task<List<FarmerDto>> GetWomenLedAsync();
     }
 
     public interface IProductService
@@ -108,6 +112,7 @@ namespace VerdeCrop.Application.Interfaces
         Task<SellerProductDetailDto?> GetSellerProductByIdAsync(int productId, int farmerId);
         Task<PagedResult<SellerProductDto>> GetPendingProductsAsync(int page, int pageSize);
         Task<bool> ApproveProductAsync(int productId, bool approve);
+        Task<bool> ToggleFeaturedAsync(int productId, bool isFeatured);
     }
 
     public interface ICartService
@@ -167,6 +172,25 @@ namespace VerdeCrop.Application.Interfaces
     {
         Task<DashboardStatsDto> GetDashboardStatsAsync();
         Task<PagedResult<OrderListDto>> GetAllOrdersAsync(int page, int pageSize, string? status);
+    }
+
+    public interface ISubscriptionService
+    {
+        Task<List<SubscriptionDto>> GetUserSubscriptionsAsync(int userId);
+        Task<SubscriptionDto?> GetByIdAsync(int subscriptionId, int userId);
+        Task<SubscriptionDto?> CreateAsync(int userId, CreateSubscriptionRequest req);
+        Task<SubscriptionDto?> UpdateAsync(int subscriptionId, int userId, UpdateSubscriptionRequest req);
+        Task<bool> PauseResumeAsync(int subscriptionId, int userId, bool pause);
+        Task<bool> CancelAsync(int subscriptionId, int userId);
+        Task<List<SubscriptionDto>> GetAllAsync(int page, int pageSize); // admin
+        Task<int> ProcessDueSubscriptionsAsync(); // background / admin trigger
+    }
+
+    public interface IDynamicPricingService
+    {
+        DynamicPriceDto ComputePrice(int productId, decimal basePrice, int stockQuantity,
+            int reviewCount, decimal rating, string? categoryName, DateTime? harvestDate);
+        Task<DynamicPriceDto?> GetProductPricingAsync(int productId);
     }
 
     public interface IJwtService

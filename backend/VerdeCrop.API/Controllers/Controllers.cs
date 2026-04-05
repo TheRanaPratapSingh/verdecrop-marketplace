@@ -353,6 +353,36 @@ namespace VerdeCrop.API.Controllers
             return Ok(ApiResponse.Ok(true, approve ? "Farmer approved" : "Farmer rejected"));
         }
 
+        [HttpPut("{id}/premium")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> SetPremium(int id, [FromBody] SetPremiumRequest req)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
+            var result = await _farmers.SetPremiumAsync(id, req.Plan, req.ExpiresAt);
+            return result == null
+                ? NotFound(ApiResponse.Fail("Farmer not found"))
+                : Ok(ApiResponse.Ok(result, req.Plan == "premium" ? "Seller upgraded to Premium" : "Seller downgraded to Free"));
+        }
+
+        [HttpGet("women-led")]
+        public async Task<IActionResult> GetWomenLed()
+        {
+            var result = await _farmers.GetWomenLedAsync();
+            return Ok(ApiResponse.Ok(result));
+        }
+
+        [HttpPut("{id}/women-led")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> SetWomenLed(int id, [FromBody] SetWomenLedRequest req)
+        {
+            var result = await _farmers.SetWomenLedAsync(id, req.IsWomenLed, req.Story);
+            return result == null
+                ? NotFound(ApiResponse.Fail("Farmer not found"))
+                : Ok(ApiResponse.Ok(result, req.IsWomenLed ? "Marked as women-led farm" : "Women-led status removed"));
+        }
+
         [HttpPost("{id}/photo")]
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> UploadPhoto(int id, IFormFile file)
@@ -380,10 +410,12 @@ namespace VerdeCrop.API.Controllers
     {
         private readonly IProductService _products;
         private readonly IFarmerService _farmers;
-        public ProductsController(IProductService products, IFarmerService farmers)
+        private readonly IDynamicPricingService _pricing;
+        public ProductsController(IProductService products, IFarmerService farmers, IDynamicPricingService pricing)
         {
             _products = products;
             _farmers = farmers;
+            _pricing = pricing;
         }
 
         [HttpGet]
@@ -507,13 +539,23 @@ namespace VerdeCrop.API.Controllers
             return Ok(ApiResponse.Ok(result));
         }
 
-        [HttpPut("{id}/approve")]
+        [HttpPut("{id:int}/approve")]
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> Approve(int id, [FromBody] ApproveProductRequest req)
         {
             var result = await _products.ApproveProductAsync(id, req.Approve);
             return result
                 ? Ok(ApiResponse.Ok(true, req.Approve ? "Product approved" : "Product rejected"))
+                : NotFound(ApiResponse.Fail("Product not found"));
+        }
+
+        [HttpPut("{id:int}/featured")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> SetFeatured(int id, [FromBody] bool isFeatured)
+        {
+            var result = await _products.ToggleFeaturedAsync(id, isFeatured);
+            return result
+                ? Ok(ApiResponse.Ok(true, isFeatured ? "Product marked as featured" : "Product removed from featured"))
                 : NotFound(ApiResponse.Fail("Product not found"));
         }
 
@@ -532,6 +574,13 @@ namespace VerdeCrop.API.Controllers
 
             var url = await _products.UploadImageAsync(id, file.OpenReadStream(), file.FileName);
             return Ok(ApiResponse.Ok(new { url }));
+        }
+
+        [HttpGet("{id:int}/pricing")]
+        public async Task<IActionResult> GetPricing(int id)
+        {
+            var result = await _pricing.GetProductPricingAsync(id);
+            return result == null ? NotFound(ApiResponse.Fail("Product not found")) : Ok(ApiResponse.Ok(result));
         }
     }
 

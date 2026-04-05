@@ -426,11 +426,52 @@ namespace VerdeCrop.Infrastructure.Services
             return true;
         }
 
+        public async Task<FarmerDto?> SetPremiumAsync(int farmerId, string plan, DateTime? expiresAt)
+        {
+            var f = await _uow.FarmerProfiles.Query()
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(x => x.Id == farmerId);
+            if (f == null) return null;
+            f.PremiumPlan = plan.ToLowerInvariant() == "premium" ? "premium" : "free";
+            f.IsPremium = f.PremiumPlan == "premium";
+            f.PremiumExpiresAt = f.IsPremium ? expiresAt : null;
+            f.UpdatedAt = DateTime.UtcNow;
+            await _uow.FarmerProfiles.UpdateAsync(f);
+            await _uow.SaveChangesAsync();
+            return ToDto(f);
+        }
+
+        public async Task<FarmerDto?> SetWomenLedAsync(int farmerId, bool isWomenLed, string? story)
+        {
+            var f = await _uow.FarmerProfiles.Query()
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(x => x.Id == farmerId);
+            if (f == null) return null;
+            f.IsWomenLed = isWomenLed;
+            f.WomenStory = isWomenLed ? story : null;
+            f.UpdatedAt = DateTime.UtcNow;
+            await _uow.FarmerProfiles.UpdateAsync(f);
+            await _uow.SaveChangesAsync();
+            return ToDto(f);
+        }
+
+        public async Task<List<FarmerDto>> GetWomenLedAsync()
+        {
+            var items = await _uow.FarmerProfiles.Query()
+                .Include(x => x.User)
+                .Where(f => f.IsWomenLed && f.IsApproved)
+                .OrderByDescending(f => f.Rating)
+                .ToListAsync();
+            return items.Select(ToDto).ToList();
+        }
+
         private static FarmerDto ToDto(FarmerProfile f) => new(
             f.Id, f.UserId, f.FarmName, f.Description, f.Location, f.State,
             f.PinCode, f.CertificationNumber, f.BankAccountNumber, f.BankIfsc,
             f.IsApproved, f.TotalSales, f.Rating, f.ReviewCount,
-            f.User?.Name ?? "", f.User?.AvatarUrl);
+            f.User?.Name ?? "", f.User?.AvatarUrl,
+            f.IsPremium, f.PremiumPlan, f.PremiumExpiresAt,
+            f.IsWomenLed, f.WomenStory);
     }
 
     // ── Review Service ────────────────────────────────────────────────────────

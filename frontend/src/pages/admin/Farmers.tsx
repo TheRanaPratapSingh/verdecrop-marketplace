@@ -6,7 +6,6 @@ import toast from 'react-hot-toast'
 import { farmerApi } from '../../services/api'
 import { resolveAssetUrl } from '../../lib/image'
 import type { Farmer } from '../../types'
-
 const emptyForm = {
   ownerName: '',
   farmName: '',
@@ -26,6 +25,7 @@ export const AdminFarmers: React.FC = () => {
   const [current, setCurrent] = useState<Farmer | null>(null)
   const [formData, setFormData] = useState({ ...emptyForm })
   const [toggling, setToggling] = useState<number | null>(null)
+  const [togglingWomen, setTogglingWomen] = useState<number | null>(null)
   const [uploadingFor, setUploadingFor] = useState<number | null>(null)
 
   const fetchFarmers = async () => {
@@ -134,6 +134,19 @@ export const AdminFarmers: React.FC = () => {
     }
   }
 
+  const handleToggleWomen = async (farmer: Farmer) => {
+    setTogglingWomen(farmer.id)
+    try {
+      const updated = await farmerApi.setWomenLed(farmer.id, !farmer.isWomenLed)
+      setFarmers(prev => prev.map(f => f.id === farmer.id ? updated : f))
+      toast.success(!farmer.isWomenLed ? '👩‍🌾 Marked as women-led farm' : 'Women-led status removed')
+    } catch {
+      toast.error('Failed to update women-led status')
+    } finally {
+      setTogglingWomen(null)
+    }
+  }
+
   const handlePhotoUpload = async (farmer: Farmer, file: File) => {
     const form = new FormData()
     form.append('file', file)
@@ -219,9 +232,16 @@ export const AdminFarmers: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between mb-4">
-                  <Badge variant={farmer.isApproved ? 'green' : 'orange'}>
-                    {farmer.isApproved ? 'Active' : 'Inactive'}
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={farmer.isApproved ? 'green' : 'orange'}>
+                      {farmer.isApproved ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {farmer.isWomenLed && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-label font-semibold bg-pink-100 text-pink-700 border border-pink-200">
+                        👩‍🌾 Women-Led
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-gray-400">ID #{farmer.id}</span>
                 </div>
 
@@ -250,6 +270,22 @@ export const AdminFarmers: React.FC = () => {
                     <><ToggleRight className="w-4 h-4" /> Deactivate</>
                   ) : (
                     <><ToggleLeft className="w-4 h-4" /> Activate</>
+                  )}
+                </Button>
+
+                <Button
+                  variant={farmer.isWomenLed ? 'outline' : 'secondary'}
+                  size="sm"
+                  className={`w-full mt-2 ${farmer.isWomenLed ? 'border-pink-300 text-pink-700 hover:bg-pink-50' : 'text-pink-600 hover:text-pink-700'}`}
+                  onClick={() => handleToggleWomen(farmer)}
+                  disabled={togglingWomen === farmer.id}
+                >
+                  {togglingWomen === farmer.id ? (
+                    <Spinner size="sm" />
+                  ) : farmer.isWomenLed ? (
+                    <>👩‍🌾 Remove Women-Led</>
+                  ) : (
+                    <>👩‍🌾 Mark Women-Led</>
                   )}
                 </Button>
               </Card>

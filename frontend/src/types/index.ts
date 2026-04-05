@@ -43,6 +43,11 @@ export interface Farmer {
   ownerName: string
   avatarUrl?: string
   pinCode?: string
+  isPremium: boolean
+  premiumPlan: string
+  premiumExpiresAt?: string
+  isWomenLed: boolean
+  womenStory?: string
 }
 
 export interface Product {
@@ -68,6 +73,19 @@ export interface Product {
   reviewCount: number
   isActive: boolean
   reviews?: Review[]
+  // Dynamic pricing (optional — populated when available)
+  dynamicPrice?: number
+  pricingLabel?: string
+  pricingFactors?: string[]
+}
+
+export interface DynamicPriceInfo {
+  basePrice: number
+  dynamicPrice: number
+  adjustmentPercent: number
+  pricingLabel: string
+  factors: string[]
+  computedAt: string
 }
 
 export type WishlistItem = Product

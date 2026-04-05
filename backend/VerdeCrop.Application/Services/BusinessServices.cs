@@ -615,6 +615,18 @@ namespace VerdeCrop.Application.Services
             return true;
         }
 
+        public async Task<bool> ToggleFeaturedAsync(int productId, bool isFeatured)
+        {
+            var product = await _uow.Products.GetByIdAsync(productId);
+            if (product == null) return false;
+            product.IsFeatured = isFeatured;
+            product.UpdatedAt = DateTime.UtcNow;
+            await _uow.Products.UpdateAsync(product);
+            await _uow.SaveChangesAsync();
+            await _cache.DeleteAsync("featured_products");
+            return true;
+        }
+
         private static ProductListDto ToListDto(Product p) => new(
             p.Id, p.Name, p.Slug,
             p.CategoryId, p.Category?.Name ?? "",
@@ -634,6 +646,132 @@ namespace VerdeCrop.Application.Services
                 r.Id, r.UserId, r.User?.Name ?? "", r.User?.AvatarUrl,
                 r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
             )).ToList() ?? new List<ReviewDto>());
+    }
+
+    // ── Dynamic Pricing Service ───────────────────────────────────────────────
+    public class DynamicPricingService : IDynamicPricingService
+    {
+        private readonly IUnitOfWork _uow;
+
+        // Category name keywords → seasonal month ranges [startMonth, endMonth] (inclusive)
+        private static readonly (string[] Keywords, int StartMonth, int EndMonth)[] _seasonalRules =
+        {
+            (new[] { "vegetable", "sabzi", "greens", "leafy" },  10, 2),  // Oct–Feb: winter vegs peak
+            (new[] { "fruit",    "mango",  "berry",  "citrus" }, 4,  8),  // Apr–Aug: summer fruits peak
+            (new[] { "herb",     "spice",  "masala", "ginger"  }, 11, 3), // Nov–Mar: winter herbs peak
+            (new[] { "root",     "tuber",  "carrot", "radish"  }, 10, 2), // Oct–Feb: root veg peak
+        };
+
+        private const decimal MaxAdjustmentPercent = 30m;
+
+        public DynamicPricingService(IUnitOfWork uow) => _uow = uow;
+
+        public DynamicPriceDto ComputePrice(int productId, decimal basePrice, int stockQuantity,
+            int reviewCount, decimal rating, string? categoryName, DateTime? harvestDate)
+        {
+            var factors = new List<string>();
+            decimal totalAdjustment = 0m;
+            string primaryLabel = "";
+
+            // ── Demand rule ──────────────────────────────────────────────────
+            if (reviewCount > 50 && rating >= 4.5m)
+            {
+                totalAdjustment += 15m;
+                factors.Add("🔥 High demand");
+                primaryLabel = "🔥 High demand price";
+            }
+            else if (reviewCount > 20 && rating >= 4.0m)
+            {
+                totalAdjustment += 8m;
+                factors.Add("⭐ Popular product");
+                if (string.IsNullOrEmpty(primaryLabel))
+                    primaryLabel = "🔥 High demand price";
+            }
+
+            // ── Season rule ──────────────────────────────────────────────────
+            if (IsInSeason(categoryName, harvestDate))
+            {
+                totalAdjustment += 8m;
+                factors.Add("🌱 Peak season");
+                if (string.IsNullOrEmpty(primaryLabel))
+                    primaryLabel = "🌱 Seasonal price";
+            }
+
+            // ── Stock rule ───────────────────────────────────────────────────
+            if (stockQuantity < 10 && stockQuantity > 0)
+            {
+                totalAdjustment += 10m;
+                factors.Add("⚠️ Low stock");
+                if (string.IsNullOrEmpty(primaryLabel))
+                    primaryLabel = "⚠️ Low stock price";
+            }
+            else if (stockQuantity < 30 && stockQuantity > 0)
+            {
+                totalAdjustment += 5m;
+                factors.Add("📦 Limited availability");
+                if (string.IsNullOrEmpty(primaryLabel))
+                    primaryLabel = "📦 Limited availability";
+            }
+
+            // ── Cap ──────────────────────────────────────────────────────────
+            totalAdjustment = Math.Min(totalAdjustment, MaxAdjustmentPercent);
+
+            var dynamicPrice = totalAdjustment > 0
+                ? Math.Round(basePrice * (1 + totalAdjustment / 100), 2)
+                : basePrice;
+
+            return new DynamicPriceDto(
+                BasePrice: basePrice,
+                DynamicPrice: dynamicPrice,
+                AdjustmentPercent: totalAdjustment,
+                PricingLabel: primaryLabel,
+                Factors: factors,
+                ComputedAt: DateTime.UtcNow);
+        }
+
+        public async Task<DynamicPriceDto?> GetProductPricingAsync(int productId)
+        {
+            try
+            {
+                var p = await _uow.Products.Query()
+                    .Where(x => x.Id == productId && x.IsActive)
+                    .Select(x => new
+                    {
+                        x.Id, x.Price, x.StockQuantity,
+                        x.ReviewCount, x.Rating, x.HarvestDate,
+                        CategoryName = x.Category != null ? x.Category.Name : null
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (p == null) return null;
+
+                return ComputePrice(p.Id, p.Price, p.StockQuantity,
+                    p.ReviewCount, p.Rating, p.CategoryName, p.HarvestDate);
+            }
+            catch { return null; }
+        }
+
+        // Returns true when current month falls within the seasonal peak for the category
+        private static bool IsInSeason(string? categoryName, DateTime? harvestDate)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName)) return false;
+
+            var month = (harvestDate ?? DateTime.UtcNow).Month;
+            var lowerName = categoryName.ToLowerInvariant();
+
+            foreach (var (keywords, start, end) in _seasonalRules)
+            {
+                bool nameMatch = keywords.Any(k => lowerName.Contains(k));
+                if (!nameMatch) continue;
+
+                bool inRange = start <= end
+                    ? month >= start && month <= end          // e.g. Apr–Aug (no year wrap)
+                    : month >= start || month <= end;         // e.g. Oct–Feb (wraps year)
+
+                if (inRange) return true;
+            }
+            return false;
+        }
     }
 
     // ── Order Service ─────────────────────────────────────────────────────────

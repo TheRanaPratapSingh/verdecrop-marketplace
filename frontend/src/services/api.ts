@@ -141,6 +141,11 @@ export const farmerApi = {
   approve: (id: number, approve: boolean) => unwrap<boolean>(api.put(`/farmers/${id}/approve`, approve)),
   uploadPhoto: (id: number, form: FormData) =>
     unwrap<{ url: string }>(api.post(`/farmers/${id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
+  setPremium: (id: number, plan: string, expiresAt?: string | null) =>
+    unwrap<Farmer>(api.put(`/farmers/${id}/premium`, { plan, expiresAt: expiresAt ?? null })),
+  getWomenLed: () => unwrap<Farmer[]>(api.get('/farmers/women-led')),
+  setWomenLed: (id: number, isWomenLed: boolean, story?: string) =>
+    unwrap<Farmer>(api.put(`/farmers/${id}/women-led`, { isWomenLed, story: story ?? null })),
 }
 
 // ── Products ─────────────────────────────────────────────────────────────────
@@ -166,6 +171,9 @@ export const productApi = {
     unwrap<PagedResult<SellerProduct>>(api.get('/products/pending', { params })),
   approve: (id: number, approve: boolean, note?: string) =>
     unwrap<boolean>(api.put(`/products/${id}/approve`, { approve, note })),
+  // Dynamic pricing
+  getPricing: (id: number) =>
+    unwrap<import('../types').DynamicPriceInfo>(api.get(`/products/${id}/pricing`)),
 }
 
 // ── Cart ─────────────────────────────────────────────────────────────────────

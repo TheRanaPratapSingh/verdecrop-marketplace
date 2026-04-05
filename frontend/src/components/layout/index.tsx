@@ -63,6 +63,7 @@ export const Navbar: React.FC = () => {
         { to: '/products?isOrganic=true', label: 'Organic' },
         { to: '/products?isFeatured=true', label: 'Featured' },
         { to: '/shop-by-farms', label: 'Shop by Farms' },
+        { to: '/women-farmers', label: '👩‍🌾 Women Farmers' },
       ]
 
   const isActive = (to: string) => {

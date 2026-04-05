@@ -24,6 +24,7 @@ const CareersPage         = lazy(() => import('./pages/Careers').then(m => ({ de
 const ContactPage         = lazy(() => import('./pages/Contact').then(m => ({ default: m.ContactPage })))
 const BecomeSellerPage    = lazy(() => import('./pages/BecomeSeller').then(m => ({ default: m.BecomeSellerPage })))
 const FarmerStoriesPage   = lazy(() => import('./pages/FarmerStories').then(m => ({ default: m.FarmerStoriesPage })))
+const WomenFarmersPage    = lazy(() => import('./pages/WomenFarmers').then(m => ({ default: m.WomenFarmersPage })))
 const CertificationsPage  = lazy(() => import('./pages/Certifications').then(m => ({ default: m.CertificationsPage })))
 const ShopByFarmsPage     = lazy(() => import('./pages/ShopByFarms').then(m => ({ default: m.ShopByFarmsPage })))
 const SellerOrdersPage     = lazy(() => import('./pages/SellerOrders').then(m => ({ default: m.SellerOrdersPage })))
@@ -106,6 +107,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/shop-by-farms"   element={<ShopByFarmsPage />} />
           <Route path="/farmers"         element={<ShopByFarmsPage />} />
           <Route path="/farmer-stories"  element={<FarmerStoriesPage />} />
+          <Route path="/women-farmers"   element={<WomenFarmersPage />} />
           <Route path="/certifications"  element={<CertificationsPage />} />
           <Route path="/login"           element={<RequireGuest><LoginPage /></RequireGuest>} />
           <Route path="/register"        element={<RequireGuest><RegisterPage /></RequireGuest>} />

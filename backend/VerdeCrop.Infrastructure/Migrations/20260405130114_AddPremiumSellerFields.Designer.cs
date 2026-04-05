@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VerdeCrop.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using VerdeCrop.Infrastructure.Data;
 namespace VerdeCrop.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260405130114_AddPremiumSellerFields")]
+    partial class AddPremiumSellerFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -179,7 +182,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 4, 5, 13, 36, 6, 26, DateTimeKind.Utc).AddTicks(5590),
+                            CreatedAt = new DateTime(2026, 4, 5, 13, 1, 14, 119, DateTimeKind.Utc).AddTicks(8079),
                             DisplayOrder = 1,
                             IconUrl = "🥦",
                             IsActive = true,
@@ -190,7 +193,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 4, 5, 13, 36, 6, 26, DateTimeKind.Utc).AddTicks(5593),
+                            CreatedAt = new DateTime(2026, 4, 5, 13, 1, 14, 119, DateTimeKind.Utc).AddTicks(8082),
                             DisplayOrder = 2,
                             IconUrl = "🍎",
                             IsActive = true,
@@ -201,7 +204,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 4, 5, 13, 36, 6, 26, DateTimeKind.Utc).AddTicks(5595),
+                            CreatedAt = new DateTime(2026, 4, 5, 13, 1, 14, 119, DateTimeKind.Utc).AddTicks(8084),
                             DisplayOrder = 3,
                             IconUrl = "🌾",
                             IsActive = true,
@@ -212,7 +215,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 4, 5, 13, 36, 6, 26, DateTimeKind.Utc).AddTicks(5597),
+                            CreatedAt = new DateTime(2026, 4, 5, 13, 1, 14, 119, DateTimeKind.Utc).AddTicks(8086),
                             DisplayOrder = 4,
                             IconUrl = "🥛",
                             IsActive = true,
@@ -223,7 +226,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 4, 5, 13, 36, 6, 26, DateTimeKind.Utc).AddTicks(5598),
+                            CreatedAt = new DateTime(2026, 4, 5, 13, 1, 14, 119, DateTimeKind.Utc).AddTicks(8088),
                             DisplayOrder = 5,
                             IconUrl = "🌿",
                             IsActive = true,
@@ -234,7 +237,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 4, 5, 13, 36, 6, 26, DateTimeKind.Utc).AddTicks(5600),
+                            CreatedAt = new DateTime(2026, 4, 5, 13, 1, 14, 119, DateTimeKind.Utc).AddTicks(8090),
                             DisplayOrder = 6,
                             IconUrl = "🍯",
                             IsActive = true,
@@ -334,9 +337,6 @@ namespace VerdeCrop.Infrastructure.Migrations
                     b.Property<bool>("IsPremium")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsWomenLed")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -371,9 +371,6 @@ namespace VerdeCrop.Infrastructure.Migrations
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
-
-                    b.Property<string>("WomenStory")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

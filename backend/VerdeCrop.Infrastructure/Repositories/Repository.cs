@@ -93,6 +93,8 @@ namespace VerdeCrop.Infrastructure.Repositories
             WishlistItems = new Repository<WishlistItem>(ctx);
             Coupons = new Repository<Coupon>(ctx);
             Notifications = new Repository<Notification>(ctx);
+            Subscriptions = new Repository<Subscription>(ctx);
+            SubscriptionItems = new Repository<SubscriptionItem>(ctx);
         }
 
         public IRepository<User> Users { get; }
@@ -112,6 +114,8 @@ namespace VerdeCrop.Infrastructure.Repositories
         public IRepository<WishlistItem> WishlistItems { get; }
         public IRepository<Coupon> Coupons { get; }
         public IRepository<Notification> Notifications { get; }
+        public IRepository<Subscription> Subscriptions { get; }
+        public IRepository<SubscriptionItem> SubscriptionItems { get; }
 
         public Task<int> SaveChangesAsync() => _ctx.SaveChangesAsync();
         public void Dispose() => _ctx.Dispose();

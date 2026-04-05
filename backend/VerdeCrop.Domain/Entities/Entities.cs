@@ -92,6 +92,13 @@ namespace VerdeCrop.Domain.Entities
         public decimal TotalSales { get; set; } = 0;
         public decimal Rating { get; set; } = 0;
         public int ReviewCount { get; set; } = 0;
+        // Premium seller
+        public bool IsPremium { get; set; } = false;
+        public string PremiumPlan { get; set; } = "free"; // free | premium
+        public DateTime? PremiumExpiresAt { get; set; }
+        // Women empowerment
+        public bool IsWomenLed { get; set; } = false;
+        public string? WomenStory { get; set; }
         public User User { get; set; } = null!;
         public ICollection<Product> Products { get; set; } = new List<Product>();
     }
@@ -157,6 +164,7 @@ namespace VerdeCrop.Domain.Entities
         public string OrderNumber { get; set; } = "";
         public int UserId { get; set; }
         public int AddressId { get; set; }
+        public int? SubscriptionId { get; set; }
         public string Status { get; set; } = "pending"; // pending|confirmed|processing|shipped|delivered|cancelled|refunded
         public string PaymentMethod { get; set; } = "razorpay"; // razorpay|stripe|cod
         public string PaymentStatus { get; set; } = "pending"; // pending|paid|failed|refunded
@@ -256,5 +264,34 @@ namespace VerdeCrop.Domain.Entities
         public string? ActionUrl { get; set; }
         public bool IsRead { get; set; } = false;
         public User User { get; set; } = null!;
+    }
+
+    // ── Subscription ─────────────────────────────────────────────────────────
+    public class Subscription : BaseEntity
+    {
+        public int UserId { get; set; }
+        public int AddressId { get; set; }
+        public string BoxType { get; set; } = "vegetable"; // vegetable | fruit | custom
+        public string Frequency { get; set; } = "weekly";  // weekly | monthly
+        public string Status { get; set; } = "active";     // active | paused | cancelled
+        public decimal Price { get; set; }
+        public DateTime StartDate { get; set; } = DateTime.UtcNow;
+        public DateTime? EndDate { get; set; }
+        public DateTime NextDeliveryDate { get; set; }
+        public DateTime? PausedAt { get; set; }
+        public string? Notes { get; set; }
+        public User User { get; set; } = null!;
+        public Address Address { get; set; } = null!;
+        public ICollection<SubscriptionItem> Items { get; set; } = new List<SubscriptionItem>();
+        public ICollection<Order> GeneratedOrders { get; set; } = new List<Order>();
+    }
+
+    public class SubscriptionItem : BaseEntity
+    {
+        public int SubscriptionId { get; set; }
+        public int ProductId { get; set; }
+        public decimal Quantity { get; set; } = 1;
+        public Subscription Subscription { get; set; } = null!;
+        public Product Product { get; set; } = null!;
     }
 }

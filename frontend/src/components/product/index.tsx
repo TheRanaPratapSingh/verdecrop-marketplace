@@ -127,6 +127,11 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
             {discount > 0 && (
               <span className="badge-discount">-{discount}%</span>
             )}
+            {product.pricingLabel && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-label font-semibold bg-amber-500/90 text-white backdrop-blur-sm shadow-sm leading-tight">
+                {product.pricingLabel}
+              </span>
+            )}
           </div>
 
           {/* Wishlist */}

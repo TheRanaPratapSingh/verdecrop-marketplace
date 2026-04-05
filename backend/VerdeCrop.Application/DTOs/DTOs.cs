@@ -63,7 +63,15 @@ namespace VerdeCrop.Application.DTOs
     public record FarmerDto(int Id, int UserId, string FarmName, string? Description, string Location, string State,
         string? PinCode, string? CertificationNumber, string? BankAccountNumber, string? BankIfsc,
         bool IsApproved, decimal TotalSales, decimal Rating, int ReviewCount,
-        string OwnerName, string? AvatarUrl);
+        string OwnerName, string? AvatarUrl,
+        bool IsPremium = false, string PremiumPlan = "free", DateTime? PremiumExpiresAt = null,
+        bool IsWomenLed = false, string? WomenStory = null);
+
+    public record SetPremiumRequest(
+        [Required][StringLength(20)] string Plan,    // free | premium
+        DateTime? ExpiresAt = null);
+
+    public record SetWomenLedRequest(bool IsWomenLed, [StringLength(1000)] string? Story = null);
 
     public record RegisterFarmerRequest(
         [Required][StringLength(150, MinimumLength = 2)] string FarmName,
@@ -234,6 +242,40 @@ namespace VerdeCrop.Application.DTOs
 
     // ── Notification ──────────────────────────────────────────────────────────
     public record NotificationDto(int Id, string Title, string Body, string Type, string? ActionUrl, bool IsRead, DateTime CreatedAt);
+
+    // ── Dynamic Pricing ───────────────────────────────────────────────────────
+    public record DynamicPriceDto(
+        decimal BasePrice,
+        decimal DynamicPrice,
+        decimal AdjustmentPercent,
+        string PricingLabel,
+        List<string> Factors,
+        DateTime ComputedAt);
+
+    // ── Subscription ──────────────────────────────────────────────────────────
+    public record SubscriptionItemDto(int ProductId, string ProductName, string? ImageUrl, decimal Quantity, string Unit, decimal Price);
+
+    public record SubscriptionDto(
+        int Id, string BoxType, string Frequency, string Status,
+        decimal Price, DateTime StartDate, DateTime? EndDate,
+        DateTime NextDeliveryDate, string? Notes, DateTime CreatedAt,
+        AddressDto Address, List<SubscriptionItemDto> Items);
+
+    public record CreateSubscriptionRequest(
+        [Required] int AddressId,
+        [Required][StringLength(20)] string BoxType,       // vegetable | fruit | custom
+        [Required][StringLength(20)] string Frequency,     // weekly | monthly
+        [StringLength(500)] string? Notes,
+        List<SubscriptionItemRequest>? Items);
+
+    public record SubscriptionItemRequest([Required] int ProductId, [Required] decimal Quantity);
+
+    public record UpdateSubscriptionRequest(
+        int? AddressId,
+        [StringLength(500)] string? Notes,
+        List<SubscriptionItemRequest>? Items);
+
+    public record PauseResumeRequest([Required] bool Pause);
 
     // ── Admin ─────────────────────────────────────────────────────────────────
     public record DashboardStatsDto(int TotalUsers, int TotalFarmers, int TotalProducts, int TotalOrders,
