@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus } from 'lucide-react'
+import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus, RefreshCw, Gift } from 'lucide-react'
 import { useAuthStore, useCartStore, useNotifStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
@@ -264,6 +264,8 @@ export const Navbar: React.FC = () => {
                                 { to: '/profile', icon: User, label: 'My Profile' },
                                 { to: '/orders', icon: Package, label: 'My Orders' },
                                 { to: '/wishlist', icon: Heart, label: 'Wishlist' },
+                                { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions' },
+                                { to: '/referral', icon: Gift, label: 'Referral & Wallet' },
                                 ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Admin Panel' }] : []),
                               ]
                         ).map(item => (
@@ -417,6 +419,8 @@ export const Navbar: React.FC = () => {
                     <Link to="/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><User className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Profile</Link>
                     <Link to="/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Package className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Orders</Link>
                     <Link to="/wishlist" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Heart className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Wishlist</Link>
+                    <Link to="/subscriptions" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><RefreshCw className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Subscriptions</Link>
+                    <Link to="/referral" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Gift className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Referral & Wallet</Link>
                   </>
                 }
                 <button

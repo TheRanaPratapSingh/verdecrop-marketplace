@@ -2,7 +2,8 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import type {
   AuthResponse, User, Category, Farmer, Product, Cart,
   Address, Order, Review, Notification, PagedResult,
-  ApiResponse, DashboardStats, WishlistItem, SellerProduct, SellerProductDetail
+  ApiResponse, DashboardStats, WishlistItem, SellerProduct, SellerProductDetail,
+  Subscription, ReferralCode, ReferralEntry, WalletSummary, Bundle, PriceAlertInfo
 } from '../types'
 import { useAuthStore } from '../store'
 
@@ -233,4 +234,39 @@ export const notificationApi = {
 // ── Admin ─────────────────────────────────────────────────────────────────────
 export const adminApi = {
   getDashboard: () => unwrap<DashboardStats>(api.get('/admin/dashboard')),
+}
+
+// ── Subscriptions ─────────────────────────────────────────────────────────────
+export const subscriptionApi = {
+  getAll: () => unwrap<Subscription[]>(api.get('/subscriptions')),
+  getById: (id: number) => unwrap<Subscription>(api.get(`/subscriptions/${id}`)),
+  create: (data: { addressId: number; boxType: string; frequency: string; notes?: string; items?: { productId: number; quantity: number }[] }) =>
+    unwrap<Subscription>(api.post('/subscriptions', data)),
+  update: (id: number, data: { addressId?: number; notes?: string; items?: { productId: number; quantity: number }[] }) =>
+    unwrap<Subscription>(api.put(`/subscriptions/${id}`, data)),
+  pauseResume: (id: number, pause: boolean) =>
+    unwrap<boolean>(api.put(`/subscriptions/${id}/pause`, { pause })),
+  cancel: (id: number) => unwrap<boolean>(api.delete(`/subscriptions/${id}`)),
+}
+
+// ── Referral ──────────────────────────────────────────────────────────────────
+export const referralApi = {
+  getMyCode: () => unwrap<ReferralCode>(api.get('/referral/code')),
+  applyCode: (code: string) => unwrap<boolean>(api.post('/referral/apply', { code })),
+  getMyReferrals: () => unwrap<ReferralEntry[]>(api.get('/referral/my-referrals')),
+  getWallet: () => unwrap<WalletSummary>(api.get('/referral/wallet')),
+}
+
+// ── Bundles ───────────────────────────────────────────────────────────────────
+export const bundleApi = {
+  getAll: () => unwrap<Bundle[]>(api.get('/bundles')),
+  getBySlug: (slug: string) => unwrap<Bundle>(api.get(`/bundles/${slug}`)),
+}
+
+// ── Price Alerts ──────────────────────────────────────────────────────────────
+export const priceAlertApi = {
+  getAll: () => unwrap<PriceAlertInfo[]>(api.get('/price-alerts')),
+  set: (productId: number, targetPrice: number) =>
+    unwrap<PriceAlertInfo>(api.post('/price-alerts', { productId, targetPrice })),
+  remove: (productId: number) => unwrap<boolean>(api.delete(`/price-alerts/${productId}`)),
 }

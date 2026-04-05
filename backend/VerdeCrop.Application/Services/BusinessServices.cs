@@ -976,6 +976,224 @@ namespace VerdeCrop.Application.Services
         }
     }
 
+    // ── Subscription Service ───────────────────────────────────────────────────
+    public class SubscriptionService : ISubscriptionService
+    {
+        private readonly IUnitOfWork _uow;
+        private readonly INotificationService _notifications;
+
+        public SubscriptionService(IUnitOfWork uow, INotificationService notifications)
+        {
+            _uow = uow;
+            _notifications = notifications;
+        }
+
+        public async Task<List<SubscriptionDto>> GetUserSubscriptionsAsync(int userId)
+        {
+            var subs = await _uow.Subscriptions.Query()
+                .Include(s => s.Address)
+                .Include(s => s.Items).ThenInclude(i => i.Product)
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.CreatedAt)
+                .ToListAsync();
+            return subs.Select(ToDto).ToList();
+        }
+
+        public async Task<SubscriptionDto?> GetByIdAsync(int subscriptionId, int userId)
+        {
+            var sub = await _uow.Subscriptions.Query()
+                .Include(s => s.Address)
+                .Include(s => s.Items).ThenInclude(i => i.Product)
+                .FirstOrDefaultAsync(s => s.Id == subscriptionId && s.UserId == userId);
+            return sub == null ? null : ToDto(sub);
+        }
+
+        public async Task<SubscriptionDto?> CreateAsync(int userId, CreateSubscriptionRequest req)
+        {
+            var address = await _uow.Addresses.FirstOrDefaultAsync(a => a.Id == req.AddressId && a.UserId == userId);
+            if (address == null) return null;
+
+            var nextDelivery = req.Frequency == "weekly"
+                ? DateTime.UtcNow.AddDays(7)
+                : DateTime.UtcNow.AddDays(30);
+
+            var sub = new Subscription
+            {
+                UserId = userId,
+                AddressId = req.AddressId,
+                BoxType = req.BoxType,
+                Frequency = req.Frequency,
+                Status = "active",
+                StartDate = DateTime.UtcNow,
+                NextDeliveryDate = nextDelivery,
+                Notes = req.Notes
+            };
+
+            if (req.Items != null && req.Items.Count > 0)
+            {
+                var productIds = req.Items.Select(i => i.ProductId).ToList();
+                var products = await _uow.Products.Query()
+                    .Where(p => productIds.Contains(p.Id)).ToListAsync();
+
+                sub.Items = req.Items.Select(i =>
+                {
+                    var p = products.FirstOrDefault(pr => pr.Id == i.ProductId);
+                    return new SubscriptionItem
+                    {
+                        ProductId = i.ProductId,
+                        Quantity = i.Quantity
+                    };
+                }).ToList();
+
+                sub.Price = products.Sum(p =>
+                {
+                    var qty = req.Items.FirstOrDefault(i => i.ProductId == p.Id)?.Quantity ?? 1;
+                    return p.Price * qty;
+                });
+            }
+
+            await _uow.Subscriptions.AddAsync(sub);
+            await _uow.SaveChangesAsync();
+
+            try
+            {
+                await _notifications.SendAsync(userId, "Subscription Created! 🌿",
+                    $"Your {sub.Frequency} {sub.BoxType} box subscription is active. Next delivery: {sub.NextDeliveryDate:dd MMM yyyy}.", "system");
+            }
+            catch { }
+
+            return await GetByIdAsync(sub.Id, userId);
+        }
+
+        public async Task<SubscriptionDto?> UpdateAsync(int subscriptionId, int userId, UpdateSubscriptionRequest req)
+        {
+            var sub = await _uow.Subscriptions.Query()
+                .Include(s => s.Items)
+                .FirstOrDefaultAsync(s => s.Id == subscriptionId && s.UserId == userId);
+            if (sub == null || sub.Status == "cancelled") return null;
+
+            if (req.AddressId.HasValue) sub.AddressId = req.AddressId.Value;
+            if (req.Notes != null) sub.Notes = req.Notes;
+
+            if (req.Items != null && req.Items.Count > 0)
+            {
+                foreach (var old in sub.Items.ToList())
+                    await _uow.SubscriptionItems.DeleteAsync(old);
+
+                var productIds = req.Items.Select(i => i.ProductId).ToList();
+                var products = await _uow.Products.Query()
+                    .Where(p => productIds.Contains(p.Id)).ToListAsync();
+
+                sub.Items = req.Items.Select(i => new SubscriptionItem
+                {
+                    SubscriptionId = subscriptionId,
+                    ProductId = i.ProductId,
+                    Quantity = i.Quantity
+                }).ToList();
+
+                sub.Price = products.Sum(p =>
+                {
+                    var qty = req.Items.FirstOrDefault(i => i.ProductId == p.Id)?.Quantity ?? 1;
+                    return p.Price * qty;
+                });
+            }
+
+            sub.UpdatedAt = DateTime.UtcNow;
+            await _uow.Subscriptions.UpdateAsync(sub);
+            await _uow.SaveChangesAsync();
+            return await GetByIdAsync(subscriptionId, userId);
+        }
+
+        public async Task<bool> PauseResumeAsync(int subscriptionId, int userId, bool pause)
+        {
+            var sub = await _uow.Subscriptions.FirstOrDefaultAsync(
+                s => s.Id == subscriptionId && s.UserId == userId && s.Status != "cancelled");
+            if (sub == null) return false;
+
+            sub.Status = pause ? "paused" : "active";
+            sub.PausedAt = pause ? DateTime.UtcNow : null;
+            if (!pause)
+            {
+                sub.NextDeliveryDate = sub.Frequency == "weekly"
+                    ? DateTime.UtcNow.AddDays(7)
+                    : DateTime.UtcNow.AddDays(30);
+            }
+            sub.UpdatedAt = DateTime.UtcNow;
+            await _uow.Subscriptions.UpdateAsync(sub);
+            await _uow.SaveChangesAsync();
+
+            try
+            {
+                var msg = pause ? "Your subscription has been paused." : "Your subscription has been resumed. 🌿";
+                await _notifications.SendAsync(userId, pause ? "Subscription Paused" : "Subscription Resumed!", msg, "system");
+            }
+            catch { }
+
+            return true;
+        }
+
+        public async Task<bool> CancelAsync(int subscriptionId, int userId)
+        {
+            var sub = await _uow.Subscriptions.FirstOrDefaultAsync(
+                s => s.Id == subscriptionId && s.UserId == userId && s.Status != "cancelled");
+            if (sub == null) return false;
+
+            sub.Status = "cancelled";
+            sub.EndDate = DateTime.UtcNow;
+            sub.UpdatedAt = DateTime.UtcNow;
+            await _uow.Subscriptions.UpdateAsync(sub);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<SubscriptionDto>> GetAllAsync(int page, int pageSize)
+        {
+            var subs = await _uow.Subscriptions.Query()
+                .Include(s => s.Address)
+                .Include(s => s.Items).ThenInclude(i => i.Product)
+                .OrderByDescending(s => s.CreatedAt)
+                .Skip((page - 1) * pageSize).Take(pageSize)
+                .ToListAsync();
+            return subs.Select(ToDto).ToList();
+        }
+
+        public async Task<int> ProcessDueSubscriptionsAsync()
+        {
+            var due = await _uow.Subscriptions.Query()
+                .Include(s => s.Items).ThenInclude(i => i.Product)
+                .Where(s => s.Status == "active" && s.NextDeliveryDate <= DateTime.UtcNow)
+                .ToListAsync();
+
+            foreach (var sub in due)
+            {
+                sub.NextDeliveryDate = sub.Frequency == "weekly"
+                    ? sub.NextDeliveryDate.AddDays(7)
+                    : sub.NextDeliveryDate.AddMonths(1);
+                sub.UpdatedAt = DateTime.UtcNow;
+                await _uow.Subscriptions.UpdateAsync(sub);
+
+                try
+                {
+                    await _notifications.SendAsync(sub.UserId, "Subscription Box Dispatched! 📦",
+                        $"Your {sub.Frequency} box is on the way! Next delivery: {sub.NextDeliveryDate:dd MMM yyyy}.", "order");
+                }
+                catch { }
+            }
+
+            await _uow.SaveChangesAsync();
+            return due.Count;
+        }
+
+        private static SubscriptionDto ToDto(Subscription s) => new(
+            s.Id, s.BoxType, s.Frequency, s.Status, s.Price,
+            s.StartDate, s.EndDate, s.NextDeliveryDate, s.Notes, s.CreatedAt,
+            new AddressDto(s.Address.Id, s.Address.Label, s.Address.FullName, s.Address.Phone,
+                s.Address.Street, s.Address.City, s.Address.State, s.Address.PinCode, s.Address.IsDefault),
+            s.Items.Select(i => new SubscriptionItemDto(
+                i.ProductId, i.Product?.Name ?? "", i.Product?.ImageUrl,
+                i.Quantity, i.Product?.Unit ?? "kg", i.Product?.Price ?? 0)).ToList());
+    }
+
     // ── Order Service ─────────────────────────────────────────────────────────
     public class OrderService : IOrderService
     {

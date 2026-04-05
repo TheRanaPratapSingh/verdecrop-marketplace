@@ -90,6 +90,104 @@ export interface DynamicPriceInfo {
 
 export type WishlistItem = Product
 
+// ── Subscription ──────────────────────────────────────────────────────────────
+export interface SubscriptionItem {
+  productId: number
+  productName: string
+  imageUrl?: string
+  quantity: number
+  unit: string
+  price: number
+}
+
+export type SubscriptionStatus = 'active' | 'paused' | 'cancelled'
+export type BoxType = 'vegetable' | 'fruit' | 'custom'
+export type Frequency = 'weekly' | 'monthly'
+
+export interface Subscription {
+  id: number
+  boxType: BoxType
+  frequency: Frequency
+  status: SubscriptionStatus
+  price: number
+  startDate: string
+  endDate?: string
+  nextDeliveryDate: string
+  notes?: string
+  createdAt: string
+  address: Address
+  items: SubscriptionItem[]
+}
+
+// ── Referral ──────────────────────────────────────────────────────────────────
+export interface ReferralCode {
+  id: number
+  code: string
+  usageCount: number
+  isActive: boolean
+  createdAt: string
+}
+
+export interface ReferralEntry {
+  id: number
+  referredUserId: number
+  referredUserName: string
+  status: 'pending' | 'completed'
+  creditsAwarded: number
+  completedAt?: string
+  createdAt: string
+}
+
+export interface WalletCredit {
+  id: number
+  amount: number
+  type: 'earned' | 'redeemed' | 'expired'
+  description: string
+  createdAt: string
+}
+
+export interface WalletSummary {
+  totalEarned: number
+  totalRedeemed: number
+  balance: number
+  recent: WalletCredit[]
+}
+
+// ── Bundle ────────────────────────────────────────────────────────────────────
+export interface BundleItem {
+  productId: number
+  productName: string
+  imageUrl?: string
+  price: number
+  unit: string
+  quantity: number
+}
+
+export interface Bundle {
+  id: number
+  name: string
+  slug: string
+  description?: string
+  imageUrl?: string
+  discountPercent: number
+  originalTotal: number
+  bundlePrice: number
+  isActive: boolean
+  items: BundleItem[]
+}
+
+// ── PriceAlert ────────────────────────────────────────────────────────────────
+export interface PriceAlertInfo {
+  id: number
+  productId: number
+  productName: string
+  imageUrl?: string
+  currentPrice: number
+  targetPrice: number
+  isTriggered: boolean
+  createdAt: string
+}
+
 export interface CartItem {
   id: number
   productId: number

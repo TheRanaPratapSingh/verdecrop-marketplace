@@ -176,6 +176,8 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IDynamicPricingService, DynamicPricingService>();
 builder.Services.AddScoped<IProductBundleService, ProductBundleService>();
 builder.Services.AddScoped<IPriceAlertService, PriceAlertService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IReferralService, ReferralService>();
 
 // ── Controllers + Swagger ─────────────────────────────────────────────────────
 builder.Services.AddControllers()

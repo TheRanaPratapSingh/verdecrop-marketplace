@@ -941,4 +941,112 @@ namespace VerdeCrop.API.Controllers
             return Ok(ApiResponse.Ok(result));
         }
     }
+
+    // ── Subscriptions ─────────────────────────────────────────────────────────
+    [Route("api/subscriptions")]
+    [Authorize]
+    public class SubscriptionsController : BaseController
+    {
+        private readonly ISubscriptionService _subs;
+        public SubscriptionsController(ISubscriptionService subs) { _subs = subs; }
+
+        // GET /api/subscriptions
+        [HttpGet]
+        public async Task<IActionResult> GetMine()
+        {
+            var list = await _subs.GetUserSubscriptionsAsync(CurrentUserId);
+            return Ok(ApiResponse.Ok(list));
+        }
+
+        // GET /api/subscriptions/{id}
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var sub = await _subs.GetByIdAsync(id, CurrentUserId);
+            return sub == null ? NotFound() : Ok(ApiResponse.Ok(sub));
+        }
+
+        // POST /api/subscriptions
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateSubscriptionRequest req)
+        {
+            var sub = await _subs.CreateAsync(CurrentUserId, req);
+            return sub == null ? BadRequest(ApiResponse.Fail("Could not create subscription.")) : Ok(ApiResponse.Ok(sub));
+        }
+
+        // PUT /api/subscriptions/{id}
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateSubscriptionRequest req)
+        {
+            var sub = await _subs.UpdateAsync(id, CurrentUserId, req);
+            return sub == null ? NotFound() : Ok(ApiResponse.Ok(sub));
+        }
+
+        // PUT /api/subscriptions/{id}/pause
+        [HttpPut("{id:int}/pause")]
+        public async Task<IActionResult> PauseResume(int id, [FromBody] PauseResumeRequest req)
+        {
+            var ok = await _subs.PauseResumeAsync(id, CurrentUserId, req.Pause);
+            return ok ? Ok(ApiResponse.Ok(true)) : NotFound();
+        }
+
+        // DELETE /api/subscriptions/{id}
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            var ok = await _subs.CancelAsync(id, CurrentUserId);
+            return ok ? Ok(ApiResponse.Ok(true)) : NotFound();
+        }
+
+        // POST /api/subscriptions/process  — admin trigger
+        [HttpPost("process")]
+        public async Task<IActionResult> Process()
+        {
+            if (CurrentUserRole != "admin") return Forbid();
+            var count = await _subs.ProcessDueSubscriptionsAsync();
+            return Ok(ApiResponse.Ok(count));
+        }
+    }
+
+    // ── Referral ──────────────────────────────────────────────────────────────
+    [Route("api/referral")]
+    [Authorize]
+    public class ReferralController : BaseController
+    {
+        private readonly IReferralService _referral;
+        public ReferralController(IReferralService referral) { _referral = referral; }
+
+        // GET /api/referral/code  — get or create my unique invite code
+        [HttpGet("code")]
+        public async Task<IActionResult> GetMyCode()
+        {
+            var code = await _referral.GetOrCreateCodeAsync(CurrentUserId);
+            return Ok(ApiResponse.Ok(code));
+        }
+
+        // POST /api/referral/apply  — apply a referral code (called after registration)
+        [HttpPost("apply")]
+        public async Task<IActionResult> ApplyCode([FromBody] ApplyReferralCodeRequest req)
+        {
+            var ok = await _referral.ApplyReferralCodeAsync(CurrentUserId, req.Code);
+            return ok ? Ok(ApiResponse.Ok(true))
+                      : BadRequest(ApiResponse.Fail("Invalid or already used referral code."));
+        }
+
+        // GET /api/referral/my-referrals  — list of people I referred + status
+        [HttpGet("my-referrals")]
+        public async Task<IActionResult> GetMyReferrals()
+        {
+            var list = await _referral.GetMyReferralsAsync(CurrentUserId);
+            return Ok(ApiResponse.Ok(list));
+        }
+
+        // GET /api/referral/wallet  — credit balance + transaction history
+        [HttpGet("wallet")]
+        public async Task<IActionResult> GetWallet()
+        {
+            var wallet = await _referral.GetWalletAsync(CurrentUserId);
+            return Ok(ApiResponse.Ok(wallet));
+        }
+    }
 }

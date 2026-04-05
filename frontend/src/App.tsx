@@ -37,6 +37,8 @@ const AdminCategories     = lazy(() => import('./pages/admin/Categories').then(m
 const AdminSellers        = lazy(() => import('./pages/admin/Sellers').then(m => ({ default: m.AdminSellers })))
 const AdminOrders         = lazy(() => import('./pages/admin/Orders').then(m => ({ default: m.AdminOrders })))
 const AdminUsers          = lazy(() => import('./pages/admin/Users').then(m => ({ default: m.AdminUsers })))
+const SubscriptionsPage   = lazy(() => import('./pages/Subscriptions').then(m => ({ default: m.SubscriptionsPage })))
+const ReferralPage        = lazy(() => import('./pages/Referral').then(m => ({ default: m.ReferralPage })))
 
 const Loader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-cream">
@@ -122,6 +124,8 @@ const AppRoutes: React.FC = () => {
           <Route path="/seller/products/:id/edit" element={<RequireAuth role="farmer"><SellerAddProductPage /></RequireAuth>} />
           <Route path="/profile"         element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/notifications"   element={<RequireAuth><NotificationsPage /></RequireAuth>} />
+          <Route path="/subscriptions"   element={<RequireAuth><SubscriptionsPage /></RequireAuth>} />
+          <Route path="/referral"        element={<RequireAuth><ReferralPage /></RequireAuth>} />
           <Route path="/admin"           element={<RequireAuth><AdminDashboard /></RequireAuth>} />
           <Route path="/admin/products"  element={<RequireAuth><AdminProducts /></RequireAuth>} />
           <Route path="/admin/categories" element={<RequireAuth><AdminCategories /></RequireAuth>} />
