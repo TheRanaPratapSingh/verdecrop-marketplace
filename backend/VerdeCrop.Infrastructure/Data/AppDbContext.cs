@@ -26,6 +26,12 @@ namespace VerdeCrop.Infrastructure.Data
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<Subscription> Subscriptions => Set<Subscription>();
         public DbSet<SubscriptionItem> SubscriptionItems => Set<SubscriptionItem>();
+        public DbSet<ProductBundle> ProductBundles => Set<ProductBundle>();
+        public DbSet<BundleItem> BundleItems => Set<BundleItem>();
+        public DbSet<PriceDropAlert> PriceDropAlerts => Set<PriceDropAlert>();
+        public DbSet<ReferralCode> ReferralCodes => Set<ReferralCode>();
+        public DbSet<Referral> Referrals => Set<Referral>();
+        public DbSet<WalletCredit> WalletCredits => Set<WalletCredit>();
 
         protected override void OnModelCreating(ModelBuilder mb)
         {
@@ -187,6 +193,68 @@ namespace VerdeCrop.Infrastructure.Data
 
             mb.Entity<Order>(e2 => {
                 e2.HasOne<Subscription>().WithMany(s => s.GeneratedOrders).HasForeignKey(o => o.SubscriptionId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // ===============================
+            // BUNDLE & PRICE ALERT CONFIG
+            // ===============================
+            mb.Entity<ProductBundle>(e => {
+                e.Property(b => b.DiscountPercent).HasPrecision(5, 2);
+                e.HasIndex(b => b.Slug).IsUnique();
+            });
+
+            mb.Entity<BundleItem>(e => {
+                e.HasOne(i => i.Bundle).WithMany(b => b.Items).HasForeignKey(i => i.BundleId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(i => i.Product).WithMany().HasForeignKey(i => i.ProductId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(i => new { i.BundleId, i.ProductId }).IsUnique();
+            });
+
+            mb.Entity<PriceDropAlert>(e => {
+                e.Property(a => a.TargetPrice).HasPrecision(10, 2);
+                e.HasOne(a => a.User).WithMany().HasForeignKey(a => a.UserId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(a => a.Product).WithMany().HasForeignKey(a => a.ProductId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(a => new { a.UserId, a.ProductId }).IsUnique();
+            });
+
+            // ===============================
+            // REFERRAL CONFIG
+            // ===============================
+            mb.Entity<ReferralCode>(e => {
+                e.HasOne(rc => rc.User)
+                    .WithOne(u => u.ReferralCode)
+                    .HasForeignKey<ReferralCode>(rc => rc.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(rc => rc.Code).IsUnique();
+            });
+
+            mb.Entity<Referral>(e => {
+                e.Property(r => r.CreditsAwarded).HasPrecision(10, 2);
+                e.HasOne(r => r.ReferralCode)
+                    .WithMany(rc => rc.Referrals)
+                    .HasForeignKey(r => r.ReferralCodeId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(r => r.Referrer)
+                    .WithMany(u => u.ReferralsGiven)
+                    .HasForeignKey(r => r.ReferrerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(r => r.ReferredUser)
+                    .WithMany(u => u.ReferralsReceived)
+                    .HasForeignKey(r => r.ReferredUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(r => r.ReferredUserId).IsUnique(); // each user can only be referred once
+            });
+
+            mb.Entity<WalletCredit>(e => {
+                e.Property(w => w.Amount).HasPrecision(10, 2);
+                e.HasOne(w => w.User)
+                    .WithMany(u => u.WalletCredits)
+                    .HasForeignKey(w => w.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(w => w.Referral)
+                    .WithMany(r => r.Credits)
+                    .HasForeignKey(w => w.ReferralId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // ===============================

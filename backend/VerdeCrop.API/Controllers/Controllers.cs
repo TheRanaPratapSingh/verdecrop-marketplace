@@ -192,8 +192,7 @@ namespace VerdeCrop.API.Controllers
     [Route("api/wishlist")]
     [Authorize]
     public class WishlistController : BaseController
-    {
-        private readonly IWishlistService _wishlist;
+    {        private readonly IWishlistService _wishlist;
         public WishlistController(IWishlistService wishlist) { _wishlist = wishlist; }
 
         [HttpGet]
@@ -215,6 +214,98 @@ namespace VerdeCrop.API.Controllers
         {
             var result = await _wishlist.RemoveAsync(CurrentUserId, productId);
             return result ? Ok(ApiResponse.Ok(true)) : NotFound(ApiResponse.Fail("Wishlist item not found"));
+        }
+    }
+
+    // ── Bundles ───────────────────────────────────────────────────────────────
+    [Route("api/bundles")]
+    public class BundlesController : BaseController
+    {
+        private readonly IProductBundleService _bundles;
+        public BundlesController(IProductBundleService bundles) { _bundles = bundles; }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var result = await _bundles.GetAllAsync();
+            return Ok(ApiResponse.Ok(result));
+        }
+
+        [HttpGet("{slug}")]
+        public async Task<IActionResult> GetBySlug(string slug)
+        {
+            var result = await _bundles.GetBySlugAsync(slug);
+            return result == null ? NotFound(ApiResponse.Fail("Bundle not found")) : Ok(ApiResponse.Ok(result));
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> Create([FromBody] CreateBundleRequest req)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
+            var result = await _bundles.CreateAsync(req);
+            return result == null ? BadRequest(ApiResponse.Fail("Failed to create bundle")) : Ok(ApiResponse.Ok(result, "Bundle created"));
+        }
+
+        [HttpDelete("{id:int}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var result = await _bundles.DeleteAsync(id);
+            return result ? Ok(ApiResponse.Ok(true, "Bundle deleted")) : NotFound(ApiResponse.Fail("Bundle not found"));
+        }
+
+        [HttpPut("{id:int}/toggle")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> Toggle(int id, [FromBody] bool isActive)
+        {
+            var result = await _bundles.ToggleActiveAsync(id, isActive);
+            return result ? Ok(ApiResponse.Ok(true)) : NotFound(ApiResponse.Fail("Bundle not found"));
+        }
+    }
+
+    // ── Price Alerts ──────────────────────────────────────────────────────────
+    [Route("api/price-alerts")]
+    [Authorize]
+    public class PriceAlertsController : BaseController
+    {
+        private readonly IPriceAlertService _alerts;
+        public PriceAlertsController(IPriceAlertService alerts) { _alerts = alerts; }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMyAlerts()
+        {
+            var result = await _alerts.GetUserAlertsAsync(CurrentUserId);
+            return Ok(ApiResponse.Ok(result));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SetAlert([FromBody] CreatePriceAlertRequest req)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail(string.Join("; ", ModelState.Values
+                    .SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
+            var result = await _alerts.SetAlertAsync(CurrentUserId, req);
+            return result == null
+                ? BadRequest(ApiResponse.Fail("Product not found or unavailable"))
+                : Ok(ApiResponse.Ok(result, "Price alert set"));
+        }
+
+        [HttpDelete("{productId:int}")]
+        public async Task<IActionResult> DeleteAlert(int productId)
+        {
+            var result = await _alerts.DeleteAlertAsync(CurrentUserId, productId);
+            return result ? Ok(ApiResponse.Ok(true, "Alert removed")) : NotFound(ApiResponse.Fail("Alert not found"));
+        }
+
+        [HttpPost("check")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> TriggerCheck()
+        {
+            var count = await _alerts.CheckAndTriggerAlertsAsync();
+            return Ok(ApiResponse.Ok(count, $"{count} alert(s) triggered"));
         }
     }
 

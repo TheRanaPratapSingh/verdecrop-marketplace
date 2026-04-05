@@ -774,6 +774,208 @@ namespace VerdeCrop.Application.Services
         }
     }
 
+    // ── Product Bundle Service ────────────────────────────────────────────────
+    public class ProductBundleService : IProductBundleService
+    {
+        private readonly IUnitOfWork _uow;
+        public ProductBundleService(IUnitOfWork uow) => _uow = uow;
+
+        public async Task<List<BundleDto>> GetAllAsync()
+        {
+            var bundles = await _uow.ProductBundles.Query()
+                .Include(b => b.Items).ThenInclude(i => i.Product)
+                .Where(b => b.IsActive)
+                .OrderByDescending(b => b.CreatedAt)
+                .ToListAsync();
+            return bundles.Select(ToDto).ToList();
+        }
+
+        public async Task<BundleDto?> GetBySlugAsync(string slug)
+        {
+            var b = await _uow.ProductBundles.Query()
+                .Include(b => b.Items).ThenInclude(i => i.Product)
+                .FirstOrDefaultAsync(b => b.Slug == slug && b.IsActive);
+            return b == null ? null : ToDto(b);
+        }
+
+        public async Task<BundleDto?> GetByIdAsync(int id)
+        {
+            var b = await _uow.ProductBundles.Query()
+                .Include(b => b.Items).ThenInclude(i => i.Product)
+                .FirstOrDefaultAsync(b => b.Id == id);
+            return b == null ? null : ToDto(b);
+        }
+
+        public async Task<BundleDto?> CreateAsync(CreateBundleRequest req)
+        {
+            var slug = req.Name.ToLowerInvariant()
+                .Replace(" ", "-")
+                .Replace("&", "and")
+                .Replace("'", "");
+            slug = System.Text.RegularExpressions.Regex.Replace(slug, @"[^a-z0-9\-]", "");
+            if (await _uow.ProductBundles.ExistsAsync(b => b.Slug == slug))
+                slug = $"{slug}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+            var bundle = new ProductBundle
+            {
+                Name = req.Name,
+                Slug = slug,
+                Description = req.Description,
+                ImageUrl = req.ImageUrl,
+                DiscountPercent = req.DiscountPercent,
+                IsActive = true
+            };
+            await _uow.ProductBundles.AddAsync(bundle);
+            await _uow.SaveChangesAsync();
+
+            foreach (var item in req.Items)
+            {
+                await _uow.BundleItems.AddAsync(new BundleItem
+                {
+                    BundleId = bundle.Id,
+                    ProductId = item.ProductId,
+                    Quantity = item.Quantity
+                });
+            }
+            await _uow.SaveChangesAsync();
+            return await GetByIdAsync(bundle.Id);
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var b = await _uow.ProductBundles.GetByIdAsync(id);
+            if (b == null) return false;
+            await _uow.ProductBundles.DeleteAsync(b);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> ToggleActiveAsync(int id, bool isActive)
+        {
+            var b = await _uow.ProductBundles.GetByIdAsync(id);
+            if (b == null) return false;
+            b.IsActive = isActive;
+            b.UpdatedAt = DateTime.UtcNow;
+            await _uow.ProductBundles.UpdateAsync(b);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        private static BundleDto ToDto(ProductBundle b)
+        {
+            var items = b.Items.Select(i => new BundleItemDto(
+                i.ProductId,
+                i.Product?.Name ?? "",
+                i.Product?.ImageUrl,
+                i.Product?.Price ?? 0,
+                i.Product?.Unit ?? "kg",
+                i.Quantity)).ToList();
+
+            var originalTotal = items.Sum(i => i.Price * i.Quantity);
+            var bundlePrice = b.DiscountPercent > 0
+                ? Math.Round(originalTotal * (1 - b.DiscountPercent / 100), 2)
+                : originalTotal;
+
+            return new BundleDto(b.Id, b.Name, b.Slug, b.Description, b.ImageUrl,
+                b.DiscountPercent, originalTotal, bundlePrice, b.IsActive, items);
+        }
+    }
+
+    // ── Price Alert Service ───────────────────────────────────────────────────
+    public class PriceAlertService : IPriceAlertService
+    {
+        private readonly IUnitOfWork _uow;
+        private readonly INotificationService _notifications;
+        public PriceAlertService(IUnitOfWork uow, INotificationService notifications)
+        {
+            _uow = uow;
+            _notifications = notifications;
+        }
+
+        public async Task<List<PriceAlertDto>> GetUserAlertsAsync(int userId)
+        {
+            return await _uow.PriceDropAlerts.Query()
+                .Include(a => a.Product)
+                .Where(a => a.UserId == userId)
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => new PriceAlertDto(
+                    a.Id, a.ProductId, a.Product.Name, a.Product.ImageUrl,
+                    a.Product.Price, a.TargetPrice, a.IsTriggered, a.CreatedAt))
+                .ToListAsync();
+        }
+
+        public async Task<PriceAlertDto?> SetAlertAsync(int userId, CreatePriceAlertRequest req)
+        {
+            var product = await _uow.Products.GetByIdAsync(req.ProductId);
+            if (product == null || !product.IsActive) return null;
+
+            // Upsert: update if already exists
+            var existing = await _uow.PriceDropAlerts.FirstOrDefaultAsync(
+                a => a.UserId == userId && a.ProductId == req.ProductId);
+
+            if (existing != null)
+            {
+                existing.TargetPrice = req.TargetPrice;
+                existing.IsTriggered = false;
+                existing.TriggeredAt = null;
+                existing.UpdatedAt = DateTime.UtcNow;
+                await _uow.PriceDropAlerts.UpdateAsync(existing);
+            }
+            else
+            {
+                existing = new PriceDropAlert
+                {
+                    UserId = userId,
+                    ProductId = req.ProductId,
+                    TargetPrice = req.TargetPrice
+                };
+                await _uow.PriceDropAlerts.AddAsync(existing);
+            }
+            await _uow.SaveChangesAsync();
+
+            return new PriceAlertDto(existing.Id, product.Id, product.Name, product.ImageUrl,
+                product.Price, req.TargetPrice, false, existing.CreatedAt);
+        }
+
+        public async Task<bool> DeleteAlertAsync(int userId, int productId)
+        {
+            var alert = await _uow.PriceDropAlerts.FirstOrDefaultAsync(
+                a => a.UserId == userId && a.ProductId == productId);
+            if (alert == null) return false;
+            await _uow.PriceDropAlerts.DeleteAsync(alert);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<int> CheckAndTriggerAlertsAsync()
+        {
+            var untriggered = await _uow.PriceDropAlerts.Query()
+                .Include(a => a.Product)
+                .Where(a => !a.IsTriggered && a.Product.IsActive)
+                .ToListAsync();
+
+            int count = 0;
+            foreach (var alert in untriggered)
+            {
+                if (alert.Product.Price <= alert.TargetPrice)
+                {
+                    alert.IsTriggered = true;
+                    alert.TriggeredAt = DateTime.UtcNow;
+                    await _uow.PriceDropAlerts.UpdateAsync(alert);
+                    await _notifications.SendAsync(
+                        alert.UserId,
+                        "🎉 Price Drop Alert!",
+                        $"{alert.Product.Name} is now ₹{alert.Product.Price} — your target was ₹{alert.TargetPrice}!",
+                        "promo",
+                        $"/products/{alert.Product.Slug}");
+                    count++;
+                }
+            }
+            if (count > 0) await _uow.SaveChangesAsync();
+            return count;
+        }
+    }
+
     // ── Order Service ─────────────────────────────────────────────────────────
     public class OrderService : IOrderService
     {
@@ -782,19 +984,22 @@ namespace VerdeCrop.Application.Services
         private readonly IEmailService _email;
         private readonly ICacheService _cache;
         private readonly Microsoft.Extensions.Configuration.IConfiguration _config;
+        private readonly IReferralService _referral;
 
         public OrderService(
             IUnitOfWork uow,
             INotificationService notifications,
             IEmailService email,
             ICacheService cache,
-            Microsoft.Extensions.Configuration.IConfiguration config)
+            Microsoft.Extensions.Configuration.IConfiguration config,
+            IReferralService referral)
         {
             _uow = uow;
             _notifications = notifications;
             _email = email;
             _cache = cache;
             _config = config;
+            _referral = referral;
         }
 
         public async Task<OrderDetailDto?> PlaceOrderAsync(int userId, PlaceOrderRequest req)
@@ -897,6 +1102,14 @@ namespace VerdeCrop.Application.Services
                 var emailOrder = await LoadOrderForNotificationsAsync(order.Id);
                 if (emailOrder != null)
                     await SendOrderPlacementEmailsAsync(emailOrder);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                await _referral.AwardCreditsOnFirstOrderAsync(userId, order.Id);
             }
             catch
             {
@@ -1363,6 +1576,168 @@ namespace VerdeCrop.Application.Services
                 sellerItems,
                 o.StatusHistory?.OrderBy(h => h.CreatedAt)
                     .Select(h => new OrderStatusHistoryDto(h.Id, h.Status, h.Note, h.CreatedAt)).ToList() ?? new());
+        }
+    }
+
+    // ── Referral Service ──────────────────────────────────────────────────────
+    public class ReferralService : IReferralService
+    {
+        private readonly IUnitOfWork _uow;
+        private readonly INotificationService _notifications;
+        private const decimal ReferrerReward = 50m;   // ₹50 credits for referrer
+
+        public ReferralService(IUnitOfWork uow, INotificationService notifications)
+        {
+            _uow = uow;
+            _notifications = notifications;
+        }
+
+        public async Task<ReferralCodeDto> GetOrCreateCodeAsync(int userId)
+        {
+            var existing = await _uow.ReferralCodes.FirstOrDefaultAsync(rc => rc.UserId == userId);
+            if (existing != null)
+                return ToDto(existing);
+
+            var code = new ReferralCode
+            {
+                UserId = userId,
+                Code = GenerateCode(userId),
+                IsActive = true
+            };
+            await _uow.ReferralCodes.AddAsync(code);
+            await _uow.SaveChangesAsync();
+            return ToDto(code);
+        }
+
+        public async Task<bool> ApplyReferralCodeAsync(int newUserId, string code)
+        {
+            // User can only be referred once
+            var alreadyReferred = await _uow.Referrals.ExistsAsync(r => r.ReferredUserId == newUserId);
+            if (alreadyReferred) return false;
+
+            var referralCode = await _uow.ReferralCodes.FirstOrDefaultAsync(rc =>
+                rc.Code == code.Trim().ToUpper() && rc.IsActive);
+            if (referralCode == null) return false;
+
+            // Can't refer yourself
+            if (referralCode.UserId == newUserId) return false;
+
+            var referral = new Referral
+            {
+                ReferralCodeId = referralCode.Id,
+                ReferrerId = referralCode.UserId,
+                ReferredUserId = newUserId,
+                Status = "pending"
+            };
+
+            referralCode.UsageCount++;
+            await _uow.Referrals.AddAsync(referral);
+            await _uow.ReferralCodes.UpdateAsync(referralCode);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<ReferralDto>> GetMyReferralsAsync(int userId)
+        {
+            var referrals = await _uow.Referrals.Query()
+                .Include(r => r.ReferredUser)
+                .Where(r => r.ReferrerId == userId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return referrals.Select(r => new ReferralDto(
+                r.Id,
+                r.ReferredUserId,
+                r.ReferredUser?.Name ?? "User",
+                r.Status,
+                r.CreditsAwarded,
+                r.CompletedAt,
+                r.CreatedAt)).ToList();
+        }
+
+        public async Task<WalletSummaryDto> GetWalletAsync(int userId)
+        {
+            var credits = await _uow.WalletCredits.Query()
+                .Where(w => w.UserId == userId)
+                .OrderByDescending(w => w.CreatedAt)
+                .ToListAsync();
+
+            var earned = credits.Where(c => c.Type == "earned").Sum(c => c.Amount);
+            var redeemed = credits.Where(c => c.Type == "redeemed").Sum(c => c.Amount);
+            var balance = earned - redeemed;
+
+            var recent = credits.Take(20).Select(c => new WalletCreditDto(
+                c.Id, c.Amount, c.Type, c.Description, c.CreatedAt)).ToList();
+
+            return new WalletSummaryDto(earned, redeemed, balance, recent);
+        }
+
+        public async Task AwardCreditsOnFirstOrderAsync(int userId, int orderId)
+        {
+            // Only award if this is the user's first order
+            var orderCount = await _uow.Orders.Query()
+                .Where(o => o.UserId == userId)
+                .CountAsync();
+            if (orderCount != 1) return;
+
+            // Find pending referral where this user was referred
+            var referral = await _uow.Referrals.Query()
+                .FirstOrDefaultAsync(r => r.ReferredUserId == userId && r.Status == "pending");
+            if (referral == null) return;
+
+            // Award credits to referrer
+            var credit = new WalletCredit
+            {
+                UserId = referral.ReferrerId,
+                Amount = ReferrerReward,
+                Type = "earned",
+                Description = $"Referral reward — your friend placed their first order!",
+                ReferralId = referral.Id
+            };
+            await _uow.WalletCredits.AddAsync(credit);
+
+            referral.Status = "completed";
+            referral.CreditsAwarded = ReferrerReward;
+            referral.CompletedAt = DateTime.UtcNow;
+            await _uow.Referrals.UpdateAsync(referral);
+            await _uow.SaveChangesAsync();
+
+            try
+            {
+                await _notifications.SendAsync(referral.ReferrerId,
+                    "You earned ₹50 credits! 🎉",
+                    "Your referred friend just placed their first order. ₹50 has been added to your wallet.",
+                    "system");
+            }
+            catch { }
+        }
+
+        public async Task<bool> RedeemCreditsAsync(int userId, decimal amount, int orderId)
+        {
+            var wallet = await GetWalletAsync(userId);
+            if (wallet.Balance < amount) return false;
+
+            var credit = new WalletCredit
+            {
+                UserId = userId,
+                Amount = amount,
+                Type = "redeemed",
+                Description = $"Redeemed on order #{orderId}"
+            };
+            await _uow.WalletCredits.AddAsync(credit);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        private static ReferralCodeDto ToDto(ReferralCode rc) =>
+            new(rc.Id, rc.Code, rc.UsageCount, rc.IsActive, rc.CreatedAt);
+
+        private static string GenerateCode(int userId)
+        {
+            var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var rng = new Random(userId + (int)(DateTime.UtcNow.Ticks % int.MaxValue));
+            var suffix = new string(Enumerable.Range(0, 6).Select(_ => chars[rng.Next(chars.Length)]).ToArray());
+            return $"VC{suffix}";
         }
     }
 }

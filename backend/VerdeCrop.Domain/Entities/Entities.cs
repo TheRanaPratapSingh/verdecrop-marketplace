@@ -29,6 +29,10 @@ namespace VerdeCrop.Domain.Entities
         public ICollection<WishlistItem> WishlistItems { get; set; } = new List<WishlistItem>();
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
         public FarmerProfile? FarmerProfile { get; set; }
+        public ReferralCode? ReferralCode { get; set; }
+        public ICollection<Referral> ReferralsGiven { get; set; } = new List<Referral>();
+        public ICollection<Referral> ReferralsReceived { get; set; } = new List<Referral>();
+        public ICollection<WalletCredit> WalletCredits { get; set; } = new List<WalletCredit>();
     }
 
     public class RefreshToken : BaseEntity
@@ -293,5 +297,74 @@ namespace VerdeCrop.Domain.Entities
         public decimal Quantity { get; set; } = 1;
         public Subscription Subscription { get; set; } = null!;
         public Product Product { get; set; } = null!;
+    }
+
+    // ── Product Bundle ────────────────────────────────────────────────────────
+    public class ProductBundle : BaseEntity
+    {
+        public string Name { get; set; } = "";
+        public string Slug { get; set; } = "";
+        public string? Description { get; set; }
+        public string? ImageUrl { get; set; }
+        public decimal DiscountPercent { get; set; } = 0; // e.g. 10 = 10% off
+        public bool IsActive { get; set; } = true;
+        public ICollection<BundleItem> Items { get; set; } = new List<BundleItem>();
+    }
+
+    public class BundleItem : BaseEntity
+    {
+        public int BundleId { get; set; }
+        public int ProductId { get; set; }
+        public int Quantity { get; set; } = 1;
+        public ProductBundle Bundle { get; set; } = null!;
+        public Product Product { get; set; } = null!;
+    }
+
+    // ── Price Drop Alert ──────────────────────────────────────────────────────
+    public class PriceDropAlert : BaseEntity
+    {
+        public int UserId { get; set; }
+        public int ProductId { get; set; }
+        public decimal TargetPrice { get; set; }   // alert when price drops to or below this
+        public bool IsTriggered { get; set; } = false;
+        public DateTime? TriggeredAt { get; set; }
+        public User User { get; set; } = null!;
+        public Product Product { get; set; } = null!;
+    }
+
+    // ── Referral System ───────────────────────────────────────────────────────
+    public class ReferralCode : BaseEntity
+    {
+        public int UserId { get; set; }
+        public string Code { get; set; } = "";          // unique invite code e.g. VC-ABC123
+        public int UsageCount { get; set; } = 0;
+        public bool IsActive { get; set; } = true;
+        public User User { get; set; } = null!;
+        public ICollection<Referral> Referrals { get; set; } = new List<Referral>();
+    }
+
+    public class Referral : BaseEntity
+    {
+        public int ReferralCodeId { get; set; }
+        public int ReferrerId { get; set; }             // user who owns the code
+        public int ReferredUserId { get; set; }         // user who used the code
+        public string Status { get; set; } = "pending"; // pending | completed
+        public decimal CreditsAwarded { get; set; } = 0;
+        public DateTime? CompletedAt { get; set; }
+        public ReferralCode ReferralCode { get; set; } = null!;
+        public User Referrer { get; set; } = null!;
+        public User ReferredUser { get; set; } = null!;
+        public ICollection<WalletCredit> Credits { get; set; } = new List<WalletCredit>();
+    }
+
+    public class WalletCredit : BaseEntity
+    {
+        public int UserId { get; set; }
+        public decimal Amount { get; set; }
+        public string Type { get; set; } = "earned";   // earned | redeemed | expired
+        public string Description { get; set; } = "";
+        public int? ReferralId { get; set; }
+        public User User { get; set; } = null!;
+        public Referral? Referral { get; set; }
     }
 }

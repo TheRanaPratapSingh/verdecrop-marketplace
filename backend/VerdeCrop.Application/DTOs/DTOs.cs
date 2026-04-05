@@ -270,12 +270,57 @@ namespace VerdeCrop.Application.DTOs
 
     public record SubscriptionItemRequest([Required] int ProductId, [Required] decimal Quantity);
 
+    // ── Referral ──────────────────────────────────────────────────────────────
+    public record ReferralCodeDto(int Id, string Code, int UsageCount, bool IsActive, DateTime CreatedAt);
+
+    public record ReferralDto(
+        int Id,
+        int ReferredUserId,
+        string ReferredUserName,
+        string Status,
+        decimal CreditsAwarded,
+        DateTime? CompletedAt,
+        DateTime CreatedAt);
+
+    public record WalletCreditDto(
+        int Id,
+        decimal Amount,
+        string Type,
+        string Description,
+        DateTime CreatedAt);
+
+    public record WalletSummaryDto(decimal TotalEarned, decimal TotalRedeemed, decimal Balance, List<WalletCreditDto> Recent);
+
+    public record ApplyReferralCodeRequest([Required][StringLength(20)] string Code);
+
+    public record RedeemCreditsRequest([Required][Range(1, 10000)] decimal Amount);
+
     public record UpdateSubscriptionRequest(
         int? AddressId,
         [StringLength(500)] string? Notes,
         List<SubscriptionItemRequest>? Items);
 
     public record PauseResumeRequest([Required] bool Pause);
+
+    // ── Product Bundle ─────────────────────────────────────────────────────────
+    public record BundleItemDto(int ProductId, string ProductName, string? ImageUrl, decimal Price, string Unit, int Quantity);
+    public record BundleDto(int Id, string Name, string Slug, string? Description, string? ImageUrl,
+        decimal DiscountPercent, decimal OriginalTotal, decimal BundlePrice, bool IsActive, List<BundleItemDto> Items);
+
+    public record CreateBundleRequest(
+        [Required][StringLength(150, MinimumLength = 2)] string Name,
+        [StringLength(500)] string? Description,
+        [StringLength(500)] string? ImageUrl,
+        [Range(0, 80)] decimal DiscountPercent,
+        [Required] List<BundleItemRequest> Items);
+
+    public record BundleItemRequest([Required] int ProductId, [Range(1, 100)] int Quantity = 1);
+
+    // ── Price Drop Alert ───────────────────────────────────────────────────────
+    public record PriceAlertDto(int Id, int ProductId, string ProductName, string? ImageUrl,
+        decimal CurrentPrice, decimal TargetPrice, bool IsTriggered, DateTime CreatedAt);
+
+    public record CreatePriceAlertRequest([Required] int ProductId, [Required][Range(1, 99999)] decimal TargetPrice);
 
     // ── Admin ─────────────────────────────────────────────────────────────────
     public record DashboardStatsDto(int TotalUsers, int TotalFarmers, int TotalProducts, int TotalOrders,

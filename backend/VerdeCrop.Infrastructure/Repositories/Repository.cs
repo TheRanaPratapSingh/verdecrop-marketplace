@@ -95,6 +95,12 @@ namespace VerdeCrop.Infrastructure.Repositories
             Notifications = new Repository<Notification>(ctx);
             Subscriptions = new Repository<Subscription>(ctx);
             SubscriptionItems = new Repository<SubscriptionItem>(ctx);
+            ProductBundles = new Repository<ProductBundle>(ctx);
+            BundleItems = new Repository<BundleItem>(ctx);
+            PriceDropAlerts = new Repository<PriceDropAlert>(ctx);
+            ReferralCodes = new Repository<ReferralCode>(ctx);
+            Referrals = new Repository<Referral>(ctx);
+            WalletCredits = new Repository<WalletCredit>(ctx);
         }
 
         public IRepository<User> Users { get; }
@@ -116,6 +122,12 @@ namespace VerdeCrop.Infrastructure.Repositories
         public IRepository<Notification> Notifications { get; }
         public IRepository<Subscription> Subscriptions { get; }
         public IRepository<SubscriptionItem> SubscriptionItems { get; }
+        public IRepository<ProductBundle> ProductBundles { get; }
+        public IRepository<BundleItem> BundleItems { get; }
+        public IRepository<PriceDropAlert> PriceDropAlerts { get; }
+        public IRepository<ReferralCode> ReferralCodes { get; }
+        public IRepository<Referral> Referrals { get; }
+        public IRepository<WalletCredit> WalletCredits { get; }
 
         public Task<int> SaveChangesAsync() => _ctx.SaveChangesAsync();
         public void Dispose() => _ctx.Dispose();

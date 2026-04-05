@@ -48,6 +48,12 @@ namespace VerdeCrop.Application.Interfaces
         IRepository<Notification> Notifications { get; }
         IRepository<Subscription> Subscriptions { get; }
         IRepository<SubscriptionItem> SubscriptionItems { get; }
+        IRepository<ProductBundle> ProductBundles { get; }
+        IRepository<BundleItem> BundleItems { get; }
+        IRepository<PriceDropAlert> PriceDropAlerts { get; }
+        IRepository<ReferralCode> ReferralCodes { get; }
+        IRepository<Referral> Referrals { get; }
+        IRepository<WalletCredit> WalletCredits { get; }
         Task<int> SaveChangesAsync();
     }
 
@@ -191,6 +197,34 @@ namespace VerdeCrop.Application.Interfaces
         DynamicPriceDto ComputePrice(int productId, decimal basePrice, int stockQuantity,
             int reviewCount, decimal rating, string? categoryName, DateTime? harvestDate);
         Task<DynamicPriceDto?> GetProductPricingAsync(int productId);
+    }
+
+    public interface IProductBundleService
+    {
+        Task<List<BundleDto>> GetAllAsync();
+        Task<BundleDto?> GetBySlugAsync(string slug);
+        Task<BundleDto?> GetByIdAsync(int id);
+        Task<BundleDto?> CreateAsync(CreateBundleRequest req);
+        Task<bool> DeleteAsync(int id);
+        Task<bool> ToggleActiveAsync(int id, bool isActive);
+    }
+
+    public interface IPriceAlertService
+    {
+        Task<List<PriceAlertDto>> GetUserAlertsAsync(int userId);
+        Task<PriceAlertDto?> SetAlertAsync(int userId, CreatePriceAlertRequest req);
+        Task<bool> DeleteAlertAsync(int userId, int productId);
+        Task<int> CheckAndTriggerAlertsAsync(); // called by background/admin
+    }
+
+    public interface IReferralService
+    {
+        Task<ReferralCodeDto> GetOrCreateCodeAsync(int userId);
+        Task<bool> ApplyReferralCodeAsync(int newUserId, string code);
+        Task<List<ReferralDto>> GetMyReferralsAsync(int userId);
+        Task<WalletSummaryDto> GetWalletAsync(int userId);
+        Task AwardCreditsOnFirstOrderAsync(int userId, int orderId);
+        Task<bool> RedeemCreditsAsync(int userId, decimal amount, int orderId);
     }
 
     public interface IJwtService
