@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Package, Calendar, Pause, Play, X, Plus, RefreshCw, ChevronRight, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { Package, Calendar, Pause, Play, X, Plus, Clock, CheckCircle, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { PageLayout } from '../components/layout'
 import { Badge, Button, Card, EmptyState, Modal, Spinner } from '../components/ui'
-import { subscriptionApi, userApi } from '../services/api'
+import { subscriptionApi } from '../services/api'
 import { resolveAssetUrl } from '../lib/image'
-import type { Subscription, Address } from '../types'
+import type { Subscription } from '../types'
+import { SubscriptionModal } from '../components/SubscriptionBanner'
 
 const statusColor: Record<string, 'green' | 'orange' | 'red'> = {
   active: 'green',
@@ -157,7 +158,8 @@ export const SubscriptionsPage: React.FC = () => {
 
       {/* Create subscription modal */}
       {showCreate && (
-        <CreateSubscriptionModal
+        <SubscriptionModal
+          initialBoxType="vegetable"
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); load() }}
         />
@@ -259,138 +261,5 @@ const SubscriptionCard: React.FC<{
         )}
       </div>
     </Card>
-  )
-}
-
-// ── Create Subscription Modal ─────────────────────────────────────────────────
-const CreateSubscriptionModal: React.FC<{
-  onClose: () => void
-  onCreated: () => void
-}> = ({ onClose, onCreated }) => {
-  const [addresses, setAddresses] = useState<Address[]>([])
-  const [addressId, setAddressId] = useState<number | ''>('')
-  const [boxType, setBoxType] = useState<'vegetable' | 'fruit' | 'custom'>('vegetable')
-  const [frequency, setFrequency] = useState<'weekly' | 'monthly'>('weekly')
-  const [notes, setNotes] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [loadingAddr, setLoadingAddr] = useState(true)
-
-  useEffect(() => {
-    userApi.getAddresses().then(data => {
-      setAddresses(data)
-      if (data.length > 0) setAddressId(data.find(a => a.isDefault)?.id ?? data[0].id)
-    }).catch(() => toast.error('Failed to load addresses')).finally(() => setLoadingAddr(false))
-  }, [])
-
-  const handleCreate = async () => {
-    if (!addressId) { toast.error('Please select a delivery address'); return }
-    setLoading(true)
-    try {
-      await subscriptionApi.create({ addressId: Number(addressId), boxType, frequency, notes: notes || undefined })
-      toast.success('Subscription created! 🌿')
-      onCreated()
-    } catch {
-      toast.error('Failed to create subscription')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Modal
-      isOpen
-      onClose={onClose}
-      title="Start a New Subscription"
-      size="md"
-      footer={
-        <div className="flex gap-3 justify-end">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button loading={loading} onClick={handleCreate}>Create Subscription</Button>
-        </div>
-      }
-    >
-      <div className="space-y-5">
-        {/* Box type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Box Type</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(['vegetable', 'fruit', 'custom'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setBoxType(t)}
-                className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition-all capitalize ${
-                  boxType === t
-                    ? 'border-green-600 bg-green-50 text-green-700'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                {t === 'vegetable' ? '🥦 Vegetable' : t === 'fruit' ? '🍎 Fruit' : '📦 Custom'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Frequency */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Frequency</label>
-          <div className="grid grid-cols-2 gap-2">
-            {(['weekly', 'monthly'] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setFrequency(f)}
-                className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition-all capitalize ${
-                  frequency === f
-                    ? 'border-green-600 bg-green-50 text-green-700'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                {f === 'weekly' ? '📅 Weekly' : '🗓️ Monthly'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Address */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Address</label>
-          {loadingAddr ? (
-            <div className="flex items-center gap-2 text-sm text-gray-500"><Spinner size="sm" /> Loading addresses…</div>
-          ) : addresses.length === 0 ? (
-            <p className="text-sm text-amber-600">
-              No saved addresses.{' '}
-              <Link to="/profile" className="underline">Add one in Profile</Link>.
-            </p>
-          ) : (
-            <select
-              value={addressId}
-              onChange={e => setAddressId(Number(e.target.value))}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              {addresses.map(a => (
-                <option key={a.id} value={a.id}>
-                  {a.label} — {a.street}, {a.city}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
-          <textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="E.g. no onions, extra tomatoes..."
-            rows={2}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-          />
-        </div>
-
-        <p className="text-xs text-gray-400 bg-gray-50 rounded-xl p-3">
-          🌱 Your first box will be dispatched within 7 days. You can pause or cancel anytime from this page.
-        </p>
-      </div>
-    </Modal>
   )
 }

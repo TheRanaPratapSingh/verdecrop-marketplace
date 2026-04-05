@@ -12,6 +12,7 @@ import { SEO } from '../components/SEO'
 import type { Category, Product } from '../types'
 import toast from 'react-hot-toast'
 import { HeroSlider } from '../components/HeroSlider'
+import { SubscriptionBanner } from '../components/SubscriptionBanner'
 
 // Category highlight cards (static, curated)
 // nameKeyword is matched against real category names loaded from the API
@@ -246,6 +247,9 @@ const HomePage: React.FC = () => {
         </div>
         <ProductGrid products={featured} loading={loading} />
       </section>
+
+      {/* ── SUBSCRIPTION BANNER ──────────────────────────────────────────────── */}
+      <SubscriptionBanner />
 
       {/* ── TRUST SECTION ────────────────────────────────────────────────────── */}
       <section className="bg-white border-y border-stone-100 py-16">
