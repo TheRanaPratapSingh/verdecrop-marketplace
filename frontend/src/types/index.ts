@@ -206,6 +206,19 @@ export interface Cart {
   itemCount: number
 }
 
+// ── Guest Cart (localStorage, no auth required) ───────────────────────────────
+export interface GuestCartItem {
+  productId: number
+  productName: string
+  price: number
+  originalPrice?: number
+  imageUrl?: string
+  unit: string
+  quantity: number
+  stockQuantity: number
+  slug: string
+}
+
 export interface Address {
   id: number
   label: string

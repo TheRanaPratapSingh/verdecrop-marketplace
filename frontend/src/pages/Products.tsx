@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom'
 import { Filter, SlidersHorizontal, X, Star, Heart, ShoppingCart, Leaf, ChevronLeft, ChevronRight, MapPin, ChevronDown, Sparkles } from 'lucide-react'
-import { productApi, categoryApi, cartApi } from '../services/api'
+import { productApi, categoryApi, cartApi, wishlistApi } from '../services/api'
 import { resolveAssetUrl, resolveLocalUrl, resolveProductImage } from '../lib/image'
 import { PageLayout } from '../components/layout'
 import { ProductGrid, CategoryIcon } from '../components/product'
 import { SEO } from '../components/SEO'
 import { Button, Badge, Spinner, Pagination, PriceDisplay, StarRating, EmptyState } from '../components/ui'
-import { useCartStore, useAuthStore } from '../store'
+import { useCartStore, useAuthStore, useWishlistStore } from '../store'
 import type { Product, Category } from '../types'
 import toast from 'react-hot-toast'
 import { trackEvent } from '../lib/analytics'
@@ -243,9 +243,16 @@ export const ProductDetailPage: React.FC = () => {
   const [buyingNow, setBuyingNow] = useState(false)
   const [activeImg, setActiveImg] = useState(0)
   const [wishlisted, setWishlisted] = useState(false)
+  const [wishlistLoading, setWishlistLoading] = useState(false)
   const [openSection, setOpenSection] = useState<'details' | 'nutrition' | 'story'>('details')
   const { setCart, openCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
+  const { isWishlisted, addId, removeId } = useWishlistStore()
+
+  // Sync wishlisted from store when product loads
+  useEffect(() => {
+    if (product) setWishlisted(isWishlisted(product.id))
+  }, [product, isWishlisted])
 
   useEffect(() => {
     if (!slug) return
@@ -444,8 +451,26 @@ export const ProductDetailPage: React.FC = () => {
               </div>
               <button
                 title="Add to wishlist"
-                onClick={() => setWishlisted(v => !v)}
-                className="w-11 h-11 rounded-2xl border border-stone-200 hover:border-red-300 hover:bg-red-50 transition"
+                disabled={wishlistLoading}
+                onClick={async () => {
+                  if (!isAuthenticated) { toast.error('Please login to save to wishlist'); return }
+                  if (!product || wishlistLoading) return
+                  setWishlistLoading(true)
+                  const nowWishlisted = isWishlisted(product.id)
+                  // Optimistic
+                  if (nowWishlisted) { removeId(product.id); setWishlisted(false) }
+                  else { addId(product.id); setWishlisted(true) }
+                  try {
+                    if (nowWishlisted) { await wishlistApi.remove(product.id); toast.success('Removed from wishlist') }
+                    else { await wishlistApi.add(product.id); toast.success(`${product.name} saved!`, { icon: '❤️' }) }
+                  } catch {
+                    // Revert
+                    if (nowWishlisted) { addId(product.id); setWishlisted(true) }
+                    else { removeId(product.id); setWishlisted(false) }
+                    toast.error('Could not update wishlist')
+                  } finally { setWishlistLoading(false) }
+                }}
+                className="w-11 h-11 rounded-2xl border border-stone-200 hover:border-red-300 hover:bg-red-50 transition disabled:opacity-60"
               >
                 <Heart className={`w-5 h-5 mx-auto transition-colors ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} />
               </button>

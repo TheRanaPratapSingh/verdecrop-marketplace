@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus, RefreshCw, Gift } from 'lucide-react'
-import { useAuthStore, useCartStore, useNotifStore } from '../../store'
-import { cartApi } from '../../services/api'
+import { useAuthStore, useCartStore, useNotifStore, useGuestCartStore, useWishlistStore } from '../../store'
+import { cartApi, wishlistApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
 import { resolveAssetUrl } from '../../lib/image'
 
@@ -10,6 +10,8 @@ export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore()
   const { cart, setCart, openCart, itemCount } = useCartStore()
   const { unreadCount } = useNotifStore()
+  const guestCount = useGuestCartStore(s => s.items.reduce((sum, i) => sum + i.quantity, 0))
+  const badgeCount = isAuthenticated ? itemCount() : guestCount
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -32,18 +34,26 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', fn)
   }, [])
 
-  useEffect(() => { if (isAuthenticated) cartApi.get().then(setCart).catch(() => {}) }, [isAuthenticated])
+  const { setWishlist, clearWishlist } = useWishlistStore()
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      cartApi.get().then(setCart).catch(() => {})
+      wishlistApi.getAll().then(items => setWishlist(items.map(p => p.id))).catch(() => {})
+    } else {
+      clearWishlist()
+    }
+  }, [isAuthenticated])
   useEffect(() => { setMobileOpen(false); setUserMenuOpen(false) }, [location.pathname])
 
   // Cart badge bump animation when item is added
   useEffect(() => {
-    const count = itemCount()
-    if (count > prevItemCount.current) {
+    if (badgeCount > prevItemCount.current) {
       setCartBump(true)
       setTimeout(() => setCartBump(false), 400)
     }
-    prevItemCount.current = count
-  }, [itemCount()])
+    prevItemCount.current = badgeCount
+  }, [badgeCount])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -169,28 +179,30 @@ export const Navbar: React.FC = () => {
               </button>
             )}
 
+            {/* Cart — always visible to non-farmer users */}
+            {!isFarmer && (
+              <button
+                onClick={() => isAuthenticated ? openCart() : navigate('/login')}
+                className="relative p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
+                aria-label="Cart"
+              >
+                <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
+                {badgeCount > 0 && (
+                  <span
+                    className={`absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center px-1 transition-transform duration-200 ${
+                      cartBump ? 'scale-125' : 'scale-100'
+                    }`}
+                  >
+                    {badgeCount > 9 ? '9+' : badgeCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             {isAuthenticated ? (
               <>
                 {!isFarmer && (
                   <>
-                    {/* Cart */}
-                    <button
-                      onClick={openCart}
-                      className="relative p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
-                      aria-label="Cart"
-                    >
-                      <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
-                      {itemCount() > 0 && (
-                        <span
-                          className={`absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center px-1 transition-transform duration-200 ${
-                            cartBump ? 'scale-125' : 'scale-100'
-                          }`}
-                        >
-                          {itemCount() > 9 ? '9+' : itemCount()}
-                        </span>
-                      )}
-                    </button>
-
                     {/* Notifications */}
                     <Link
                       to="/notifications"
@@ -304,9 +316,6 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center gap-2 ml-1">
                 <Link to="/login">
                   <Button variant="ghost" size="sm" className="text-[13px] font-label font-semibold">Log in</Button>
-                </Link>
-                <Link to="/register" className="hidden sm:block">
-                  <Button variant="primary" size="sm" className="text-[13px] px-5">Sign up</Button>
                 </Link>
               </div>
             )}
@@ -433,7 +442,6 @@ export const Navbar: React.FC = () => {
             ) : (
               <div className="border-t border-stone-100 px-4 py-3 flex gap-2">
                 <Link to="/login" onClick={() => setMobileOpen(false)} className="flex-1 text-center px-4 py-2.5 text-[13px] font-label font-semibold text-stone-700 border border-stone-200 rounded-xl hover:bg-stone-50 transition-all">Log in</Link>
-                <Link to="/register" onClick={() => setMobileOpen(false)} className="flex-1 text-center px-4 py-2.5 text-[13px] font-label font-semibold text-white bg-forest-700 rounded-xl hover:bg-forest-600 transition-all">Sign up</Link>
               </div>
             )}
           </div>

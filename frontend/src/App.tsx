@@ -1,10 +1,11 @@
 // ── App.tsx ───────────────────────────────────────────────────────────────────
-import React, { Suspense, lazy, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import React, { Suspense, lazy, useEffect, useState, useCallback } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { useAuthStore } from './store'
-import { Spinner } from './components/ui'
+import { useAuthStore, useCartStore } from './store'
+import { Spinner, IdleWarningModal } from './components/ui'
 import { trackPageView } from './lib/analytics'
+import { useIdleTimer } from './hooks/useIdleTimer'
 
 const HomePage            = lazy(() => import('./pages/Home'))
 const ProductsPage        = lazy(() => import('./pages/Products').then(m => ({ default: m.ProductsPage })))
@@ -88,6 +89,26 @@ const RequireGuest: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // ── This inner component can safely use useLocation ──────────────────────────
 const AppRoutes: React.FC = () => {
   const location = useLocation()
+  const navigate  = useNavigate()
+  const { isAuthenticated, logout } = useAuthStore()
+  const { setCart } = useCartStore()
+  const [showIdleWarning, setShowIdleWarning] = useState(false)
+
+  const handleWarn    = useCallback(() => setShowIdleWarning(true),  [])
+  const handleActivity = useCallback(() => setShowIdleWarning(false), [])
+  const handleLogout  = useCallback(() => {
+    setShowIdleWarning(false)
+    logout()
+    setCart(null)
+    navigate('/login', { replace: true })
+  }, [logout, setCart, navigate])
+
+  useIdleTimer({
+    enabled: isAuthenticated,
+    onWarn:     handleWarn,
+    onLogout:   handleLogout,
+    onActivity: handleActivity,
+  })
 
   useEffect(() => {
     trackPageView(location.pathname)
@@ -96,6 +117,11 @@ const AppRoutes: React.FC = () => {
   return (
     <>
       <ScrollTop />
+      <IdleWarningModal
+        isOpen={showIdleWarning}
+        onStayLoggedIn={handleActivity}
+        onLogoutNow={handleLogout}
+      />
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route path="/"                element={<HomePage />} />

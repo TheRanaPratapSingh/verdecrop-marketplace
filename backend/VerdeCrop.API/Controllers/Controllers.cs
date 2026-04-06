@@ -717,6 +717,15 @@ namespace VerdeCrop.API.Controllers
             await _cart.ClearCartAsync(CurrentUserId);
             return Ok(ApiResponse.Ok(true));
         }
+
+        [HttpPost("merge")]
+        public async Task<IActionResult> MergeGuestCart([FromBody] MergeCartRequest req)
+        {
+            if (req.Items == null || req.Items.Count == 0)
+                return Ok(ApiResponse.Ok(await _cart.GetCartAsync(CurrentUserId)));
+            var cart = await _cart.MergeGuestCartAsync(CurrentUserId, req.Items);
+            return Ok(ApiResponse.Ok(cart));
+        }
     }
 
     // ── Orders ────────────────────────────────────────────────────────────────

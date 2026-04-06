@@ -128,6 +128,7 @@ namespace VerdeCrop.Application.Interfaces
         Task<CartDto?> UpdateItemAsync(int userId, int itemId, decimal quantity);
         Task<CartDto?> RemoveItemAsync(int userId, int itemId);
         Task<bool> ClearCartAsync(int userId);
+        Task<CartDto?> MergeGuestCartAsync(int userId, List<MergeCartItem> items);
     }
 
     public interface IWishlistService

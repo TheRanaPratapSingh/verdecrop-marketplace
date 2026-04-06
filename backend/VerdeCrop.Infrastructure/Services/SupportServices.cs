@@ -76,6 +76,16 @@ namespace VerdeCrop.Infrastructure.Services
             return true;
         }
 
+        public async Task<CartDto?> MergeGuestCartAsync(int userId, List<MergeCartItem> items)
+        {
+            foreach (var item in items)
+            {
+                if (item.Quantity > 0)
+                    await AddItemAsync(userId, new AddToCartRequest(item.ProductId, item.Quantity));
+            }
+            return await GetCartAsync(userId);
+        }
+
         private async Task<Cart> GetOrCreateCartAsync(int userId)
         {
             var cart = await _uow.Carts.Query()

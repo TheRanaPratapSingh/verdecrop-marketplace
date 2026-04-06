@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, ShoppingCart, Leaf, Star, Minus, Plus } from 'lucide-react'
+import { ShoppingCart, Leaf, Star, Minus, Plus } from 'lucide-react'
 import { useAuthStore, useCartStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner } from '../ui'
 import type { Product, Category } from '../../types'
 import toast from 'react-hot-toast'
 import { resolveAssetUrl, resolveLocalUrl, resolveCategoryIcon, resolveProductImage } from '../../lib/image'
+import { WishlistButton } from './WishlistButton'
 
 
 // ── Shared helper: renders category icon correctly regardless of format ────────
@@ -64,7 +65,6 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const { cart, setCart, openCart } = useCartStore()
   const [adding, setAdding] = useState(false)
   const [updating, setUpdating] = useState(false)
-  const [wishlisted, setWishlisted] = useState(false)
 
   // Derive current quantity from cart store
   const cartItem = cart?.items.find(i => i.productId === product.id)
@@ -164,12 +164,14 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
           </div>
 
           {/* Wishlist */}
-          <button
-            onClick={e => { e.preventDefault(); setWishlisted(v => !v) }}
-            className="absolute top-2.5 right-2.5 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
-          >
-            <Heart className={`w-4 h-4 transition-colors ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} strokeWidth={1.8} />
-          </button>
+          {isAuthenticated && (
+            <WishlistButton
+              productId={product.id}
+              productName={product.name}
+              size="sm"
+              className="absolute top-2.5 right-2.5 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110"
+            />
+          )}
 
           {/* Out of stock */}
           {product.stockQuantity === 0 && (
@@ -303,3 +305,4 @@ export const CategoryCard: React.FC<{ category: Category }> = ({ category }) => 
 
 export { CategorySection } from './CategorySection'
 export type { CategorySectionProps } from './CategorySection'
+export { WishlistButton } from './WishlistButton'

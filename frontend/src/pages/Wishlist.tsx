@@ -7,7 +7,7 @@ import { Badge, Button, Card, EmptyState, Spinner } from '../components/ui'
 import { cartApi, wishlistApi } from '../services/api'
 import { resolveAssetUrl } from '../lib/image'
 import type { WishlistItem } from '../types'
-import { useCartStore } from '../store'
+import { useCartStore, useWishlistStore } from '../store'
 
 export const WishlistPage: React.FC = () => {
   const [items, setItems] = useState<WishlistItem[]>([])
@@ -15,12 +15,14 @@ export const WishlistPage: React.FC = () => {
   const [removingId, setRemovingId] = useState<number | null>(null)
   const [addingId, setAddingId] = useState<number | null>(null)
   const { setCart, openCart } = useCartStore()
+  const { setWishlist, removeId } = useWishlistStore()
 
   const loadWishlist = async () => {
     setLoading(true)
     try {
       const data = await wishlistApi.getAll()
       setItems(data)
+      setWishlist(data.map(p => p.id))
     } catch {
       toast.error('Failed to load wishlist')
     } finally {
@@ -37,6 +39,7 @@ export const WishlistPage: React.FC = () => {
     try {
       await wishlistApi.remove(productId)
       setItems(prev => prev.filter(item => item.id !== productId))
+      removeId(productId)
       toast.success('Removed from wishlist')
     } catch {
       toast.error('Failed to remove item')
