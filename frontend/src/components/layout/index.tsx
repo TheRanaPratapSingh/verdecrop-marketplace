@@ -4,7 +4,6 @@ import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, Layout
 import { useAuthStore, useCartStore, useNotifStore, useGuestCartStore, useWishlistStore } from '../../store'
 import { cartApi, wishlistApi } from '../../services/api'
 import toast from 'react-hot-toast'
-import type { CartItem } from '../../types'
 import { Spinner, Button } from '../ui'
 import { resolveAssetUrl } from '../../lib/image'
 
@@ -209,7 +208,7 @@ export const Navbar: React.FC = () => {
             {/* Cart — always visible to non-farmer users */}
             {!isFarmer && (
               <button
-                onClick={() => isAuthenticated ? openCart() : navigate('/login')}
+                onClick={() => openCart()}
                 className="relative p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
                 aria-label="Cart"
               >
@@ -511,12 +510,39 @@ export const Navbar: React.FC = () => {
 export const CartDrawer: React.FC = () => {
   const { cart, isOpen, closeCart, setCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
+  const { items: guestItems, updateItem: updateGuestItem, removeItem: removeGuestItem } = useGuestCartStore()
   const navigate = useNavigate()
   const [removing, setRemoving] = useState<number | null>(null)
   const [updating, setUpdating] = useState<number | null>(null)
   if (!isOpen) return null
 
+  // Use auth cart or guest cart depending on auth state
+  const displayItems = isAuthenticated
+    ? (cart?.items ?? [])
+    : guestItems.map(g => ({
+        id: g.productId,
+        productId: g.productId,
+        productName: g.productName,
+        price: g.price,
+        quantity: g.quantity,
+        total: g.price * g.quantity,
+        imageUrl: g.imageUrl,
+        unit: g.unit,
+        stockQuantity: g.stockQuantity,
+        slug: g.slug,
+      }))
+  const displaySubtotal = isAuthenticated
+    ? (cart?.subtotal ?? 0)
+    : guestItems.reduce((s, i) => s + i.price * i.quantity, 0)
+  const displayItemCount = isAuthenticated
+    ? (cart?.itemCount ?? 0)
+    : guestItems.reduce((s, i) => s + i.quantity, 0)
+
   const handleRemove = async (itemId: number) => {
+    if (!isAuthenticated) {
+      removeGuestItem(itemId)
+      return
+    }
     if (!cart) return
     // Optimistic update: remove item from local state immediately
     const optimistic: typeof cart = {
@@ -541,7 +567,13 @@ export const CartDrawer: React.FC = () => {
     }
   }
 
-  const handleUpdateQty = async (item: CartItem, newQty: number) => {
+  const handleUpdateQty = async (item: typeof displayItems[number], newQty: number) => {
+    if (!isAuthenticated) {
+      if (newQty <= 0) { removeGuestItem(item.productId); return }
+      if (newQty > item.stockQuantity) { toast.error(`Only ${item.stockQuantity} ${item.unit} available`); return }
+      updateGuestItem(item.productId, newQty)
+      return
+    }
     if (!cart) return
     if (newQty <= 0) { handleRemove(item.id); return }
     if (newQty > item.stockQuantity) { toast.error(`Only ${item.stockQuantity} ${item.unit} available`); return }
@@ -562,9 +594,9 @@ export const CartDrawer: React.FC = () => {
     }
   }
 
-  const delivery = (cart?.subtotal ?? 0) >= 500 ? 0 : 49
-  const total = (cart?.subtotal ?? 0) + delivery
-  const freeLeft = Math.max(0, 500 - (cart?.subtotal ?? 0))
+  const delivery = displaySubtotal >= 500 ? 0 : 49
+  const total = displaySubtotal + delivery
+  const freeLeft = Math.max(0, 500 - displaySubtotal)
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -573,18 +605,18 @@ export const CartDrawer: React.FC = () => {
         <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100">
           <div>
             <h2 className="font-display text-2xl font-semibold text-stone-900">Your Cart</h2>
-            {(cart?.itemCount ?? 0) > 0 && <p className="text-xs text-stone-400 font-body mt-0.5">{cart?.itemCount} item{(cart?.itemCount ?? 0) > 1 ? 's' : ''}</p>}
+              {displayItemCount > 0 && <p className="text-xs text-stone-400 font-body mt-0.5">{displayItemCount} item{displayItemCount > 1 ? 's' : ''}</p>}
           </div>
           <button onClick={closeCart} className="p-2 hover:bg-stone-100 rounded-xl transition-colors text-stone-400"><X className="w-5 h-5" /></button>
         </div>
 
-        {(cart?.subtotal ?? 0) > 0 && (
+        {displaySubtotal > 0 && (
           <div className="mx-6 mt-4 p-3.5 bg-forest-50 rounded-2xl border border-forest-100">
             {freeLeft > 0 ? (
               <>
                 <p className="text-xs font-label font-medium text-forest-700">Add ₹{freeLeft.toFixed(0)} more for <span className="font-bold">free delivery</span></p>
                 <div className="mt-2 h-1.5 bg-forest-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-forest-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((cart?.subtotal ?? 0) / 500) * 100)}%` }} />
+                  <div className="h-full bg-forest-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (displaySubtotal / 500) * 100)}%` }} />
                 </div>
               </>
             ) : (
@@ -594,7 +626,7 @@ export const CartDrawer: React.FC = () => {
         )}
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
-          {!cart?.items?.length ? (
+          {!displayItems.length ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
               <div className="w-20 h-20 bg-stone-100 rounded-3xl flex items-center justify-center mb-5">
                 <ShoppingCart className="w-8 h-8 text-stone-300" strokeWidth={1.5} />
@@ -603,7 +635,7 @@ export const CartDrawer: React.FC = () => {
               <p className="text-sm text-stone-400 font-body mt-1.5 mb-6">Discover our fresh organic produce</p>
               <Button onClick={() => { closeCart(); navigate('/products') }} variant="primary" size="sm" className="gap-2">Browse Products <ArrowRight className="w-4 h-4" /></Button>
             </div>
-          ) : cart.items.map(item => (
+          ) : displayItems.map(item => (
               <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
               <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
                 {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
@@ -641,15 +673,15 @@ export const CartDrawer: React.FC = () => {
           ))}
         </div>
 
-        {(cart?.items?.length ?? 0) > 0 && (
+        {displayItems.length > 0 && (
           <div className="border-t border-stone-100 px-6 py-5 space-y-4">
             <div className="space-y-2 text-sm font-body">
-              <div className="flex justify-between text-stone-500"><span>Subtotal</span><span>₹{cart?.subtotal?.toFixed(0)}</span></div>
+              <div className="flex justify-between text-stone-500"><span>Subtotal</span><span>₹{displaySubtotal.toFixed(0)}</span></div>
               <div className="flex justify-between text-stone-500"><span>Delivery</span><span className={delivery === 0 ? 'text-forest-600 font-semibold' : ''}>{delivery === 0 ? 'Free' : `₹${delivery}`}</span></div>
               <div className="flex justify-between font-label font-bold text-stone-900 text-base pt-2 border-t border-stone-100"><span>Total</span><span>₹{total.toFixed(0)}</span></div>
             </div>
             <Button onClick={() => { closeCart(); navigate(isAuthenticated ? '/checkout' : '/login') }} variant="primary" className="w-full justify-center py-3.5" size="md">
-              Checkout · ₹{total.toFixed(0)} <ArrowRight className="w-4 h-4" />
+              {isAuthenticated ? `Checkout · ₹${total.toFixed(0)}` : 'Login to Checkout'} <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         )}

@@ -563,23 +563,40 @@ namespace VerdeCrop.Infrastructure.Services
         {
             var now = DateTime.UtcNow;
             var monthStart = new DateTime(now.Year, now.Month, 1);
+            var sixMonthsAgo = now.AddMonths(-6);
 
             var totalUsers = await _uow.Users.Query().CountAsync(u => u.Role == "user");
             var totalFarmers = await _uow.FarmerProfiles.Query().CountAsync();
             var totalProducts = await _uow.Products.Query().CountAsync(p => p.IsActive);
             var totalOrders = await _uow.Orders.Query().CountAsync();
-            var totalRevenue = await _uow.Orders.Query().Where(o => o.PaymentStatus == "paid").SumAsync(o => o.TotalAmount);
+            var totalRevenue = await _uow.Orders.Query()
+                .Where(o => o.PaymentStatus == "paid")
+                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0m;
             var monthlyRevenue = await _uow.Orders.Query()
-                .Where(o => o.PaymentStatus == "paid" && o.CreatedAt >= monthStart).SumAsync(o => o.TotalAmount);
+                .Where(o => o.PaymentStatus == "paid" && o.CreatedAt >= monthStart)
+                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0m;
             var pendingOrders = await _uow.Orders.Query().CountAsync(o => o.Status == "pending");
             var pendingFarmers = await _uow.FarmerProfiles.Query().CountAsync(f => !f.IsApproved);
 
-            var revenueChart = await _uow.Orders.Query()
-                .Where(o => o.PaymentStatus == "paid" && o.CreatedAt >= now.AddMonths(-6))
+            // Use anonymous type in Select so EF Core can translate to SQL,
+            // then project to RevenueDataPoint after materialisation.
+            var revenueRaw = await _uow.Orders.Query()
+                .Where(o => o.PaymentStatus == "paid" && o.CreatedAt >= sixMonthsAgo)
                 .GroupBy(o => new { o.CreatedAt.Year, o.CreatedAt.Month })
-                .Select(g => new RevenueDataPoint(
-                    $"{g.Key.Year}-{g.Key.Month:D2}", g.Sum(o => o.TotalAmount), g.Count()))
-                .OrderBy(r => r.Label).ToListAsync();
+                .Select(g => new
+                {
+                    g.Key.Year,
+                    g.Key.Month,
+                    Revenue = g.Sum(o => o.TotalAmount),
+                    Orders  = g.Count(),
+                })
+                .OrderBy(r => r.Year).ThenBy(r => r.Month)
+                .ToListAsync();
+
+            var revenueChart = revenueRaw
+                .Select(r => new RevenueDataPoint(
+                    $"{r.Year}-{r.Month:D2}", r.Revenue, r.Orders))
+                .ToList();
 
             return new DashboardStatsDto(totalUsers, totalFarmers, totalProducts, totalOrders,
                 totalRevenue, monthlyRevenue, pendingOrders, pendingFarmers, revenueChart);

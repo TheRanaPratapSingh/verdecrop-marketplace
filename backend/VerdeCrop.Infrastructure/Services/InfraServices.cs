@@ -347,15 +347,17 @@ namespace VerdeCrop.Infrastructure.Services
     // ── Azure Blob Storage ────────────────────────────────────────────────────
     public class AzureBlobStorageService : IStorageService
     {
-#pragma warning disable CS0649 // Fields intentionally unassigned — Azure Blob not yet wired
         private readonly BlobServiceClient? _client;
         private readonly string? _containerName;
-#pragma warning restore CS0649
 
         public AzureBlobStorageService(IConfiguration config)
         {
-            //_client = new BlobServiceClient(config["Azure:BlobStorage:ConnectionString"]);
-            //_containerName = config["Azure:BlobStorage:ContainerName"] ?? "verdecrop";
+            var connStr = config["Azure:BlobStorage:ConnectionString"];
+            if (!string.IsNullOrWhiteSpace(connStr))
+            {
+                _client = new BlobServiceClient(connStr);
+                _containerName = config["Azure:BlobStorage:ContainerName"] ?? "verdecrop";
+            }
         }
 
         public async Task<string> UploadAsync(Stream fileStream, string fileName, string folder)

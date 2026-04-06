@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ShoppingCart, Leaf, Star, Minus, Plus } from 'lucide-react'
-import { useAuthStore, useCartStore } from '../../store'
+import { useAuthStore, useCartStore, useGuestCartStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner } from '../ui'
 import type { Product, Category } from '../../types'
@@ -62,13 +62,15 @@ export const CategoryIcon: React.FC<{
 // ── ProductCard ───────────────────────────────────────────────────────────────
 export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const { isAuthenticated } = useAuthStore()
-  const { cart, setCart, openCart } = useCartStore()
+  const { cart, setCart } = useCartStore()
+  const { items: guestItems, addItem: addGuestItem, updateItem: updateGuestItem } = useGuestCartStore()
   const [adding, setAdding] = useState(false)
   const [updating, setUpdating] = useState(false)
 
-  // Derive current quantity from cart store
-  const cartItem = cart?.items.find(i => i.productId === product.id)
-  const cartQty = cartItem?.quantity ?? 0
+  // Derive current quantity from whichever cart is active
+  const cartItem = isAuthenticated ? cart?.items.find(i => i.productId === product.id) : null
+  const guestItem = !isAuthenticated ? guestItems.find(i => i.productId === product.id) : null
+  const cartQty = cartItem?.quantity ?? guestItem?.quantity ?? 0
   const productBaseImage = resolveAssetUrl(product.imageUrl) || resolveLocalUrl(product.imageUrl) || resolveProductImage(product.slug, product.name)
   const [imageSrc, setImageSrc] = useState<string | undefined>(productBaseImage)
   const [imageFallbacked, setImageFallbacked] = useState(false)
@@ -87,22 +89,45 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
-    if (!isAuthenticated) { toast.error('Please login to add to cart'); return }
+    if (product.stockQuantity === 0) { toast.error('Out of stock'); return }
+    if (!isAuthenticated) {
+      addGuestItem({
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        imageUrl: product.imageUrl,
+        unit: product.unit,
+        quantity: 1,
+        stockQuantity: product.stockQuantity,
+        slug: product.slug,
+      })
+      toast.success(`${product.name} added!`, {
+        style: { borderRadius: '14px', background: '#175820', color: '#fff' },
+        icon: String.fromCodePoint(0x1F6D2),
+      })
+      return
+    }
     setAdding(true)
     try {
       const updated = await cartApi.addItem(product.id, 1)
       setCart(updated)
       toast.success(`${product.name} added!`, {
         style: { borderRadius: '14px', background: '#175820', color: '#fff' },
-        icon: '🛒'
+        icon: String.fromCodePoint(0x1F6D2),
       })
-      openCart()
     } catch { toast.error('Could not add to cart') }
     finally { setAdding(false) }
   }
 
   const handleIncrease = async (e: React.MouseEvent) => {
     e.preventDefault()
+    if (!isAuthenticated) {
+      if (!guestItem) return
+      if (guestItem.quantity >= product.stockQuantity) { toast.error('Max stock reached'); return }
+      updateGuestItem(product.id, guestItem.quantity + 1)
+      return
+    }
     if (!cartItem) return
     setUpdating(true)
     try {
@@ -114,6 +139,11 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   const handleDecrease = async (e: React.MouseEvent) => {
     e.preventDefault()
+    if (!isAuthenticated) {
+      if (!guestItem) return
+      updateGuestItem(product.id, guestItem.quantity - 1)
+      return
+    }
     if (!cartItem) return
     setUpdating(true)
     try {

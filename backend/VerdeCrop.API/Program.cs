@@ -14,8 +14,8 @@ using VerdeCrop.Application.Interfaces;
 using VerdeCrop.Application.Services;
 using VerdeCrop.Infrastructure.Data;
 using VerdeCrop.Infrastructure.Repositories;
+using VerdeCrop.API.Services;
 using VerdeCrop.Infrastructure.Services;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Serilog ───────────────────────────────────────────────────────────────────
@@ -158,7 +158,13 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISmsService, SmsService>();
-builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
+// Use LocalFileStorageService when Azure Blob is not configured; swap to
+// AzureBlobStorageService by setting Azure:BlobStorage:ConnectionString in config.
+var azureConnStr = builder.Configuration["Azure:BlobStorage:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(azureConnStr))
+    builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
+else
+    builder.Services.AddScoped<IStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<IFirebaseService, FirebaseService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -281,6 +287,14 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 app.UseHttpsRedirection();
+
+// ── Static files (serves wwwroot/uploads/ for locally-stored images) ──────────
+var wwwRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+if (!Directory.Exists(wwwRoot)) Directory.CreateDirectory(wwwRoot);
+var uploadsDir = Path.Combine(wwwRoot, "uploads");
+if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+app.UseStaticFiles();
+
 app.UseCors("AllowFrontend");  // ← Must be before UseAuthentication
 app.UseAuthentication();
 app.UseAuthorization();

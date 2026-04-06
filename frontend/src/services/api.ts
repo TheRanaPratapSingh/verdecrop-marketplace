@@ -97,7 +97,9 @@ export const userApi = {
   updateProfile: (data: { name: string; email?: string; phone?: string }) =>
     unwrap<User>(api.put('/users/me', data)),
   uploadAvatar: (form: FormData) =>
-    unwrap<{ url: string }>(api.post('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } })),
+    unwrap<{ url: string }>(api.post('/users/me/avatar', form, {
+      headers: { 'Content-Type': undefined },  // let browser set multipart boundary automatically
+    })),
   updateFcmToken: (token: string) =>
     unwrap<boolean>(api.put('/users/me/fcm-token', { token })),
   getAddresses: () => unwrap<Address[]>(api.get('/users/me/addresses')),
@@ -141,7 +143,7 @@ export const farmerApi = {
   delete: (id: number) => unwrap<boolean>(api.delete(`/farmers/${id}`)),
   approve: (id: number, approve: boolean) => unwrap<boolean>(api.put(`/farmers/${id}/approve`, approve)),
   uploadPhoto: (id: number, form: FormData) =>
-    unwrap<{ url: string }>(api.post(`/farmers/${id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
+    unwrap<{ url: string }>(api.post(`/farmers/${id}/photo`, form, { headers: { 'Content-Type': undefined } })),
   setPremium: (id: number, plan: string, expiresAt?: string | null) =>
     unwrap<Farmer>(api.put(`/farmers/${id}/premium`, { plan, expiresAt: expiresAt ?? null })),
   getWomenLed: () => unwrap<Farmer[]>(api.get('/farmers/women-led')),
@@ -161,7 +163,7 @@ export const productApi = {
   update: (id: number, data: object) => unwrap<Product>(api.put(`/products/${id}`, data)),
   delete: (id: number) => unwrap<boolean>(api.delete(`/products/${id}`)),
   uploadImage: (id: number, form: FormData) =>
-    unwrap<{ url: string }>(api.post(`/products/${id}/images`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
+    unwrap<{ url: string }>(api.post(`/products/${id}/images`, form, { headers: { 'Content-Type': undefined } })),
   // Seller endpoints
   getMyProducts: (params?: { page?: number; pageSize?: number }) =>
     unwrap<PagedResult<SellerProduct>>(api.get('/products/seller/my', { params })),

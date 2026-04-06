@@ -7,7 +7,7 @@ import { PageLayout } from '../components/layout'
 import { ProductGrid, CategoryIcon } from '../components/product'
 import { SEO } from '../components/SEO'
 import { Button, Badge, Spinner, Pagination, PriceDisplay, StarRating, EmptyState } from '../components/ui'
-import { useCartStore, useAuthStore, useWishlistStore } from '../store'
+import { useCartStore, useAuthStore, useWishlistStore, useGuestCartStore } from '../store'
 import type { Product, Category } from '../types'
 import toast from 'react-hot-toast'
 import { trackEvent } from '../lib/analytics'
@@ -248,6 +248,7 @@ export const ProductDetailPage: React.FC = () => {
   const { setCart, openCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
   const { isWishlisted, addId, removeId } = useWishlistStore()
+  const { addItem: addGuestItem } = useGuestCartStore()
 
   // Sync wishlisted from store when product loads
   useEffect(() => {
@@ -277,7 +278,27 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleAddToCart = async () => {
     if (!product) return
-    if (!isAuthenticated) { toast.error('Please login to continue'); return }
+    if (!isAuthenticated) {
+      addGuestItem({
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        imageUrl: product.imageUrl,
+        unit: product.unit,
+        quantity: qty * unitPack,
+        stockQuantity: product.stockQuantity,
+        slug: product.slug,
+      })
+      trackEvent('add_to_cart', {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: qty * unitPack,
+        value: product.price * qty * unitPack,
+      })
+      toast.success('Added to cart!', { icon: '🛒' })
+      return
+    }
     setAdding(true)
     try {
       const cart = await cartApi.addItem(product.id, qty * unitPack)
@@ -295,7 +316,28 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleBuyNow = async () => {
     if (!product) return
-    if (!isAuthenticated) { toast.error('Please login to continue'); return }
+    if (!isAuthenticated) {
+      addGuestItem({
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        imageUrl: product.imageUrl,
+        unit: product.unit,
+        quantity: qty * unitPack,
+        stockQuantity: product.stockQuantity,
+        slug: product.slug,
+      })
+      trackEvent('buy_now', {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: qty * unitPack,
+        value: product.price * qty * unitPack,
+      })
+      toast.success('Ready to checkout', { icon: '⚡' })
+      navigate('/checkout')
+      return
+    }
     setBuyingNow(true)
     try {
       const cart = await cartApi.addItem(product.id, qty * unitPack)
