@@ -201,7 +201,7 @@ namespace VerdeCrop.Application.DTOs
 
     // ── Cart ──────────────────────────────────────────────────────────────────
     public record CartDto(int Id, List<CartItemDto> Items, decimal Subtotal, decimal ItemCount);
-    public record CartItemDto(int Id, int ProductId, string ProductName, string? ImageUrl, decimal Price, decimal Quantity, string Unit, decimal Total);
+    public record CartItemDto(int Id, int ProductId, string ProductName, string? ImageUrl, decimal Price, decimal Quantity, string Unit, decimal Total, int StockQuantity);
     public record AddToCartRequest([Required] int ProductId, [Required] decimal Quantity);
     public record UpdateCartItemRequest([Required] decimal Quantity);
     public record MergeCartRequest([Required] List<MergeCartItem> Items);

@@ -25,6 +25,7 @@ export const CheckoutPage: React.FC = () => {
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay')
   const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState('')
   const [discount, setDiscount] = useState(0)
   const [couponLoading, setCouponLoading] = useState(false)
   const [placingOrder, setPlacingOrder] = useState(false)
@@ -39,11 +40,20 @@ export const CheckoutPage: React.FC = () => {
   }, [])
 
   if (!cart?.items?.length) {
-    return <PageLayout><div className="max-w-2xl mx-auto px-6 py-20 text-center">
-      <ShoppingCart className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-      <h2 className="text-xl font-display font-bold text-gray-700 mb-2">Your cart is empty</h2>
-      <Link to="/products"><Button>Browse Products</Button></Link>
-    </div></PageLayout>
+    return (
+      <PageLayout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center px-6 py-20 text-center">
+          <div className="w-24 h-24 rounded-3xl bg-stone-100 flex items-center justify-center mb-6 shadow-card">
+            <ShoppingCart className="w-10 h-10 text-stone-300" strokeWidth={1.5} />
+          </div>
+          <h2 className="text-2xl font-display font-bold text-stone-800 mb-2">Your cart is empty</h2>
+          <p className="text-stone-400 font-body text-sm mb-8">Add some fresh organic produce to get started</p>
+          <Link to="/products">
+            <Button size="lg" className="gap-2">Browse Products <ChevronRight className="w-4 h-4" /></Button>
+          </Link>
+        </div>
+      </PageLayout>
+    )
   }
 
   const subtotal = cart.subtotal
@@ -57,14 +67,17 @@ export const CheckoutPage: React.FC = () => {
     try {
       const res = await orderApi.applyCoupon(couponCode, subtotal)
       setDiscount(res.discountAmount)
-      trackEvent('coupon_applied', {
-        coupon_code: couponCode.trim(),
-        discount_amount: res.discountAmount,
-        subtotal,
-      })
+      setAppliedCoupon(couponCode.trim())
+      trackEvent('coupon_applied', { coupon_code: couponCode.trim(), discount_amount: res.discountAmount, subtotal })
       toast.success(`Coupon applied! You save ₹${res.discountAmount.toFixed(0)}`)
     } catch { toast.error('Invalid or expired coupon') }
     finally { setCouponLoading(false) }
+  }
+
+  const removeCoupon = () => {
+    setDiscount(0)
+    setAppliedCoupon('')
+    setCouponCode('')
   }
 
   const handlePlaceOrder = async () => {
@@ -102,22 +115,14 @@ export const CheckoutPage: React.FC = () => {
               razorpaySignature: response.razorpay_signature,
               orderId: order!.id
             })
-            trackEvent('payment_success', {
-              order_id: order.id,
-              payment_method: 'razorpay',
-              total_amount: order.totalAmount,
-            })
+            trackEvent('payment_success', { order_id: order.id, payment_method: 'razorpay', total_amount: order.totalAmount })
             navigate(`/orders/${order!.id}?success=1`)
           },
           theme: { color: '#267d39' }
         })
         razorpay.open()
       } else {
-        trackEvent('payment_success', {
-          order_id: order.id,
-          payment_method: paymentMethod,
-          total_amount: order.totalAmount,
-        })
+        trackEvent('payment_success', { order_id: order.id, payment_method: paymentMethod, total_amount: order.totalAmount })
         navigate(`/orders/${order!.id}?success=1`)
       }
     } catch (err: unknown) {
@@ -127,157 +132,411 @@ export const CheckoutPage: React.FC = () => {
   }
 
   const steps = [
-    { id: 'address', icon: MapPin, label: 'Address' },
-    { id: 'payment', icon: CreditCard, label: 'Payment' },
-    { id: 'confirm', icon: CheckCircle, label: 'Review' },
+    { id: 'address', icon: MapPin, label: 'Address', num: 1 },
+    { id: 'payment', icon: CreditCard, label: 'Payment', num: 2 },
+    { id: 'confirm', icon: CheckCircle, label: 'Review', num: 3 },
   ]
   const stepIdx = steps.findIndex(s => s.id === step)
+  const selectedAddr = addresses.find(a => a.id === selectedAddress)
 
   return (
     <PageLayout>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-2xl font-display font-bold text-gray-900 mb-6">Checkout</h1>
+      {/* Page background */}
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-cream">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        {/* Progress */}
-        <div className="flex items-center gap-0 mb-8">
-          {steps.map((s, i) => (
-            <React.Fragment key={s.id}>
-              <div
-                onClick={() => i <= stepIdx && setStep(s.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium font-body transition cursor-pointer ${
-                  step === s.id ? 'bg-leaf-600 text-white shadow-sm' :
-                  i < stepIdx ? 'text-leaf-600 hover:bg-leaf-50' : 'text-gray-400 cursor-default'
-                }`}
-              >
-                <s.icon className="w-4 h-4" />{s.label}
-              </div>
-              {i < steps.length - 1 && <ChevronRight className="w-4 h-4 text-gray-300 mx-1" />}
-            </React.Fragment>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left panel */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Address Step */}
-            {step === 'address' && (
-              <Card className="p-6">
-                <h2 className="font-display font-semibold text-gray-900 mb-4 flex items-center gap-2"><MapPin className="w-5 h-5 text-leaf-600" /> Delivery Address</h2>
-                {addresses.length === 0 ? (
-                  <div className="text-center py-8">
-                    <MapPin className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                    <p className="text-gray-500 font-body text-sm mb-3">No saved addresses</p>
-                    <Link to="/profile"><Button size="sm" variant="outline">Add Address</Button></Link>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {addresses.map(addr => (
-                      <label key={addr.id} className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${selectedAddress === addr.id ? 'border-leaf-500 bg-leaf-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                        <input type="radio" className="mt-1 accent-leaf-600" checked={selectedAddress === addr.id} onChange={() => setSelectedAddress(addr.id)} />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-gray-800 font-body">{addr.label}</span>
-                            {addr.isDefault && <Badge variant="green" size="sm">Default</Badge>}
-                          </div>
-                          <p className="text-sm text-gray-600 font-body mt-0.5">{addr.fullName} · {addr.phone}</p>
-                          <p className="text-sm text-gray-500 font-body">{addr.street}, {addr.city}, {addr.state} – {addr.pinCode}</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                <Button className="mt-4" onClick={() => setStep('payment')} disabled={!selectedAddress}>
-                  Continue to Payment <ChevronRight className="w-4 h-4" />
-                </Button>
-              </Card>
-            )}
-
-            {/* Payment Step */}
-            {step === 'payment' && (
-              <Card className="p-6">
-                <h2 className="font-display font-semibold text-gray-900 mb-4 flex items-center gap-2"><CreditCard className="w-5 h-5 text-leaf-600" /> Payment Method</h2>
-                <div className="space-y-3 mb-5">
-                  {[
-                    { id: 'razorpay', label: 'Razorpay', desc: 'Cards, UPI, Net Banking, Wallets', icon: '💳' },
-                    { id: 'cod', label: 'Cash on Delivery', desc: 'Pay when your order arrives', icon: '💵' },
-                  ].map(opt => (
-                    <label key={opt.id} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${paymentMethod === opt.id ? 'border-leaf-500 bg-leaf-50' : 'border-gray-200'}`}>
-                      <input type="radio" className="accent-leaf-600" checked={paymentMethod === opt.id} onChange={() => setPaymentMethod(opt.id as any)} />
-                      <span className="text-xl">{opt.icon}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800 font-body">{opt.label}</p>
-                        <p className="text-xs text-gray-500 font-body">{opt.desc}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                <div className="mb-4">
-                  <label className="text-sm font-medium text-gray-700 font-body">Order Notes (optional)</label>
-                  <textarea
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    placeholder="Any special instructions for delivery…"
-                    className="w-full mt-1.5 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-body focus:outline-none focus:border-leaf-400 resize-none"
-                    rows={2}
-                  />
-                </div>
-                <Button onClick={() => setStep('confirm')}>
-                  Review Order <ChevronRight className="w-4 h-4" />
-                </Button>
-              </Card>
-            )}
-
-            {/* Confirm Step */}
-            {step === 'confirm' && (
-              <Card className="p-6">
-                <h2 className="font-display font-semibold text-gray-900 mb-4 flex items-center gap-2"><CheckCircle className="w-5 h-5 text-leaf-600" /> Review Order</h2>
-                <div className="space-y-3 mb-4">
-                  {cart.items.map(item => (
-                    <div key={item.id} className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
-                        {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-lg">🌿</div>}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-800 font-body">{item.productName}</p>
-                        <p className="text-xs text-gray-500 font-body">{item.quantity} {item.unit}</p>
-                      </div>
-                      <p className="text-sm font-semibold font-body">₹{item.total.toFixed(0)}</p>
-                    </div>
-                  ))}
-                </div>
-                <Button className="w-full" size="lg" loading={placingOrder} onClick={handlePlaceOrder}>
-                  Place Order · ₹{total.toFixed(0)}
-                </Button>
-              </Card>
-            )}
+          {/* Header */}
+          <div className="mb-10">
+            <p className="text-xs font-label font-semibold tracking-widest text-forest-500 uppercase mb-1">Graamo</p>
+            <h1 className="text-3xl sm:text-4xl font-display font-bold text-stone-900 tracking-tight">Checkout</h1>
           </div>
 
-          {/* Order Summary */}
-          <div>
-            <Card className="p-5 sticky top-20">
-              <h3 className="font-display font-semibold text-gray-900 mb-4">Order Summary</h3>
-              {/* Coupon */}
-              <div className="flex gap-2 mb-4">
-                <Input placeholder="VERDE10" value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} className="text-sm" />
-                <Button size="sm" variant="outline" loading={couponLoading} onClick={applyCoupon}>Apply</Button>
-              </div>
-              <div className="space-y-2 text-sm font-body">
-                {[
-                  ['Subtotal', `₹${subtotal.toFixed(0)}`],
-                  ['Delivery', delivery === 0 ? 'Free' : `₹${delivery}`],
-                  ...(discount > 0 ? [['Discount', `-₹${discount.toFixed(0)}`]] : []),
-                  ['Tax (5%)', `₹${tax.toFixed(0)}`],
-                ].map(([label, value]) => (
-                  <div key={label} className={`flex justify-between ${label === 'Discount' ? 'text-leaf-600 font-medium' : 'text-gray-600'}`}>
-                    <span>{label}</span><span>{value}</span>
+          {/* Step Progress Bar */}
+          <div className="flex items-center mb-10">
+            {steps.map((s, i) => {
+              const done = i < stepIdx
+              const active = i === stepIdx
+              return (
+                <React.Fragment key={s.id}>
+                  <button
+                    onClick={() => i <= stepIdx && setStep(s.id as any)}
+                    disabled={i > stepIdx}
+                    className="flex items-center gap-3 group disabled:cursor-not-allowed"
+                  >
+                    <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-sm font-label font-bold transition-all duration-300 ${
+                      done ? 'bg-forest-500 text-white shadow-btn' :
+                      active ? 'bg-forest-600 text-white shadow-btn ring-4 ring-forest-100 scale-110' :
+                      'bg-stone-200 text-stone-400'
+                    }`}>
+                      {done ? <CheckCircle className="w-4 h-4" /> : s.num}
+                    </div>
+                    <span className={`text-sm font-label font-semibold hidden sm:block transition-colors ${
+                      active ? 'text-stone-900' : done ? 'text-forest-600 group-hover:text-forest-700' : 'text-stone-400'
+                    }`}>{s.label}</span>
+                  </button>
+                  {i < steps.length - 1 && (
+                    <div className="flex-1 mx-3 sm:mx-4 h-px relative overflow-hidden rounded-full bg-stone-200">
+                      <div className={`absolute inset-y-0 left-0 bg-forest-400 transition-all duration-500 ${i < stepIdx ? 'w-full' : 'w-0'}`} />
+                    </div>
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </div>
+
+          {/* Main 2-col grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+
+            {/* ── LEFT: Steps ─────────────────────────────────────── */}
+            <div className="lg:col-span-3 space-y-4">
+
+              {/* ── STEP 1: Address ── */}
+              {step === 'address' && (
+                <div className="bg-white rounded-3xl shadow-card border border-stone-100 overflow-hidden animate-fade-up">
+                  <div className="px-7 pt-7 pb-5 border-b border-stone-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-forest-50 flex items-center justify-center">
+                        <MapPin className="w-5 h-5 text-forest-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-display font-bold text-stone-900">Delivery Address</h2>
+                        <p className="text-xs text-stone-400 font-body mt-0.5">Where should we deliver your order?</p>
+                      </div>
+                    </div>
                   </div>
-                ))}
-                <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-100 text-base">
-                  <span>Total</span><span>₹{total.toFixed(0)}</span>
+                  <div className="px-7 py-6">
+                    {addresses.length === 0 ? (
+                      <div className="text-center py-10">
+                        <div className="w-16 h-16 rounded-3xl bg-stone-100 flex items-center justify-center mx-auto mb-4">
+                          <MapPin className="w-7 h-7 text-stone-300" strokeWidth={1.5} />
+                        </div>
+                        <p className="text-stone-600 font-body font-medium mb-1">No saved addresses</p>
+                        <p className="text-stone-400 font-body text-sm mb-5">Add an address to your profile to continue</p>
+                        <Link to="/profile">
+                          <Button size="sm" variant="outline" className="gap-2"><Plus className="w-4 h-4" /> Add Address</Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {addresses.map(addr => (
+                          <label
+                            key={addr.id}
+                            className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${
+                              selectedAddress === addr.id
+                                ? 'border-forest-400 bg-gradient-to-r from-forest-50 to-sage-50 shadow-sm'
+                                : 'border-stone-100 hover:border-stone-200 hover:bg-stone-50/60'
+                            }`}
+                          >
+                            <div className="mt-0.5 flex-shrink-0">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                selectedAddress === addr.id ? 'border-forest-500 bg-forest-500' : 'border-stone-300'
+                              }`}>
+                                {selectedAddress === addr.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                              </div>
+                            </div>
+                            <input type="radio" className="sr-only" checked={selectedAddress === addr.id} onChange={() => setSelectedAddress(addr.id)} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-label font-bold text-stone-800">{addr.label}</span>
+                                {addr.isDefault && (
+                                  <span className="text-[10px] font-label font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-forest-100 text-forest-700">Default</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-stone-600 font-body mt-1 font-medium">{addr.fullName}</p>
+                              <p className="text-sm text-stone-500 font-body">{addr.phone}</p>
+                              <p className="text-sm text-stone-400 font-body mt-0.5">{addr.street}, {addr.city}, {addr.state} – {addr.pinCode}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {addresses.length > 0 && (
+                      <button
+                        onClick={() => setStep('payment')}
+                        disabled={!selectedAddress}
+                        className="mt-6 w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-forest-600 to-forest-500 text-white font-label font-semibold text-sm shadow-btn hover:shadow-btn-hover hover:from-forest-700 hover:to-forest-600 active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                      >
+                        Continue to Payment <ChevronRight className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── STEP 2: Payment ── */}
+              {step === 'payment' && (
+                <div className="space-y-4 animate-fade-up">
+                  {/* Selected address recap */}
+                  {selectedAddr && (
+                    <div className="bg-white rounded-2xl border border-stone-100 shadow-card px-5 py-4 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-forest-50 flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-4 h-4 text-forest-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-label font-semibold text-stone-400 uppercase tracking-wide">Delivering to</p>
+                        <p className="text-sm font-body font-semibold text-stone-800 truncate">{selectedAddr.fullName} · {selectedAddr.street}, {selectedAddr.city}</p>
+                      </div>
+                      <button onClick={() => setStep('address')} className="text-xs font-label font-semibold text-forest-600 hover:text-forest-700 flex-shrink-0">Change</button>
+                    </div>
+                  )}
+
+                  <div className="bg-white rounded-3xl shadow-card border border-stone-100 overflow-hidden">
+                    <div className="px-7 pt-7 pb-5 border-b border-stone-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-forest-50 flex items-center justify-center">
+                          <CreditCard className="w-5 h-5 text-forest-600" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-display font-bold text-stone-900">Payment Method</h2>
+                          <p className="text-xs text-stone-400 font-body mt-0.5">Choose how you'd like to pay</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="px-7 py-6 space-y-3">
+                      {[
+                        { id: 'razorpay', label: 'Pay Online', desc: 'Cards, UPI, Net Banking & Wallets', icon: '⚡', tag: 'Recommended' },
+                        { id: 'cod', label: 'Cash on Delivery', desc: 'Pay when your order arrives', icon: '🪙', tag: '' },
+                      ].map(opt => (
+                        <label
+                          key={opt.id}
+                          className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 ${
+                            paymentMethod === opt.id
+                              ? 'border-forest-400 bg-gradient-to-r from-forest-50 to-sage-50 shadow-sm'
+                              : 'border-stone-100 hover:border-stone-200 hover:bg-stone-50/60'
+                          }`}
+                        >
+                          <div className="mt-0.5 flex-shrink-0">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                              paymentMethod === opt.id ? 'border-forest-500 bg-forest-500' : 'border-stone-300'
+                            }`}>
+                              {paymentMethod === opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                            </div>
+                          </div>
+                          <input type="radio" className="sr-only" checked={paymentMethod === opt.id} onChange={() => setPaymentMethod(opt.id as any)} />
+                          <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center text-xl flex-shrink-0">{opt.icon}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-label font-bold text-stone-800">{opt.label}</p>
+                              {opt.tag && <span className="text-[10px] font-label font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-forest-100 text-forest-700">{opt.tag}</span>}
+                            </div>
+                            <p className="text-xs text-stone-400 font-body mt-0.5">{opt.desc}</p>
+                          </div>
+                        </label>
+                      ))}
+
+                      {/* Notes */}
+                      <div className="pt-2">
+                        <label className="text-xs font-label font-semibold text-stone-500 uppercase tracking-wide block mb-2">Delivery Instructions (optional)</label>
+                        <textarea
+                          value={notes}
+                          onChange={e => setNotes(e.target.value)}
+                          placeholder="e.g. Leave at the door, ring the bell twice…"
+                          className="w-full border border-stone-200 bg-stone-50/60 rounded-2xl px-4 py-3 text-sm font-body text-stone-700 placeholder:text-stone-300 focus:outline-none focus:border-forest-300 focus:bg-white focus:ring-2 focus:ring-forest-100 resize-none transition-all"
+                          rows={2}
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => setStep('confirm')}
+                        className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-forest-600 to-forest-500 text-white font-label font-semibold text-sm shadow-btn hover:shadow-btn-hover hover:from-forest-700 hover:to-forest-600 active:scale-[0.98] transition-all duration-200"
+                      >
+                        Review Order <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── STEP 3: Review ── */}
+              {step === 'confirm' && (
+                <div className="space-y-4 animate-fade-up">
+                  {/* Address + Payment recaps */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white rounded-2xl border border-stone-100 shadow-card px-4 py-3.5">
+                      <p className="text-[10px] font-label font-semibold text-stone-400 uppercase tracking-widest mb-1.5">Delivering to</p>
+                      {selectedAddr && (
+                        <>
+                          <p className="text-sm font-label font-bold text-stone-800">{selectedAddr.fullName}</p>
+                          <p className="text-xs text-stone-500 font-body mt-0.5 leading-relaxed">{selectedAddr.street}, {selectedAddr.city}, {selectedAddr.state} – {selectedAddr.pinCode}</p>
+                        </>
+                      )}
+                      <button onClick={() => setStep('address')} className="text-xs font-label font-semibold text-forest-600 hover:text-forest-700 mt-2 block">Change</button>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-stone-100 shadow-card px-4 py-3.5">
+                      <p className="text-[10px] font-label font-semibold text-stone-400 uppercase tracking-widest mb-1.5">Payment via</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-lg">{paymentMethod === 'razorpay' ? '⚡' : '🪙'}</span>
+                        <p className="text-sm font-label font-bold text-stone-800">{paymentMethod === 'razorpay' ? 'Online Payment' : 'Cash on Delivery'}</p>
+                      </div>
+                      <button onClick={() => setStep('payment')} className="text-xs font-label font-semibold text-forest-600 hover:text-forest-700 mt-2 block">Change</button>
+                    </div>
+                  </div>
+
+                  {/* Items review */}
+                  <div className="bg-white rounded-3xl shadow-card border border-stone-100 overflow-hidden">
+                    <div className="px-7 pt-7 pb-5 border-b border-stone-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-forest-50 flex items-center justify-center">
+                          <Package className="w-5 h-5 text-forest-600" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-display font-bold text-stone-900">Order Items</h2>
+                          <p className="text-xs text-stone-400 font-body mt-0.5">{cart.items.length} item{cart.items.length !== 1 ? 's' : ''} in your order</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="px-7 py-5 space-y-4">
+                      {cart.items.map((item, idx) => (
+                        <div key={item.id} className={`flex items-center gap-4 ${idx < cart.items.length - 1 ? 'pb-4 border-b border-stone-50' : ''}`}>
+                          <div className="w-14 h-14 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0 shadow-sm">
+                            {item.imageUrl
+                              ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-xl">🌿</div>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
+                            <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit} × ₹{item.price.toFixed(0)}</p>
+                          </div>
+                          <p className="text-sm font-display font-bold text-stone-900 flex-shrink-0">₹{item.total.toFixed(0)}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-7 pb-7">
+                      <button
+                        onClick={handlePlaceOrder}
+                        disabled={placingOrder}
+                        className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-forest-600 to-forest-500 text-white font-label font-semibold text-base shadow-btn hover:shadow-btn-hover hover:from-forest-700 hover:to-forest-600 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {placingOrder ? <Spinner size="sm" /> : null}
+                        {placingOrder ? 'Placing Order…' : `Place Order · ₹${total.toFixed(0)}`}
+                      </button>
+                      <p className="text-center text-xs text-stone-400 font-body mt-3 flex items-center justify-center gap-1">
+                        <span>🔒</span> Secure & encrypted checkout
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── RIGHT: Sticky Order Summary ─────────────────────── */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-3xl shadow-card border border-stone-100 overflow-hidden sticky top-24">
+                {/* Summary header */}
+                <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-forest-600 to-forest-700 text-white rounded-t-3xl">
+                  <h3 className="font-display font-bold text-xl">Order Summary</h3>
+                  <p className="text-forest-200 text-xs font-body mt-0.5">{cart.items.length} item{cart.items.length !== 1 ? 's' : ''}</p>
+                </div>
+
+                <div className="px-6 py-5 space-y-5">
+                  {/* Cart items preview */}
+                  <div className="space-y-3">
+                    {cart.items.slice(0, 3).map(item => (
+                      <div key={item.id} className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-stone-100 overflow-hidden flex-shrink-0">
+                          {item.imageUrl
+                            ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-sm">🌿</div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-label font-semibold text-stone-700 truncate">{item.productName}</p>
+                          <p className="text-[11px] text-stone-400 font-body">{item.quantity} {item.unit}</p>
+                        </div>
+                        <p className="text-xs font-label font-bold text-stone-800 flex-shrink-0">₹{item.total.toFixed(0)}</p>
+                      </div>
+                    ))}
+                    {cart.items.length > 3 && (
+                      <p className="text-xs text-stone-400 font-body text-center">+{cart.items.length - 3} more item{cart.items.length - 3 !== 1 ? 's' : ''}</p>
+                    )}
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px bg-stone-100" />
+
+                  {/* Coupon */}
+                  {!appliedCoupon ? (
+                    <div>
+                      <label className="text-[10px] font-label font-semibold text-stone-400 uppercase tracking-widest block mb-2">Promo Code</label>
+                      <div className="flex gap-2">
+                        <input
+                          placeholder="e.g. VERDE10"
+                          value={couponCode}
+                          onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                          className="flex-1 border border-stone-200 bg-stone-50 rounded-xl px-3 py-2.5 text-sm font-label font-semibold text-stone-800 placeholder:font-body placeholder:text-stone-300 focus:outline-none focus:border-forest-300 focus:bg-white focus:ring-2 focus:ring-forest-100 transition-all tracking-widest"
+                        />
+                        <button
+                          onClick={applyCoupon}
+                          disabled={couponLoading || !couponCode.trim()}
+                          className="px-4 py-2.5 rounded-xl border-2 border-forest-500 text-forest-600 font-label font-semibold text-sm hover:bg-forest-50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                        >
+                          {couponLoading ? <Spinner size="sm" /> : 'Apply'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-forest-50 border border-forest-200">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">🎟️</span>
+                        <div>
+                          <p className="text-xs font-label font-bold text-forest-700 tracking-widest">{appliedCoupon}</p>
+                          <p className="text-[11px] text-forest-600 font-body">–₹{discount.toFixed(0)} saved</p>
+                        </div>
+                      </div>
+                      <button onClick={removeCoupon} className="text-stone-400 hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  )}
+
+                  {/* Divider */}
+                  <div className="h-px bg-stone-100" />
+
+                  {/* Price breakdown */}
+                  <div className="space-y-2.5">
+                    <div className="flex justify-between text-sm font-body text-stone-500">
+                      <span>Subtotal</span>
+                      <span className="font-semibold text-stone-700">₹{subtotal.toFixed(0)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-body text-stone-500">
+                      <span>Delivery</span>
+                      <span className={delivery === 0 ? 'font-bold text-forest-600' : 'font-semibold text-stone-700'}>
+                        {delivery === 0 ? '🎉 Free' : `₹${delivery}`}
+                      </span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-sm font-body text-forest-600 font-semibold">
+                        <span>Discount</span>
+                        <span>–₹{discount.toFixed(0)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm font-body text-stone-500">
+                      <span>Tax (5%)</span>
+                      <span className="font-semibold text-stone-700">₹{tax.toFixed(0)}</span>
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  <div className="rounded-2xl bg-gradient-to-r from-stone-50 to-sage-50 border border-stone-100 px-4 py-3.5 flex items-center justify-between">
+                    <span className="font-label font-bold text-stone-900 text-base">Total</span>
+                    <span className="font-display font-bold text-2xl text-stone-900">₹{total.toFixed(0)}</span>
+                  </div>
+
+                  {/* Free delivery nudge */}
+                  {delivery > 0 && (
+                    <div className="rounded-xl bg-amber-50 border border-amber-100 px-3.5 py-2.5">
+                      <p className="text-xs font-body text-amber-700">
+                        🚀 Add <span className="font-bold">₹{(500 - subtotal).toFixed(0)}</span> more for <span className="font-bold">free delivery</span>
+                      </p>
+                      <div className="mt-1.5 h-1 bg-amber-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, (subtotal / 500) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              {delivery > 0 && <p className="mt-2 text-xs text-leaf-600 bg-leaf-50 px-3 py-1.5 rounded-lg font-body">Add ₹{(500 - subtotal).toFixed(0)} more for free delivery!</p>}
-            </Card>
+            </div>
+
           </div>
         </div>
       </div>

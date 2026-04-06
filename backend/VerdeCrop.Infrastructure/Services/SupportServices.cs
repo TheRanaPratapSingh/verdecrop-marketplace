@@ -51,7 +51,12 @@ namespace VerdeCrop.Infrastructure.Services
             if (quantity <= 0)
                 await _uow.CartItems.DeleteAsync(item);
             else
+            {
+                var product = await _uow.Products.GetByIdAsync(item.ProductId);
+                if (product != null && quantity > product.StockQuantity)
+                    quantity = product.StockQuantity;
                 item.Quantity = quantity;
+            }
             await _uow.SaveChangesAsync();
             return await GetCartAsync(userId);
         }
@@ -105,7 +110,7 @@ namespace VerdeCrop.Infrastructure.Services
                 .Select(i => new CartItemDto(
                     i.Id, i.ProductId, i.Product.Name, i.Product.ImageUrl,
                     i.Product.Price, i.Quantity, i.Product.Unit,
-                    i.Product.Price * i.Quantity))
+                    i.Product.Price * i.Quantity, i.Product.StockQuantity))
                 .ToList() ?? new();
             return new CartDto(cart.Id, items, items.Sum(i => i.Total), items.Count);
         }
