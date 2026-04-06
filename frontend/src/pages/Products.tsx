@@ -289,7 +289,6 @@ export const ProductDetailPage: React.FC = () => {
         value: product.price * qty * unitPack,
       })
       toast.success('Added to cart!', { icon: '🛒' })
-      openCart()
     } catch { toast.error('Could not add to cart') }
     finally { setAdding(false) }
   }

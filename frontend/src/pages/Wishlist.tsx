@@ -53,7 +53,6 @@ export const WishlistPage: React.FC = () => {
     try {
       const cart = await cartApi.addItem(item.id, 1)
       setCart(cart)
-      openCart()
       toast.success('Added to cart')
     } catch {
       toast.error('Failed to add to cart')

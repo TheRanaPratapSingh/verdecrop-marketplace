@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Package, MapPin, CreditCard, CheckCircle, Clock, Truck, Home, Bell,
   Heart, Trash2, ShoppingCart, Plus, Edit2, Save, X, ChevronRight,
-  User, Phone, Mail, Camera, Star, BellOff
+  User, Phone, Mail, Camera, Star, BellOff, Gift, Tag, Megaphone, Sparkles
 } from 'lucide-react'
 import { orderApi, paymentApi, userApi, cartApi, notificationApi } from '../services/api'
 import { useAuthStore, useCartStore, useNotifStore } from '../store'
@@ -18,7 +18,7 @@ import { trackEvent } from '../lib/analytics'
 // CHECKOUT PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export const CheckoutPage: React.FC = () => {
-  const { cart } = useCartStore()
+  const { cart, setCart } = useCartStore()
   const navigate = useNavigate()
   const [step, setStep] = useState<'address' | 'payment' | 'confirm'>('address')
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -83,6 +83,7 @@ export const CheckoutPage: React.FC = () => {
   const handlePlaceOrder = async () => {
     if (!selectedAddress) { toast.error('Select a delivery address'); return }
     setPlacingOrder(true)
+    let orderPlaced = false
     try {
       const order = await orderApi.place({
         addressId: selectedAddress,
@@ -90,6 +91,10 @@ export const CheckoutPage: React.FC = () => {
         couponCode: couponCode || undefined,
         notes: notes || undefined
       })
+
+      // Order created successfully — clear the cart store immediately
+      setCart(null)
+      orderPlaced = true
 
       trackEvent('place_order', {
         order_id: order.id,
@@ -100,32 +105,51 @@ export const CheckoutPage: React.FC = () => {
       })
 
       if (paymentMethod === 'razorpay') {
-        const rpOrder = await paymentApi.createRazorpayOrder(order!.id)
-        const razorpay = new (window as any).Razorpay({
-          key: rpOrder.keyId,
-          amount: rpOrder.amount * 100,
-          currency: rpOrder.currency,
-          order_id: rpOrder.razorpayOrderId,
-          name: 'Graamo',
-          description: `Order #${order!.orderNumber}`,
-          handler: async (response: any) => {
-            await paymentApi.verifyRazorpay({
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-              orderId: order!.id
-            })
-            trackEvent('payment_success', { order_id: order.id, payment_method: 'razorpay', total_amount: order.totalAmount })
-            navigate(`/orders/${order!.id}?success=1`)
-          },
-          theme: { color: '#267d39' }
-        })
-        razorpay.open()
+        try {
+          const rpOrder = await paymentApi.createRazorpayOrder(order!.id)
+          const razorpay = new (window as any).Razorpay({
+            key: rpOrder.keyId,
+            amount: rpOrder.amount * 100,
+            currency: rpOrder.currency,
+            order_id: rpOrder.razorpayOrderId,
+            name: 'Graamo',
+            description: `Order #${order!.orderNumber}`,
+            handler: async (response: any) => {
+              try {
+                await paymentApi.verifyRazorpay({
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature,
+                  orderId: order!.id
+                })
+                trackEvent('payment_success', { order_id: order.id, payment_method: 'razorpay', total_amount: order.totalAmount })
+              } catch { /* verification failure — order still placed */ }
+              navigate(`/orders/${order!.id}?success=1`)
+            },
+            modal: {
+              ondismiss: () => {
+                setPlacingOrder(false)
+                navigate(`/orders/${order!.id}`)
+              }
+            },
+            theme: { color: '#267d39' }
+          })
+          razorpay.open()
+          return // keep placingOrder=true until handler fires
+        } catch (rpErr: unknown) {
+          // Razorpay setup failed but order was already placed — redirect to order page
+          const rpMsg = (rpErr as { response?: { data?: { message?: string } } })?.response?.data?.message
+          toast.error(rpMsg ?? 'Payment window failed to open. Your order was placed — complete payment from My Orders.')
+          navigate(`/orders/${order!.id}`)
+          return
+        }
       } else {
         trackEvent('payment_success', { order_id: order.id, payment_method: paymentMethod, total_amount: order.totalAmount })
         navigate(`/orders/${order!.id}?success=1`)
+        return
       }
     } catch (err: unknown) {
+      if (orderPlaced) return // order succeeded — swallow spurious catch
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       toast.error(msg ?? 'Failed to place order. Please try again.')
     } finally { setPlacingOrder(false) }
@@ -908,15 +932,24 @@ export const OrderDetailPage: React.FC = () => {
 export const ProfilePage: React.FC = () => {
   const { user, setUser } = useAuthStore()
   const fileRef = React.useRef<HTMLInputElement>(null)
-  const [tab, setTab] = useState('profile')
+  const [tab, setTab] = useState<'profile' | 'addresses' | 'security'>('profile')
   const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '', phone: user?.phone || '' })
   const [saving, setSaving] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
   const [addresses, setAddresses] = useState<Address[]>([])
   const [showAddrModal, setShowAddrModal] = useState(false)
   const [editAddr, setEditAddr] = useState<Address | null>(null)
   const [addrForm, setAddrForm] = useState<Partial<Address>>({})
+  const [orders, setOrders] = useState<Order[]>([])
+  const [ordersLoaded, setOrdersLoaded] = useState(false)
 
-  useEffect(() => { userApi.getAddresses().then(setAddresses) }, [])
+  useEffect(() => {
+    userApi.getAddresses().then(setAddresses)
+    orderApi.getAll({ page: 1, pageSize: 100 }).then(r => {
+      setOrders(r.items)
+      setOrdersLoaded(true)
+    }).catch(() => setOrdersLoaded(true))
+  }, [])
 
   const saveProfile = async () => {
     setSaving(true)
@@ -930,12 +963,14 @@ export const ProfilePage: React.FC = () => {
   const handleAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setAvatarUploading(true)
     const fd = new FormData(); fd.append('file', file)
     try {
       const res = await userApi.uploadAvatar(fd)
       setUser({ ...user!, avatarUrl: res.url })
       toast.success('Avatar updated!')
     } catch { toast.error('Upload failed') }
+    finally { setAvatarUploading(false) }
   }
 
   const saveAddress = async () => {
@@ -949,114 +984,338 @@ export const ProfilePage: React.FC = () => {
     setShowAddrModal(false)
   }
 
+  const totalSpend = orders.filter(o => o.status !== 'cancelled' && o.status !== 'refunded').reduce((s, o) => s + o.totalAmount, 0)
+  const deliveredCount = orders.filter(o => o.status === 'delivered').length
+  const initials = user?.name?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'
+
+  const TABS: { id: 'profile' | 'addresses' | 'security'; label: string; icon: React.ElementType }[] = [
+    { id: 'profile',   label: 'Profile',   icon: User },
+    { id: 'addresses', label: 'Addresses', icon: MapPin },
+    { id: 'security',  label: 'Security',  icon: Star },
+  ]
+
   return (
     <PageLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-leaf-700 to-leaf-500 rounded-3xl p-6 mb-6 flex items-center gap-5 text-white relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full" />
-          <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
-              {user?.avatarUrl
-                ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
-                : <span className="text-3xl font-bold font-display">{user?.name?.[0]?.toUpperCase()}</span>}
-            </div>
-            <button onClick={() => fileRef.current?.click()} className="absolute -bottom-1 -right-1 bg-white text-leaf-600 rounded-full p-1.5 shadow hover:shadow-md transition">
-              <Camera className="w-3.5 h-3.5" />
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
-          </div>
-          <div className="relative z-10">
-            <h1 className="text-2xl font-display font-bold">{user?.name}</h1>
-            <p className="text-leaf-100 text-sm font-body">{user?.email || user?.phone}</p>
-            <Badge variant="green" className="mt-1 capitalize">{user?.role}</Badge>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 via-cream to-parchment">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-        <TabGroup tabs={[{id:'profile',label:'Profile'},{id:'addresses',label:'Addresses'},{id:'security',label:'Security'}]} active={tab} onChange={setTab} className="mb-6" />
+          {/* ── Hero header card ── */}
+          <div className="relative rounded-3xl overflow-hidden mb-8 shadow-card">
+            {/* Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-forest-700 via-forest-600 to-sage-600" />
+            <div className="absolute inset-0 bg-grain opacity-30" />
+            {/* Decorative blobs */}
+            <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/5 blur-2xl" />
+            <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-forest-800/40 blur-xl" />
 
-        {tab === 'profile' && (
-          <Card className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              <Input label="Full Name" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} leftIcon={<User className="w-4 h-4" />} />
-              <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} leftIcon={<Mail className="w-4 h-4" />} />
-              <Input label="Phone" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} leftIcon={<Phone className="w-4 h-4" />} />
-            </div>
-            <Button onClick={saveProfile} loading={saving}><Save className="w-4 h-4" /> Save Changes</Button>
-          </Card>
-        )}
+            <div className="relative z-10 p-7 sm:p-10">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                {/* Avatar */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-[88px] h-[88px] rounded-2xl bg-white/15 border-2 border-white/25 overflow-hidden flex items-center justify-center shadow-[0_4px_24px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+                    {user?.avatarUrl
+                      ? <img src={resolveAssetUrl(user.avatarUrl)} alt={user.name} className="w-full h-full object-cover" />
+                      : <span className="text-3xl font-bold font-display text-white tracking-tight">{initials}</span>}
+                  </div>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white shadow-[0_2px_12px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 transition-transform duration-150 disabled:opacity-60"
+                  >
+                    {avatarUploading
+                      ? <div className="w-3.5 h-3.5 border-2 border-forest-600 border-t-transparent rounded-full animate-spin" />
+                      : <Camera className="w-3.5 h-3.5 text-forest-700" strokeWidth={2} />}
+                  </button>
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
+                </div>
 
-        {tab === 'addresses' && (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-display font-semibold text-gray-900">Saved Addresses</h2>
-              <Button size="sm" onClick={() => { setEditAddr(null); setAddrForm({}); setShowAddrModal(true) }}>
-                <Plus className="w-4 h-4" /> Add New
-              </Button>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {addresses.map(addr => (
-                <Card key={addr.id} className={`p-4 border-2 ${addr.isDefault ? 'border-leaf-400' : 'border-transparent'}`}>
-                  {addr.isDefault && <Badge variant="green" size="sm" className="mb-2">Default</Badge>}
-                  <p className="font-semibold text-sm text-gray-800 font-body">{addr.label} · {addr.fullName}</p>
-                  <p className="text-sm text-gray-500 font-body">{addr.street}</p>
-                  <p className="text-sm text-gray-500 font-body">{addr.city}, {addr.state} – {addr.pinCode}</p>
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={() => { setEditAddr(addr); setAddrForm(addr); setShowAddrModal(true) }} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                      <Edit2 className="w-3 h-3" /> Edit
-                    </button>
-                    <button onClick={async () => { await userApi.deleteAddress(addr.id); setAddresses(a => a.filter(x => x.id !== addr.id)) }} className="text-xs text-red-500 hover:underline flex items-center gap-1">
-                      <Trash2 className="w-3 h-3" /> Delete
-                    </button>
-                    {!addr.isDefault && (
-                      <button onClick={async () => { await userApi.setDefaultAddress(addr.id); setAddresses(a => a.map(x => ({...x, isDefault: x.id === addr.id}))) }} className="text-xs text-leaf-600 hover:underline ml-auto">
-                        Set Default
-                      </button>
-                    )}
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h1 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight truncate">
+                      {user?.name}
+                    </h1>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-label font-bold tracking-wide uppercase border ${
+                      user?.role === 'admin'
+                        ? 'bg-amber-400/20 border-amber-300/40 text-amber-200'
+                        : user?.role === 'farmer'
+                          ? 'bg-sage-300/20 border-sage-300/40 text-sage-100'
+                          : 'bg-white/10 border-white/20 text-white/80'
+                    }`}>
+                      {user?.role}
+                    </span>
                   </div>
-                </Card>
-              ))}
-            </div>
-            {showAddrModal && (
-              <Modal isOpen onClose={() => setShowAddrModal(false)} title={editAddr ? 'Edit Address' : 'Add Address'}>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input label="Label" placeholder="Home" value={addrForm.label||''} onChange={e => setAddrForm(f => ({...f, label: e.target.value}))} />
-                    <Input label="Full Name" value={addrForm.fullName||''} onChange={e => setAddrForm(f => ({...f, fullName: e.target.value}))} />
-                  </div>
-                  <Input label="Phone" value={addrForm.phone||''} onChange={e => setAddrForm(f => ({...f, phone: e.target.value}))} />
-                  <Input label="Street / Area" value={addrForm.street||''} onChange={e => setAddrForm(f => ({...f, street: e.target.value}))} />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input label="City" value={addrForm.city||''} onChange={e => setAddrForm(f => ({...f, city: e.target.value}))} />
-                    <Input label="State" value={addrForm.state||''} onChange={e => setAddrForm(f => ({...f, state: e.target.value}))} />
-                  </div>
-                  <Input label="Pincode" value={addrForm.pinCode||''} onChange={e => setAddrForm(f => ({...f, pinCode: e.target.value}))} />
-                  <div className="flex gap-3 pt-1">
-                    <Button variant="outline" className="flex-1" onClick={() => setShowAddrModal(false)}>Cancel</Button>
-                    <Button className="flex-1" onClick={saveAddress}><Save className="w-4 h-4" /> Save</Button>
+                  <p className="text-forest-100/80 text-sm font-body mt-1 truncate">
+                    {user?.email || user?.phone || 'No contact info'}
+                  </p>
+                  {/* Quick stats row */}
+                  <div className="flex items-center gap-5 mt-4 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 text-forest-200" strokeWidth={2} />
+                      <span className="text-xs font-label font-semibold text-white/90">
+                        {ordersLoaded ? orders.length : '—'} orders
+                      </span>
+                    </div>
+                    <div className="w-px h-3.5 bg-white/20" />
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3.5 h-3.5 text-forest-200" strokeWidth={2} />
+                      <span className="text-xs font-label font-semibold text-white/90">
+                        {ordersLoaded ? deliveredCount : '—'} delivered
+                      </span>
+                    </div>
+                    <div className="w-px h-3.5 bg-white/20" />
+                    <div className="flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-forest-200" strokeWidth={2} />
+                      <span className="text-xs font-label font-semibold text-white/90">
+                        {ordersLoaded ? `₹${totalSpend.toLocaleString('en-IN')} spent` : '—'}
+                      </span>
+                    </div>
+                    <div className="w-px h-3.5 bg-white/20" />
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-forest-200" strokeWidth={2} />
+                      <span className="text-xs font-label font-semibold text-white/90">
+                        {addresses.length} address{addresses.length !== 1 ? 'es' : ''}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </Modal>
-            )}
-          </div>
-        )}
-
-        {tab === 'security' && (
-          <Card className="p-6 space-y-4">
-            {[
-              { title: 'OTP Login', desc: 'Login via OTP on registered mobile/email', badge: 'Active', variant: 'green' as const },
-              { title: 'Two-Factor Auth', desc: 'Extra security layer', badge: 'Off', variant: 'gray' as const },
-            ].map(item => (
-              <div key={item.title} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                <div>
-                  <p className="font-semibold text-gray-800 font-body text-sm">{item.title}</p>
-                  <p className="text-xs text-gray-500 font-body">{item.desc}</p>
-                </div>
-                <Badge variant={item.variant}>{item.badge}</Badge>
               </div>
-            ))}
-          </Card>
-        )}
+            </div>
+          </div>
+
+          {/* ── Layout: sidebar tabs + content ── */}
+          <div className="flex flex-col sm:flex-row gap-6">
+
+            {/* Sidebar tab nav */}
+            <aside className="sm:w-52 flex-shrink-0">
+              <nav className="bg-white rounded-2xl shadow-card p-2 flex sm:flex-col gap-1">
+                {TABS.map(t => {
+                  const Icon = t.icon
+                  const active = tab === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setTab(t.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-label font-semibold transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-forest-400 text-left ${
+                        active
+                          ? 'bg-forest-50 text-forest-700 shadow-[inset_0_0_0_1px_rgba(30,110,36,0.12)]'
+                          : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-forest-600' : 'text-stone-400'}`} strokeWidth={2} />
+                      {t.label}
+                      {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-forest-500" />}
+                    </button>
+                  )
+                })}
+              </nav>
+            </aside>
+
+            {/* Content panel */}
+            <div className="flex-1 min-w-0">
+
+              {/* ── Profile tab ── */}
+              {tab === 'profile' && (
+                <div className="bg-white rounded-2xl shadow-card p-6 sm:p-8 animate-fade-up">
+                  <div className="mb-6 pb-5 border-b border-stone-100">
+                    <h2 className="text-lg font-display font-bold text-stone-900">Personal Information</h2>
+                    <p className="text-sm text-stone-400 font-body mt-0.5">Update your name, email and phone number</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-7">
+                    <div className="sm:col-span-2 sm:w-1/2">
+                      <Input
+                        label="Full Name"
+                        value={form.name}
+                        onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                        leftIcon={<User className="w-4 h-4" />}
+                      />
+                    </div>
+                    <Input
+                      label="Email address"
+                      type="email"
+                      value={form.email}
+                      onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                      leftIcon={<Mail className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Phone number"
+                      value={form.phone}
+                      onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                      leftIcon={<Phone className="w-4 h-4" />}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 pt-1 border-t border-stone-100">
+                    <Button onClick={saveProfile} loading={saving} className="gap-2">
+                      <Save className="w-4 h-4" /> Save Changes
+                    </Button>
+                    <button
+                      onClick={() => setForm({ name: user?.name || '', email: user?.email || '', phone: user?.phone || '' })}
+                      className="text-sm font-label font-semibold text-stone-400 hover:text-stone-700 transition-colors px-3 py-2 rounded-xl hover:bg-stone-50"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Addresses tab ── */}
+              {tab === 'addresses' && (
+                <div className="animate-fade-up">
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h2 className="text-lg font-display font-bold text-stone-900">Saved Addresses</h2>
+                      <p className="text-sm text-stone-400 font-body mt-0.5">{addresses.length} address{addresses.length !== 1 ? 'es' : ''} saved</p>
+                    </div>
+                    <button
+                      onClick={() => { setEditAddr(null); setAddrForm({}); setShowAddrModal(true) }}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-600 text-white text-[13px] font-label font-semibold shadow-btn hover:bg-forest-500 transition-all duration-150 hover:shadow-btn-hover"
+                    >
+                      <Plus className="w-4 h-4" strokeWidth={2.5} /> Add New
+                    </button>
+                  </div>
+
+                  {addresses.length === 0 ? (
+                    <div className="bg-white rounded-2xl shadow-card p-10 text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-stone-100 flex items-center justify-center mx-auto mb-4">
+                        <MapPin className="w-6 h-6 text-stone-300" strokeWidth={1.5} />
+                      </div>
+                      <p className="font-display font-semibold text-stone-700 mb-1">No addresses yet</p>
+                      <p className="text-sm text-stone-400 font-body">Add a delivery address to speed up checkout</p>
+                    </div>
+                  ) : (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {addresses.map((addr, i) => (
+                        <div
+                          key={addr.id}
+                          style={{ animationDelay: `${i * 60}ms` }}
+                          className={`group relative bg-white rounded-2xl shadow-card p-5 border-2 transition-all duration-200 hover:shadow-card-hover animate-fade-up ${
+                            addr.isDefault ? 'border-forest-300' : 'border-transparent'
+                          }`}
+                        >
+                          {addr.isDefault && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-forest-50 border border-forest-200 text-forest-700 text-[11px] font-label font-bold tracking-wide mb-3">
+                              <CheckCircle className="w-3 h-3" strokeWidth={2.5} /> Default
+                            </span>
+                          )}
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <Home className="w-4 h-4 text-stone-500" strokeWidth={1.5} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-label font-bold text-stone-800 text-sm truncate">
+                                {addr.label}
+                                <span className="text-stone-400 font-normal"> · {addr.fullName}</span>
+                              </p>
+                              <p className="text-[13px] text-stone-500 font-body mt-0.5 leading-snug">{addr.street}</p>
+                              <p className="text-[13px] text-stone-500 font-body">{addr.city}, {addr.state} – {addr.pinCode}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 mt-4 pt-3.5 border-t border-stone-100">
+                            <button
+                              onClick={() => { setEditAddr(addr); setAddrForm(addr); setShowAddrModal(true) }}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-label font-semibold text-stone-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" /> Edit
+                            </button>
+                            <button
+                              onClick={async () => { await userApi.deleteAddress(addr.id); setAddresses(a => a.filter(x => x.id !== addr.id)) }}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-label font-semibold text-stone-500 hover:text-red-600 hover:bg-red-50 transition-all"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Delete
+                            </button>
+                            {!addr.isDefault && (
+                              <button
+                                onClick={async () => { await userApi.setDefaultAddress(addr.id); setAddresses(a => a.map(x => ({ ...x, isDefault: x.id === addr.id }))) }}
+                                className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-label font-semibold text-forest-600 hover:bg-forest-50 transition-all"
+                              >
+                                Set Default
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {showAddrModal && (
+                    <Modal isOpen onClose={() => setShowAddrModal(false)} title={editAddr ? 'Edit Address' : 'Add New Address'}>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <Input label="Label" placeholder="Home / Office" value={addrForm.label || ''} onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))} />
+                          <Input label="Full Name" value={addrForm.fullName || ''} onChange={e => setAddrForm(f => ({ ...f, fullName: e.target.value }))} />
+                        </div>
+                        <Input label="Phone" value={addrForm.phone || ''} onChange={e => setAddrForm(f => ({ ...f, phone: e.target.value }))} />
+                        <Input label="Street / Area" value={addrForm.street || ''} onChange={e => setAddrForm(f => ({ ...f, street: e.target.value }))} />
+                        <div className="grid grid-cols-2 gap-3">
+                          <Input label="City" value={addrForm.city || ''} onChange={e => setAddrForm(f => ({ ...f, city: e.target.value }))} />
+                          <Input label="State" value={addrForm.state || ''} onChange={e => setAddrForm(f => ({ ...f, state: e.target.value }))} />
+                        </div>
+                        <Input label="Pincode" value={addrForm.pinCode || ''} onChange={e => setAddrForm(f => ({ ...f, pinCode: e.target.value }))} />
+                        <div className="flex gap-3 pt-1">
+                          <Button variant="outline" className="flex-1" onClick={() => setShowAddrModal(false)}>Cancel</Button>
+                          <Button className="flex-1" onClick={saveAddress}><Save className="w-4 h-4" /> Save Address</Button>
+                        </div>
+                      </div>
+                    </Modal>
+                  )}
+                </div>
+              )}
+
+              {/* ── Security tab ── */}
+              {tab === 'security' && (
+                <div className="bg-white rounded-2xl shadow-card p-6 sm:p-8 animate-fade-up">
+                  <div className="mb-6 pb-5 border-b border-stone-100">
+                    <h2 className="text-lg font-display font-bold text-stone-900">Account Security</h2>
+                    <p className="text-sm text-stone-400 font-body mt-0.5">Manage how you sign in and keep your account safe</p>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      {
+                        icon: Phone,
+                        iconBg: 'bg-forest-50',
+                        iconColor: 'text-forest-600',
+                        title: 'OTP Login',
+                        desc: 'Passwordless sign-in via OTP sent to your registered mobile or email',
+                        badge: 'Active',
+                        badgeClass: 'bg-forest-50 border-forest-200 text-forest-700',
+                      },
+                      {
+                        icon: Star,
+                        iconBg: 'bg-stone-100',
+                        iconColor: 'text-stone-400',
+                        title: 'Two-Factor Authentication',
+                        desc: 'Add an extra security layer for your account',
+                        badge: 'Coming Soon',
+                        badgeClass: 'bg-stone-50 border-stone-200 text-stone-400',
+                      },
+                    ].map(item => {
+                      const Icon = item.icon
+                      return (
+                        <div
+                          key={item.title}
+                          className="flex items-center gap-4 p-4 rounded-2xl bg-stone-50/60 border border-stone-100 hover:border-stone-200 transition-colors"
+                        >
+                          <div className={`w-10 h-10 rounded-xl ${item.iconBg} flex items-center justify-center flex-shrink-0`}>
+                            <Icon className={`w-5 h-5 ${item.iconColor}`} strokeWidth={1.75} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-label font-bold text-stone-800">{item.title}</p>
+                            <p className="text-xs text-stone-400 font-body mt-0.5">{item.desc}</p>
+                          </div>
+                          <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-label font-bold tracking-wide border ${item.badgeClass}`}>
+                            {item.badge}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+
+        </div>
       </div>
     </PageLayout>
   )
@@ -1068,84 +1327,247 @@ export const ProfilePage: React.FC = () => {
 export const NotificationsPage: React.FC = () => {
   const { notifications, setNotifications, markRead, markAllRead, remove } = useNotifStore()
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
+  const [filter, setFilter] = useState<'all' | 'unread' | 'order' | 'promo' | 'system'>('all')
+  const navigate = useNavigate()
 
   useEffect(() => {
     notificationApi.getAll().then(n => { setNotifications(n); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
-  const displayed = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications
   const unread = notifications.filter(n => !n.isRead).length
 
-  const TYPE_ICONS: Record<string, { icon: React.ElementType; bg: string; color: string }> = {
-    order:    { icon: Package,   bg: 'bg-blue-100',   color: 'text-blue-600' },
-    promo:    { icon: Star,      bg: 'bg-orange-100', color: 'text-orange-600' },
-    system:   { icon: Bell,      bg: 'bg-leaf-100',   color: 'text-leaf-600' },
-    announce: { icon: BellOff,   bg: 'bg-purple-100', color: 'text-purple-600' },
+  const displayed = notifications.filter(n => {
+    if (filter === 'unread') return !n.isRead
+    if (filter === 'order' || filter === 'promo' || filter === 'system') return n.type === filter
+    return true
+  })
+
+  // Notification type config
+  const TYPE_CFG: Record<string, { icon: React.ElementType; bg: string; iconColor: string; label: string; dot: string }> = {
+    order:    { icon: Package,    bg: 'bg-blue-50',    iconColor: 'text-blue-500',   label: 'Order',    dot: 'bg-blue-400' },
+    promo:    { icon: Gift,       bg: 'bg-amber-50',   iconColor: 'text-amber-500',  label: 'Offer',    dot: 'bg-amber-400' },
+    system:   { icon: Bell,       bg: 'bg-forest-50',  iconColor: 'text-forest-600', label: 'System',   dot: 'bg-forest-500' },
+    announce: { icon: Megaphone,  bg: 'bg-purple-50',  iconColor: 'text-purple-500', label: 'News',     dot: 'bg-purple-400' },
   }
 
-  if (loading) return <PageLayout><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageLayout>
+  const getTimestamp = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    const hrs = Math.floor(mins / 60)
+    const days = Math.floor(hrs / 24)
+    if (mins < 1) return 'Just now'
+    if (mins < 60) return `${mins}m ago`
+    if (hrs < 24) return `${hrs}h ago`
+    if (days < 7) return `${days}d ago`
+    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  }
+
+  const filters: { id: 'all' | 'unread' | 'order' | 'promo' | 'system'; label: string; count?: number }[] = [
+    { id: 'all',    label: 'All',    count: notifications.length },
+    { id: 'unread', label: 'Unread', count: unread },
+    { id: 'order',  label: 'Orders', count: notifications.filter(n => n.type === 'order').length },
+    { id: 'promo',  label: 'Offers', count: notifications.filter(n => n.type === 'promo').length },
+    { id: 'system', label: 'System', count: notifications.filter(n => n.type === 'system' || n.type === 'announce').length },
+  ]
+
+  if (loading) {
+    return (
+      <PageLayout>
+        <div className="min-h-screen bg-gradient-to-b from-stone-50 to-cream">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
+            <div className="h-10 w-48 bg-stone-200 rounded-2xl animate-pulse mb-8" />
+            <div className="flex gap-2 mb-6">
+              {[80, 90, 80, 80, 88].map((w, i) => (
+                <div key={i} className={`h-8 w-${w === 80 ? 20 : 22} bg-stone-200 rounded-full animate-pulse`} />
+              ))}
+            </div>
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="bg-white rounded-3xl p-4 flex gap-4 shadow-card">
+                  <div className="w-12 h-12 rounded-2xl bg-stone-100 animate-pulse flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-stone-100 rounded-xl animate-pulse w-3/4" />
+                    <div className="h-3 bg-stone-100 rounded-xl animate-pulse w-full" />
+                    <div className="h-3 bg-stone-100 rounded-xl animate-pulse w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </PageLayout>
+    )
+  }
 
   return (
     <PageLayout>
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-display font-bold text-gray-900 flex items-center gap-3">
-            Notifications
-            {unread > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unread}</span>}
-          </h1>
-          {unread > 0 && (
-            <Button size="sm" variant="ghost" onClick={() => { markAllRead(); notificationApi.markAllRead() }}>
-              Mark all read
-            </Button>
-          )}
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-cream">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
 
-        <div className="flex gap-2 mb-5">
-          {[['all', 'All'], ['unread', `Unread (${unread})`]].map(([id, label]) => (
-            <button key={id} onClick={() => setFilter(id as any)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition font-body ${filter === id ? 'bg-leaf-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {displayed.length === 0 ? (
-          <EmptyState icon={<Bell className="w-12 h-12 text-gray-200" />}
-            title={filter === 'unread' ? 'No unread notifications' : 'No notifications'}
-            description="We'll notify you about orders, offers, and more." />
-        ) : (
-          <div className="space-y-2">
-            {displayed.map(n => {
-              const cfg = TYPE_ICONS[n.type] || TYPE_ICONS.system
-              const Icon = cfg.icon
-              return (
-                <div
-                  key={n.id}
-                  onClick={() => { if (!n.isRead) { markRead(n.id); notificationApi.markRead(n.id) } }}
-                  className={`flex gap-3 p-4 rounded-2xl border transition cursor-pointer hover:shadow-sm ${
-                    n.isRead ? 'bg-white border-gray-100' : 'bg-leaf-50 border-leaf-100'
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.bg}`}>
-                    <Icon className={`w-5 h-5 ${cfg.color}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${n.isRead ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'} font-body`}>{n.title}</p>
-                    <p className="text-xs text-gray-500 font-body mt-0.5 line-clamp-2">{n.body}</p>
-                    <p className="text-[10px] text-gray-400 font-body mt-1">{new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                    {!n.isRead && <div className="w-2 h-2 rounded-full bg-leaf-500 mt-1" />}
-                    <button onClick={e => { e.stopPropagation(); remove(n.id); notificationApi.delete(n.id) }} className="text-gray-300 hover:text-red-400 transition">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+          {/* Header */}
+          <div className="flex items-start justify-between mb-8">
+            <div>
+              <p className="text-xs font-label font-semibold tracking-widest text-forest-500 uppercase mb-1">Activity</p>
+              <h1 className="text-3xl font-display font-bold text-stone-900 tracking-tight flex items-center gap-3">
+                Notifications
+                {unread > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-forest-500 text-white text-xs font-label font-bold shadow-sm">
+                    {unread}
+                  </span>
+                )}
+              </h1>
+            </div>
+            {unread > 0 && (
+              <button
+                onClick={() => { markAllRead(); notificationApi.markAllRead() }}
+                className="text-xs font-label font-semibold text-forest-600 hover:text-forest-700 px-4 py-2 rounded-xl hover:bg-forest-50 transition-all mt-1"
+              >
+                Mark all read
+              </button>
+            )}
           </div>
-        )}
+
+          {/* Filter tabs */}
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide">
+            {filters.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-label font-semibold transition-all duration-200 ${
+                  filter === f.id
+                    ? 'bg-forest-600 text-white shadow-btn'
+                    : 'bg-white text-stone-500 hover:text-stone-800 hover:bg-stone-50 border border-stone-200'
+                }`}
+              >
+                {f.label}
+                {f.count !== undefined && f.count > 0 && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    filter === f.id ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500'
+                  }`}>
+                    {f.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Empty state */}
+          {displayed.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="relative mb-6">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-forest-50 to-sage-50 flex items-center justify-center shadow-card border border-forest-100">
+                  <Bell className="w-10 h-10 text-forest-300" strokeWidth={1.5} />
+                </div>
+                <div className="absolute -top-1 -right-1 w-7 h-7 rounded-xl bg-stone-100 flex items-center justify-center shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+              </div>
+              <h3 className="text-xl font-display font-bold text-stone-800 mb-2">
+                {filter === 'unread' ? 'You\'re all caught up!' :
+                 filter === 'order' ? 'No order updates yet' :
+                 filter === 'promo' ? 'No offers right now' :
+                 filter === 'system' ? 'No system messages' :
+                 'No notifications yet'}
+              </h3>
+              <p className="text-stone-400 font-body text-sm max-w-xs leading-relaxed">
+                {filter === 'unread'
+                  ? "Great job! You've read everything. Check back later for new updates."
+                  : "We'll notify you about your orders, exclusive offers, and the freshest updates from Graamo."}
+              </p>
+              {filter !== 'all' && (
+                <button
+                  onClick={() => setFilter('all')}
+                  className="mt-6 text-sm font-label font-semibold text-forest-600 hover:text-forest-700 flex items-center gap-1.5 px-4 py-2 rounded-xl hover:bg-forest-50 transition-all"
+                >
+                  View all notifications <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+              {filter === 'all' && (
+                <button
+                  onClick={() => navigate('/products')}
+                  className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-forest-600 to-forest-500 text-white text-sm font-label font-semibold shadow-btn hover:shadow-btn-hover hover:from-forest-700 hover:to-forest-600 transition-all"
+                >
+                  <ShoppingCart className="w-4 h-4" /> Start Shopping
+                </button>
+              )}
+
+              {/* Teaser cards */}
+              <div className="mt-10 w-full grid grid-cols-3 gap-3">
+                {[
+                  { icon: Package, label: 'Order tracking', color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
+                  { icon: Gift, label: 'Exclusive offers', color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
+                  { icon: Sparkles, label: 'Fresh updates', color: 'text-forest-500', bg: 'bg-forest-50', border: 'border-forest-100' },
+                ].map(({ icon: Icon, label, color, bg, border }) => (
+                  <div key={label} className={`rounded-2xl ${bg} border ${border} p-4 flex flex-col items-center gap-2`}>
+                    <Icon className={`w-6 h-6 ${color}`} />
+                    <p className={`text-xs font-label font-semibold ${color} text-center leading-tight`}>{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {displayed.map((n, idx) => {
+                const cfg = TYPE_CFG[n.type] || TYPE_CFG.system
+                const Icon = cfg.icon
+                return (
+                  <div
+                    key={n.id}
+                    onClick={() => {
+                      if (!n.isRead) { markRead(n.id); notificationApi.markRead(n.id) }
+                      if (n.actionUrl) navigate(n.actionUrl)
+                    }}
+                    className={`group flex gap-4 p-4 rounded-3xl border transition-all duration-200 cursor-pointer animate-fade-up ${
+                      n.isRead
+                        ? 'bg-white border-stone-100 hover:border-stone-200 hover:shadow-card'
+                        : 'bg-gradient-to-r from-forest-50/70 to-sage-50/50 border-forest-100 hover:shadow-card'
+                    }`}
+                    style={{ animationDelay: `${idx * 40}ms` }}
+                  >
+                    {/* Icon */}
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${cfg.bg} shadow-sm transition-transform group-hover:scale-105`}>
+                      <Icon className={`w-5 h-5 ${cfg.iconColor}`} />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className={`text-sm leading-snug ${
+                          n.isRead ? 'font-medium text-stone-600' : 'font-bold text-stone-900'
+                        } font-body`}>
+                          {n.title}
+                        </p>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {!n.isRead && <div className={`w-2 h-2 rounded-full mt-1 ${cfg.dot}`} />}
+                          <button
+                            onClick={e => { e.stopPropagation(); remove(n.id); notificationApi.delete(n.id) }}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-stone-400 font-body mt-0.5 line-clamp-2 leading-relaxed">{n.body}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className={`text-[10px] font-label font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.iconColor}`}>
+                          {cfg.label}
+                        </span>
+                        <span className="text-[11px] text-stone-300 font-body">{getTimestamp(n.createdAt)}</span>
+                        {n.actionUrl && (
+                          <span className="text-[11px] font-label font-semibold text-forest-600 flex items-center gap-0.5 ml-auto">
+                            View <ChevronRight className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+        </div>
       </div>
     </PageLayout>
   )

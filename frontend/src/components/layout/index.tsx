@@ -78,9 +78,29 @@ export const Navbar: React.FC = () => {
         { to: '/women-farmers', label: '👩‍🌾 Women Farmers' },
       ]
 
+  // Links that own a specific query param — used to suppress the plain /products match
+  const FILTER_PARAMS = ['isOrganic', 'isFeatured']
+
   const isActive = (to: string) => {
-    if (to.includes('?')) return location.pathname + location.search === to || location.search === to.slice(to.indexOf('?'))
-    return location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
+    if (to.includes('?')) {
+      // Exact match on both pathname and the full query string
+      const [toPath, toQuery] = to.split('?')
+      if (location.pathname !== toPath) return false
+      const params = new URLSearchParams(location.search)
+      const toParams = new URLSearchParams(toQuery)
+      // Every key=value in the link must be present in current URL
+      for (const [key, val] of toParams.entries()) {
+        if (params.get(key) !== val) return false
+      }
+      return true
+    }
+    // Plain path — only active when none of the filter-param links also match
+    if (to === '/products') {
+      const params = new URLSearchParams(location.search)
+      const hasFilterParam = FILTER_PARAMS.some(p => params.has(p))
+      return location.pathname === to && !hasFilterParam
+    }
+    return location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'))
   }
 
   return (
@@ -105,26 +125,31 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop nav links */}
           <div className="hidden lg:flex items-center gap-0.5 flex-1">
-            {navLinks.map(l => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className={`relative px-4 py-2 text-[13px] font-label font-semibold tracking-wide rounded-xl transition-all duration-200 group/link ${
-                  isActive(l.to)
-                    ? 'text-forest-700'
-                    : 'text-stone-500 hover:text-stone-900'
-                }`}
-              >
-                {l.label}
-                {/* animated underline */}
-                <span
-                  className={`absolute bottom-0.5 left-4 right-4 h-[2px] rounded-full bg-forest-600 transition-all duration-250 ${
-                    isActive(l.to) ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 group-hover/link:opacity-60 group-hover/link:scale-x-100'
+            {navLinks.map(l => {
+              const active = isActive(l.to)
+              return (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className={`relative px-4 py-2 text-[13px] font-label font-semibold tracking-wide rounded-xl transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-1 group/link ${
+                    active
+                      ? 'text-forest-700'
+                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50/70'
                   }`}
-                  style={{ transformOrigin: 'left' }}
-                />
-              </Link>
-            ))}
+                >
+                  {l.label}
+                  {/* active underline — solid when active, fades in on hover only when inactive */}
+                  <span
+                    className={`absolute bottom-0.5 left-4 right-4 h-[2px] rounded-full bg-forest-600 transition-all duration-200 ${
+                      active
+                        ? 'opacity-100 scale-x-100'
+                        : 'opacity-0 scale-x-50 group-hover/link:opacity-40 group-hover/link:scale-x-100'
+                    }`}
+                    style={{ transformOrigin: 'center' }}
+                  />
+                </Link>
+              )
+            })}
 
             {/* Admin pill — separate visual identity */}
             {isAdmin && (
@@ -378,24 +403,29 @@ export const Navbar: React.FC = () => {
 
             {/* Nav links */}
             <div className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-              {navLinks.map(l => (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-all duration-150 ${
-                    isActive(l.to)
-                      ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-600'
-                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                  }`}
-                >
-                  {l.label}
-                </Link>
-              ))}
+              {navLinks.map(l => {
+                const active = isActive(l.to)
+                return (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-1 ${
+                      active
+                        ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-600'
+                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                    }`}
+                  >
+                    {l.label}
+                  </Link>
+                )
+              })}
 
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-all duration-150 mt-1 ${
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-colors duration-150 mt-1 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1 ${
                     location.pathname.startsWith('/admin')
                       ? 'bg-amber-50 text-amber-700 border-l-2 border-amber-500'
                       : 'text-amber-600 hover:bg-amber-50'

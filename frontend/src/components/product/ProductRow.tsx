@@ -53,7 +53,6 @@ const CompactProductCard: React.FC<{ product: Product }> = ({ product }) => {
       const updated = await cartApi.addItem(product.id, 1)
       setCart(updated)
       toast.success(`${product.name} added!`, { style: { borderRadius: '14px', background: '#175820', color: '#fff' }, icon: String.fromCodePoint(0x1F6D2) })
-      openCart()
     } catch { toast.error('Could not add to cart') }
     finally { setAdding(false) }
   }

@@ -68,7 +68,6 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
         style: { borderRadius: '14px', background: '#175820', color: '#fff' },
         icon: String.fromCodePoint(0x1F6D2),
       })
-      openCart()
     } catch {
       toast.error('Could not add to cart')
     } finally {
