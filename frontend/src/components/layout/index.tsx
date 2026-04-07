@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus } from 'lucide-react'
-import { useAuthStore, useCartStore, useNotifStore } from '../../store'
+import { useAuthStore, useCartStore, useNotifStore, useGuestCartStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
 import { resolveAssetUrl } from '../../lib/image'
@@ -9,6 +9,7 @@ import { resolveAssetUrl } from '../../lib/image'
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore()
   const { cart, setCart, openCart, itemCount } = useCartStore()
+  const { items: guestItems } = useGuestCartStore()
   const { unreadCount } = useNotifStore()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -35,15 +36,18 @@ export const Navbar: React.FC = () => {
   useEffect(() => { if (isAuthenticated) cartApi.get().then(setCart).catch(() => {}) }, [isAuthenticated])
   useEffect(() => { setMobileOpen(false); setUserMenuOpen(false) }, [location.pathname])
 
+  // Unified cart count: authenticated = server cart, guest = local store
+  const guestItemCount = guestItems.reduce((sum, i) => sum + i.quantity, 0)
+  const displayCount = isAuthenticated ? itemCount() : guestItemCount
+
   // Cart badge bump animation when item is added
   useEffect(() => {
-    const count = itemCount()
-    if (count > prevItemCount.current) {
+    if (displayCount > prevItemCount.current) {
       setCartBump(true)
       setTimeout(() => setCartBump(false), 400)
     }
-    prevItemCount.current = count
-  }, [itemCount()])
+    prevItemCount.current = displayCount
+  }, [displayCount])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -171,18 +175,18 @@ export const Navbar: React.FC = () => {
             {/* Cart — always visible for non-farmer users */}
             {!isFarmer && (
               <button
-                onClick={isAuthenticated ? openCart : () => navigate('/login')}
+                onClick={openCart}
                 className="relative p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
                 aria-label="Cart"
               >
                 <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
-                {isAuthenticated && itemCount() > 0 && (
+                {displayCount > 0 && (
                   <span
                     className={`absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center px-1 transition-transform duration-200 ${
                       cartBump ? 'scale-125' : 'scale-100'
                     }`}
                   >
-                    {itemCount() > 9 ? '9+' : itemCount()}
+                    {displayCount > 9 ? '9+' : displayCount}
                   </span>
                 )}
               </button>
@@ -468,21 +472,15 @@ export const Navbar: React.FC = () => {
 export const CartDrawer: React.FC = () => {
   const { cart, isOpen, closeCart, setCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
+  const { items: guestItems, removeItem: removeGuestItem } = useGuestCartStore()
   const navigate = useNavigate()
   const [removing, setRemoving] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (isOpen && !isAuthenticated) {
-      closeCart()
-      navigate('/login')
-    }
-  }, [isOpen, isAuthenticated, closeCart, navigate])
-
   if (!isOpen) return null
 
+  // ── Authenticated: use server cart ────────────────────────────────────────
   const handleRemove = async (itemId: number) => {
     if (!cart) return
-    // Optimistic update: remove item from local state immediately
     const optimistic: typeof cart = {
       ...cart,
       items: cart.items.filter(i => i.id !== itemId),
@@ -493,21 +491,25 @@ export const CartDrawer: React.FC = () => {
     setRemoving(itemId)
     try {
       const updated = await cartApi.removeItem(itemId)
-      // Confirm with server response (authoritative state)
       if (updated && typeof updated === 'object' && 'items' in updated) {
         setCart(updated)
       }
     } catch {
-      // Rollback on error
       setCart(cart)
     } finally {
       setRemoving(null)
     }
   }
 
-  const delivery = (cart?.subtotal ?? 0) >= 500 ? 0 : 49
-  const total = (cart?.subtotal ?? 0) + delivery
-  const freeLeft = Math.max(0, 500 - (cart?.subtotal ?? 0))
+  // ── Guest: compute totals from local store ────────────────────────────────
+  const guestSubtotal = guestItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+  const subtotal = isAuthenticated ? (cart?.subtotal ?? 0) : guestSubtotal
+  const delivery = subtotal >= 500 ? 0 : 49
+  const total = subtotal + delivery
+  const freeLeft = Math.max(0, 500 - subtotal)
+  const hasItems = isAuthenticated ? (cart?.items?.length ?? 0) > 0 : guestItems.length > 0
+  const itemCountDisplay = isAuthenticated ? (cart?.itemCount ?? 0) : guestItems.reduce((s, i) => s + i.quantity, 0)
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -516,18 +518,18 @@ export const CartDrawer: React.FC = () => {
         <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100">
           <div>
             <h2 className="font-display text-2xl font-semibold text-stone-900">Your Cart</h2>
-            {(cart?.itemCount ?? 0) > 0 && <p className="text-xs text-stone-400 font-body mt-0.5">{cart?.itemCount} item{(cart?.itemCount ?? 0) > 1 ? 's' : ''}</p>}
+            {itemCountDisplay > 0 && <p className="text-xs text-stone-400 font-body mt-0.5">{itemCountDisplay} item{itemCountDisplay > 1 ? 's' : ''}</p>}
           </div>
           <button onClick={closeCart} className="p-2 hover:bg-stone-100 rounded-xl transition-colors text-stone-400"><X className="w-5 h-5" /></button>
         </div>
 
-        {(cart?.subtotal ?? 0) > 0 && (
+        {subtotal > 0 && (
           <div className="mx-6 mt-4 p-3.5 bg-forest-50 rounded-2xl border border-forest-100">
             {freeLeft > 0 ? (
               <>
                 <p className="text-xs font-label font-medium text-forest-700">Add ₹{freeLeft.toFixed(0)} more for <span className="font-bold">free delivery</span></p>
                 <div className="mt-2 h-1.5 bg-forest-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-forest-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((cart?.subtotal ?? 0) / 500) * 100)}%` }} />
+                  <div className="h-full bg-forest-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (subtotal / 500) * 100)}%` }} />
                 </div>
               </>
             ) : (
@@ -537,7 +539,7 @@ export const CartDrawer: React.FC = () => {
         )}
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
-          {!cart?.items?.length ? (
+          {!hasItems ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
               <div className="w-20 h-20 bg-stone-100 rounded-3xl flex items-center justify-center mb-5">
                 <ShoppingCart className="w-8 h-8 text-stone-300" strokeWidth={1.5} />
@@ -546,32 +548,55 @@ export const CartDrawer: React.FC = () => {
               <p className="text-sm text-stone-400 font-body mt-1.5 mb-6">Discover our fresh organic produce</p>
               <Button onClick={() => { closeCart(); navigate('/products') }} variant="primary" size="sm" className="gap-2">Browse Products <ArrowRight className="w-4 h-4" /></Button>
             </div>
-          ) : cart.items.map(item => (
-            <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
-              <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
-                {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
+          ) : isAuthenticated ? (
+            // ── Authenticated cart items ──────────────────────────────────
+            cart!.items.map(item => (
+              <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
+                <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
+                  {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
+                  <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit}</p>
+                  <p className="text-[15px] font-display font-semibold text-forest-700 mt-1">₹{item.total.toFixed(0)}</p>
+                </div>
+                <button onClick={() => handleRemove(item.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5">
+                  {removing === item.id ? <Spinner size="sm" /> : <X className="w-3.5 h-3.5" />}
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
-                <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit}</p>
-                <p className="text-[15px] font-display font-semibold text-forest-700 mt-1">₹{item.total.toFixed(0)}</p>
+            ))
+          ) : (
+            // ── Guest cart items ──────────────────────────────────────────
+            guestItems.map(item => (
+              <div key={item.productId} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
+                <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
+                  {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
+                  <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit}</p>
+                  <p className="text-[15px] font-display font-semibold text-forest-700 mt-1">₹{(item.price * item.quantity).toFixed(0)}</p>
+                </div>
+                <button onClick={() => removeGuestItem(item.productId)} className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5">
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <button onClick={() => handleRemove(item.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5">
-                {removing === item.id ? <Spinner size="sm" /> : <X className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
-        {(cart?.items?.length ?? 0) > 0 && (
+        {hasItems && (
           <div className="border-t border-stone-100 px-6 py-5 space-y-4">
             <div className="space-y-2 text-sm font-body">
-              <div className="flex justify-between text-stone-500"><span>Subtotal</span><span>₹{cart?.subtotal?.toFixed(0)}</span></div>
+              <div className="flex justify-between text-stone-500"><span>Subtotal</span><span>₹{subtotal.toFixed(0)}</span></div>
               <div className="flex justify-between text-stone-500"><span>Delivery</span><span className={delivery === 0 ? 'text-forest-600 font-semibold' : ''}>{delivery === 0 ? 'Free' : `₹${delivery}`}</span></div>
               <div className="flex justify-between font-label font-bold text-stone-900 text-base pt-2 border-t border-stone-100"><span>Total</span><span>₹{total.toFixed(0)}</span></div>
             </div>
+            {!isAuthenticated && (
+              <p className="text-xs text-stone-400 font-body text-center">Log in to complete your order</p>
+            )}
             <Button onClick={() => { closeCart(); navigate(isAuthenticated ? '/checkout' : '/login') }} variant="primary" className="w-full justify-center py-3.5" size="md">
-              Checkout · ₹{total.toFixed(0)} <ArrowRight className="w-4 h-4" />
+              {isAuthenticated ? `Checkout · ₹${total.toFixed(0)}` : 'Log in to Checkout'} <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         )}
