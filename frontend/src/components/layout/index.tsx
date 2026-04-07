@@ -9,7 +9,6 @@ import { resolveAssetUrl } from '../../lib/image'
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore()
   const { cart, setCart, openCart, itemCount } = useCartStore()
-  const { items: guestItems } = useGuestCartStore()
   const { unreadCount } = useNotifStore()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -36,18 +35,15 @@ export const Navbar: React.FC = () => {
   useEffect(() => { if (isAuthenticated) cartApi.get().then(setCart).catch(() => {}) }, [isAuthenticated])
   useEffect(() => { setMobileOpen(false); setUserMenuOpen(false) }, [location.pathname])
 
-  // Unified cart count: authenticated = server cart, guest = local store
-  const guestItemCount = guestItems.reduce((sum, i) => sum + i.quantity, 0)
-  const displayCount = isAuthenticated ? itemCount() : guestItemCount
-
-  // Cart badge bump animation when item is added
+  // Cart badge bump animation when item is added (authenticated only)
   useEffect(() => {
-    if (displayCount > prevItemCount.current) {
+    const count = itemCount()
+    if (count > prevItemCount.current) {
       setCartBump(true)
       setTimeout(() => setCartBump(false), 400)
     }
-    prevItemCount.current = displayCount
-  }, [displayCount])
+    prevItemCount.current = count
+  }, [itemCount()])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,18 +171,18 @@ export const Navbar: React.FC = () => {
             {/* Cart — always visible for non-farmer users */}
             {!isFarmer && (
               <button
-                onClick={openCart}
+                onClick={isAuthenticated ? openCart : () => navigate('/login')}
                 className="relative p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
                 aria-label="Cart"
               >
                 <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
-                {displayCount > 0 && (
+                {isAuthenticated && itemCount() > 0 && (
                   <span
                     className={`absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center px-1 transition-transform duration-200 ${
                       cartBump ? 'scale-125' : 'scale-100'
                     }`}
                   >
-                    {displayCount > 9 ? '9+' : displayCount}
+                    {itemCount() > 9 ? '9+' : itemCount()}
                   </span>
                 )}
               </button>
