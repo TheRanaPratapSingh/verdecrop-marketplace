@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { useSearchParams, Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Filter, SlidersHorizontal, X, Star, Heart, ShoppingCart, Leaf, ChevronLeft, ChevronRight, MapPin, ChevronDown, Sparkles } from 'lucide-react'
 import { productApi, categoryApi, cartApi, wishlistApi } from '../services/api'
 import { resolveAssetUrl, resolveLocalUrl, resolveProductImage } from '../lib/image'
@@ -14,6 +14,7 @@ import { trackEvent } from '../lib/analytics'
 
 // ── Products List Page ────────────────────────────────────────────────────────
 export const ProductsPage: React.FC = () => {
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -22,6 +23,7 @@ export const ProductsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
+  // Read display params from searchParams (for sidebar highlights, header title, etc.)
   const page = Number(searchParams.get('page') || 1)
   const search = searchParams.get('search') || ''
   const categoryId = searchParams.get('categoryId') || ''
@@ -33,6 +35,7 @@ export const ProductsPage: React.FC = () => {
   const farmerId = searchParams.get('farmerId') || ''
   const farmerName = searchParams.get('farmerName') || ''
 
+  // Single-param helper (used by sort, price, organic, page controls)
   const setParam = (key: string, value: string) => {
     const p = new URLSearchParams(searchParams)
     if (value) p.set(key, value); else p.delete(key)
@@ -43,28 +46,63 @@ export const ProductsPage: React.FC = () => {
   const matchedCategory = categorySlug ? categories.find(c => c.slug === categorySlug) : undefined
   const resolvedCategoryId = categoryId || (matchedCategory ? String(matchedCategory.id) : '')
 
-  const loadProducts = useCallback(async () => {
+  // ── Fetch products whenever the URL query string changes ──────────────────
+  // Reads all params directly from location.search so it never depends on
+  // derived state (resolvedCategoryId) or async category data loading.
+  // The cancellation flag prevents a slow in-flight request from overwriting
+  // results that arrived from a more recent navigation.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const pageVal     = Number(params.get('page') || 1)
+    const searchVal   = params.get('search')      || ''
+    const catIdVal    = params.get('categoryId')  || ''
+    const catSlugVal  = params.get('categorySlug') || ''
+    const sortByVal   = params.get('sortBy')      || 'newest'
+    const organicVal  = params.get('isOrganic')   || ''
+    const minVal      = params.get('minPrice')    || ''
+    const maxVal      = params.get('maxPrice')    || ''
+    const farmerVal   = params.get('farmerId')    || ''
+
+    let cancelled = false
+
+    // Clear stale products immediately so no old data is shown during load
+    setProducts([])
     setLoading(true)
-    try {
-      const params: Record<string, string> = { page: String(page), pageSize: '20', sortBy }
-      if (search) params.search = search
-      if (resolvedCategoryId) params.categoryId = resolvedCategoryId
-      else if (categorySlug) params.categorySlug = categorySlug
-      if (isOrganic) params.isOrganic = isOrganic
-      if (minPrice) params.minPrice = minPrice
-      if (maxPrice) params.maxPrice = maxPrice
-      if (farmerId) params.farmerId = farmerId
 
-      const res = await productApi.getAll(params)
-      const apiItems = Array.isArray(res) ? res : (res?.items || [])
-      const filteredItems = farmerId ? apiItems.filter(p => String(p.farmerId) === String(farmerId)) : apiItems
-      setProducts(filteredItems)
-      setTotal(farmerId ? filteredItems.length : (res?.totalCount || 0))
-      setTotalPages(farmerId ? 1 : (res?.totalPages || 1))
-    } finally { setLoading(false) }
-  }, [page, search, resolvedCategoryId, categorySlug, sortBy, isOrganic, minPrice, maxPrice, farmerId])
+    const fetchProducts = async () => {
+      try {
+        const queryParams: Record<string, string> = {
+          page: String(pageVal),
+          pageSize: '20',
+          sortBy: sortByVal,
+        }
+        if (searchVal)  queryParams.search      = searchVal
+        if (catIdVal)   queryParams.categoryId  = catIdVal
+        else if (catSlugVal) queryParams.categorySlug = catSlugVal
+        if (organicVal) queryParams.isOrganic   = organicVal
+        if (minVal)     queryParams.minPrice    = minVal
+        if (maxVal)     queryParams.maxPrice    = maxVal
+        if (farmerVal)  queryParams.farmerId    = farmerVal
 
-  useEffect(() => { loadProducts() }, [loadProducts])
+        const res = await productApi.getAll(queryParams)
+        if (cancelled) return
+
+        const apiItems = Array.isArray(res) ? res : (res?.items || [])
+        const filteredItems = farmerVal
+          ? apiItems.filter(p => String(p.farmerId) === String(farmerVal))
+          : apiItems
+        setProducts(filteredItems)
+        setTotal(farmerVal ? filteredItems.length : (res?.totalCount || 0))
+        setTotalPages(farmerVal ? 1 : (res?.totalPages || 1))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    fetchProducts()
+    return () => { cancelled = true }
+  }, [location.search])
+
   useEffect(() => { categoryApi.getAll().then(setCategories).catch(() => {}) }, [])
 
   const clearFilters = () => setSearchParams(new URLSearchParams())
@@ -126,7 +164,14 @@ export const ProductsPage: React.FC = () => {
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 font-body">Category</h3>
                 <div className="space-y-1.5">
                   <button
-                    onClick={() => { setParam('categoryId', ''); setParam('categorySlug', '') }}
+                    onClick={() => {
+                      // Atomic update — both params cleared in one setSearchParams call
+                      const p = new URLSearchParams(searchParams)
+                      p.delete('categoryId')
+                      p.delete('categorySlug')
+                      p.delete('page')
+                      setSearchParams(p)
+                    }}
                     className={`w-full text-left text-sm px-3 py-2 rounded-xl transition font-body ${!categoryId && !categorySlug ? 'bg-leaf-50 text-leaf-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
                   >
                     All Categories
@@ -134,7 +179,16 @@ export const ProductsPage: React.FC = () => {
                   {categories.map(cat => (
                     <button
                       key={cat.id}
-                      onClick={() => { setParam('categoryId', String(cat.id)); setParam('categorySlug', cat.slug) }}
+                      onClick={() => {
+                        // Atomic update — both params written in one setSearchParams call
+                        // Two separate setParam() calls would each capture the same stale
+                        // searchParams snapshot and the second would overwrite the first.
+                        const p = new URLSearchParams(searchParams)
+                        p.set('categoryId', String(cat.id))
+                        p.set('categorySlug', cat.slug)
+                        p.delete('page')
+                        setSearchParams(p)
+                      }}
                       className={`w-full text-left text-sm px-3 py-2 rounded-xl transition font-body flex justify-between items-center ${(categoryId === String(cat.id) || categorySlug === cat.slug) ? 'bg-leaf-50 text-leaf-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                       <span className="flex items-center gap-2">
