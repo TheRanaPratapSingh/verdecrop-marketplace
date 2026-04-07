@@ -1,13 +1,12 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingCart, Leaf, Star, Minus, Plus } from 'lucide-react'
-import { useAuthStore, useCartStore, useGuestCartStore } from '../../store'
+import { Heart, ShoppingCart, Leaf, Star } from 'lucide-react'
+import { useAuthStore, useCartStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner } from '../ui'
 import type { Product, Category } from '../../types'
 import toast from 'react-hot-toast'
 import { resolveAssetUrl, resolveLocalUrl, resolveCategoryIcon, resolveProductImage } from '../../lib/image'
-import { WishlistButton } from './WishlistButton'
 
 
 // ── Shared helper: renders category icon correctly regardless of format ────────
@@ -62,15 +61,9 @@ export const CategoryIcon: React.FC<{
 // ── ProductCard ───────────────────────────────────────────────────────────────
 export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const { isAuthenticated } = useAuthStore()
-  const { cart, setCart } = useCartStore()
-  const { items: guestItems, addItem: addGuestItem, updateItem: updateGuestItem } = useGuestCartStore()
+  const { setCart, openCart } = useCartStore()
   const [adding, setAdding] = useState(false)
-  const [updating, setUpdating] = useState(false)
-
-  // Derive current quantity from whichever cart is active
-  const cartItem = isAuthenticated ? cart?.items.find(i => i.productId === product.id) : null
-  const guestItem = !isAuthenticated ? guestItems.find(i => i.productId === product.id) : null
-  const cartQty = cartItem?.quantity ?? guestItem?.quantity ?? 0
+  const [wishlisted, setWishlisted] = useState(false)
   const productBaseImage = resolveAssetUrl(product.imageUrl) || resolveLocalUrl(product.imageUrl) || resolveProductImage(product.slug, product.name)
   const [imageSrc, setImageSrc] = useState<string | undefined>(productBaseImage)
   const [imageFallbacked, setImageFallbacked] = useState(false)
@@ -89,70 +82,18 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
-    if (product.stockQuantity === 0) { toast.error('Out of stock'); return }
-    if (!isAuthenticated) {
-      addGuestItem({
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        imageUrl: product.imageUrl,
-        unit: product.unit,
-        quantity: 1,
-        stockQuantity: product.stockQuantity,
-        slug: product.slug,
-      })
-      toast.success(`${product.name} added!`, {
-        style: { borderRadius: '14px', background: '#175820', color: '#fff' },
-        icon: String.fromCodePoint(0x1F6D2),
-      })
-      return
-    }
+    if (!isAuthenticated) { toast.error('Please login to add to cart'); return }
     setAdding(true)
     try {
-      const updated = await cartApi.addItem(product.id, 1)
-      setCart(updated)
+      const cart = await cartApi.addItem(product.id, 1)
+      setCart(cart)
       toast.success(`${product.name} added!`, {
         style: { borderRadius: '14px', background: '#175820', color: '#fff' },
-        icon: String.fromCodePoint(0x1F6D2),
+        icon: '🛒'
       })
+      openCart()
     } catch { toast.error('Could not add to cart') }
     finally { setAdding(false) }
-  }
-
-  const handleIncrease = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (!isAuthenticated) {
-      if (!guestItem) return
-      if (guestItem.quantity >= product.stockQuantity) { toast.error('Max stock reached'); return }
-      updateGuestItem(product.id, guestItem.quantity + 1)
-      return
-    }
-    if (!cartItem) return
-    setUpdating(true)
-    try {
-      const updated = await cartApi.updateItem(cartItem.id, cartItem.quantity + 1)
-      setCart(updated)
-    } catch { toast.error('Could not update cart') }
-    finally { setUpdating(false) }
-  }
-
-  const handleDecrease = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (!isAuthenticated) {
-      if (!guestItem) return
-      updateGuestItem(product.id, guestItem.quantity - 1)
-      return
-    }
-    if (!cartItem) return
-    setUpdating(true)
-    try {
-      const updated = cartItem.quantity === 1
-        ? await cartApi.removeItem(cartItem.id)
-        : await cartApi.updateItem(cartItem.id, cartItem.quantity - 1)
-      setCart(updated)
-    } catch { toast.error('Could not update cart') }
-    finally { setUpdating(false) }
   }
 
   const discount = product.originalPrice && product.originalPrice > product.price
@@ -186,21 +127,16 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
             {discount > 0 && (
               <span className="badge-discount">-{discount}%</span>
             )}
-            {product.pricingLabel && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-label font-semibold bg-amber-500/90 text-white backdrop-blur-sm shadow-sm leading-tight">
-                {product.pricingLabel}
-              </span>
-            )}
           </div>
 
           {/* Wishlist */}
           {isAuthenticated && (
-            <WishlistButton
-              productId={product.id}
-              productName={product.name}
-              size="sm"
-              className="absolute top-2.5 right-2.5 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110"
-            />
+            <button
+              onClick={e => { e.preventDefault(); setWishlisted(v => !v) }}
+              className="absolute top-2.5 right-2.5 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+            >
+              <Heart className={`w-4 h-4 transition-colors ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} strokeWidth={1.8} />
+            </button>
           )}
 
           {/* Out of stock */}
@@ -237,38 +173,13 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
               <span className="text-[10px] text-stone-400 font-body">/{product.unit}</span>
             </div>
 
-            {cartQty > 0 ? (
-              <div
-                onClick={e => e.preventDefault()}
-                className="w-full flex items-center justify-between bg-forest-700 rounded-xl overflow-hidden shadow-btn h-10"
-              >
-                <button
-                  onClick={handleDecrease}
-                  disabled={updating}
-                  className="flex items-center justify-center w-10 h-10 text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"
-                >
-                  <Minus className="w-4 h-4" strokeWidth={2.5} />
-                </button>
-                <span className="flex-1 text-center text-white text-sm font-label font-bold">
-                  {updating ? <Spinner size="sm" /> : cartQty}
-                </span>
-                <button
-                  onClick={handleIncrease}
-                  disabled={updating}
-                  className="flex items-center justify-center w-10 h-10 text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"
-                >
-                  <Plus className="w-4 h-4" strokeWidth={2.5} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleAddToCart}
-                disabled={adding || product.stockQuantity === 0}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-forest-700 hover:bg-forest-600 active:bg-forest-800 text-white text-sm font-label font-semibold rounded-xl shadow-btn hover:shadow-btn-hover active:scale-[0.97] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {adding ? <Spinner size="sm" /> : <><ShoppingCart className="w-4 h-4" strokeWidth={2} />Add to Cart</>}
-              </button>
-            )}
+            <button
+              onClick={handleAddToCart}
+              disabled={adding || product.stockQuantity === 0}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-forest-700 hover:bg-forest-600 active:bg-forest-800 text-white text-sm font-label font-semibold rounded-xl shadow-btn hover:shadow-btn-hover active:scale-[0.97] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {adding ? <Spinner size="sm" /> : <><ShoppingCart className="w-4 h-4" strokeWidth={2} />Add to Cart</>}
+            </button>
           </div>
         </div>
       </div>
@@ -332,7 +243,3 @@ export const CategoryCard: React.FC<{ category: Category }> = ({ category }) => 
     <span className="text-[10px] text-stone-400 font-body">{category.productCount} items</span>
   </Link>
 )
-
-export { CategorySection } from './CategorySection'
-export type { CategorySectionProps } from './CategorySection'
-export { WishlistButton } from './WishlistButton'

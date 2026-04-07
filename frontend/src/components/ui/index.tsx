@@ -297,9 +297,6 @@ export const SectionHeader: React.FC<{ title: string; subtitle?: string; action?
   </div>
 )
 
-// ── Idle Warning Modal ────────────────────────────────────────────────────────
-export { IdleWarningModal } from './IdleWarningModal'
-
 // ── Tab Group ─────────────────────────────────────────────────────────────────
 export const TabGroup: React.FC<{
   tabs: { id: string; label: string; count?: number }[]

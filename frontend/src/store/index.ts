@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User, Cart, Notification, GuestCartItem } from '../types'
+import type { User, Cart, Notification } from '../types'
 
 // Safe localStorage wrapper — jsdom (used by prerender) has no localStorage
 const safeStorage = {
@@ -127,76 +127,3 @@ export const useUIStore = create<UIState>((set) => ({
   searchQuery: '',
   setSearchQuery: (searchQuery) => set({ searchQuery }),
 }))
-
-// ── Wishlist Store (in-memory, auth-only) ─────────────────────────────────────
-interface WishlistState {
-  ids: number[]                               // productIds in wishlist
-  setWishlist: (ids: number[]) => void
-  addId: (id: number) => void
-  removeId: (id: number) => void
-  clearWishlist: () => void
-  isWishlisted: (id: number) => boolean
-}
-
-export const useWishlistStore = create<WishlistState>((set, get) => ({
-  ids: [],
-  setWishlist: (ids) => set({ ids }),
-  addId: (id) => set(s => ({ ids: [...s.ids.filter(i => i !== id), id] })),
-  removeId: (id) => set(s => ({ ids: s.ids.filter(i => i !== id) })),
-  clearWishlist: () => set({ ids: [] }),
-  isWishlisted: (id) => get().ids.includes(id),
-}))
-
-// ── Guest Cart Store (persisted, no auth required) ─────────────────────────────
-interface GuestCartState {
-  items: GuestCartItem[]
-  addItem: (item: GuestCartItem) => void
-  updateItem: (productId: number, quantity: number) => void
-  removeItem: (productId: number) => void
-  clearGuestCart: () => void
-  guestItemCount: () => number
-  guestSubtotal: () => number
-}
-
-export const useGuestCartStore = create<GuestCartState>()(
-  persist(
-    (set, get) => ({
-      items: [],
-      addItem: (incoming) => {
-        const existing = get().items.find(i => i.productId === incoming.productId)
-        if (existing) {
-          const newQty = existing.quantity + incoming.quantity
-          set(s => ({
-            items: s.items.map(i =>
-              i.productId === incoming.productId ? { ...i, quantity: newQty } : i
-            ),
-          }))
-        } else {
-          set(s => ({ items: [...s.items, incoming] }))
-        }
-      },
-      updateItem: (productId, quantity) => {
-        if (quantity <= 0) {
-          set(s => ({ items: s.items.filter(i => i.productId !== productId) }))
-        } else {
-          set(s => ({
-            items: s.items.map(i => i.productId === productId ? { ...i, quantity } : i),
-          }))
-        }
-      },
-      removeItem: (productId) =>
-        set(s => ({ items: s.items.filter(i => i.productId !== productId) })),
-      clearGuestCart: () => set({ items: [] }),
-      guestItemCount: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
-      guestSubtotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-    }),
-    {
-      name: 'graamo-guest-cart',
-      storage: {
-        getItem: (key) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null } catch { return null } },
-        setItem: (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* no-op */ } },
-        removeItem: (key) => { try { localStorage.removeItem(key) } catch { /* no-op */ } },
-      },
-    }
-  )
-)

@@ -43,11 +43,6 @@ export interface Farmer {
   ownerName: string
   avatarUrl?: string
   pinCode?: string
-  isPremium: boolean
-  premiumPlan: string
-  premiumExpiresAt?: string
-  isWomenLed: boolean
-  womenStory?: string
 }
 
 export interface Product {
@@ -73,120 +68,9 @@ export interface Product {
   reviewCount: number
   isActive: boolean
   reviews?: Review[]
-  // Dynamic pricing (optional — populated when available)
-  dynamicPrice?: number
-  pricingLabel?: string
-  pricingFactors?: string[]
-}
-
-export interface DynamicPriceInfo {
-  basePrice: number
-  dynamicPrice: number
-  adjustmentPercent: number
-  pricingLabel: string
-  factors: string[]
-  computedAt: string
 }
 
 export type WishlistItem = Product
-
-// ── Subscription ──────────────────────────────────────────────────────────────
-export interface SubscriptionItem {
-  productId: number
-  productName: string
-  imageUrl?: string
-  quantity: number
-  unit: string
-  price: number
-}
-
-export type SubscriptionStatus = 'active' | 'paused' | 'cancelled'
-export type BoxType = 'vegetable' | 'fruit' | 'custom'
-export type Frequency = 'weekly' | 'monthly'
-
-export interface Subscription {
-  id: number
-  boxType: BoxType
-  frequency: Frequency
-  status: SubscriptionStatus
-  price: number
-  startDate: string
-  endDate?: string
-  nextDeliveryDate: string
-  notes?: string
-  createdAt: string
-  address: Address
-  items: SubscriptionItem[]
-}
-
-// ── Referral ──────────────────────────────────────────────────────────────────
-export interface ReferralCode {
-  id: number
-  code: string
-  usageCount: number
-  isActive: boolean
-  createdAt: string
-}
-
-export interface ReferralEntry {
-  id: number
-  referredUserId: number
-  referredUserName: string
-  status: 'pending' | 'completed'
-  creditsAwarded: number
-  completedAt?: string
-  createdAt: string
-}
-
-export interface WalletCredit {
-  id: number
-  amount: number
-  type: 'earned' | 'redeemed' | 'expired'
-  description: string
-  createdAt: string
-}
-
-export interface WalletSummary {
-  totalEarned: number
-  totalRedeemed: number
-  balance: number
-  recent: WalletCredit[]
-}
-
-// ── Bundle ────────────────────────────────────────────────────────────────────
-export interface BundleItem {
-  productId: number
-  productName: string
-  imageUrl?: string
-  price: number
-  unit: string
-  quantity: number
-}
-
-export interface Bundle {
-  id: number
-  name: string
-  slug: string
-  description?: string
-  imageUrl?: string
-  discountPercent: number
-  originalTotal: number
-  bundlePrice: number
-  isActive: boolean
-  items: BundleItem[]
-}
-
-// ── PriceAlert ────────────────────────────────────────────────────────────────
-export interface PriceAlertInfo {
-  id: number
-  productId: number
-  productName: string
-  imageUrl?: string
-  currentPrice: number
-  targetPrice: number
-  isTriggered: boolean
-  createdAt: string
-}
 
 export interface CartItem {
   id: number
@@ -197,7 +81,6 @@ export interface CartItem {
   quantity: number
   unit: string
   total: number
-  stockQuantity: number
 }
 
 export interface Cart {
@@ -205,19 +88,6 @@ export interface Cart {
   items: CartItem[]
   subtotal: number
   itemCount: number
-}
-
-// ── Guest Cart (localStorage, no auth required) ───────────────────────────────
-export interface GuestCartItem {
-  productId: number
-  productName: string
-  price: number
-  originalPrice?: number
-  imageUrl?: string
-  unit: string
-  quantity: number
-  stockQuantity: number
-  slug: string
 }
 
 export interface Address {

@@ -55,14 +55,7 @@ export const ShopByFarmsPage: React.FC = () => {
                       <h2 className="text-lg font-label font-semibold text-stone-900">{farmer.farmName}</h2>
                       <p className="text-sm text-stone-500 mt-1">by {farmer.ownerName}</p>
                     </div>
-                    <div className="flex flex-col gap-1.5 items-end">
-                      <Badge variant="green">Verified</Badge>
-                      {farmer.isWomenLed && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-label font-semibold bg-pink-100 text-pink-700 border border-pink-200">
-                          👩‍🌾 Women-Led
-                        </span>
-                      )}
-                    </div>
+                    <Badge variant="green">Verified</Badge>
                   </div>
 
                   <p className="mt-3 text-sm text-stone-600 line-clamp-2">{farmer.description || 'Fresh seasonal produce from this farm.'}</p>

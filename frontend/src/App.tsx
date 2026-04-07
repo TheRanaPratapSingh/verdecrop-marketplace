@@ -1,11 +1,10 @@
 // ── App.tsx ───────────────────────────────────────────────────────────────────
-import React, { Suspense, lazy, useEffect, useState, useCallback } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import React, { Suspense, lazy, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { useAuthStore, useCartStore } from './store'
-import { Spinner, IdleWarningModal } from './components/ui'
+import { useAuthStore } from './store'
+import { Spinner } from './components/ui'
 import { trackPageView } from './lib/analytics'
-import { useIdleTimer } from './hooks/useIdleTimer'
 
 const HomePage            = lazy(() => import('./pages/Home'))
 const ProductsPage        = lazy(() => import('./pages/Products').then(m => ({ default: m.ProductsPage })))
@@ -25,7 +24,6 @@ const CareersPage         = lazy(() => import('./pages/Careers').then(m => ({ de
 const ContactPage         = lazy(() => import('./pages/Contact').then(m => ({ default: m.ContactPage })))
 const BecomeSellerPage    = lazy(() => import('./pages/BecomeSeller').then(m => ({ default: m.BecomeSellerPage })))
 const FarmerStoriesPage   = lazy(() => import('./pages/FarmerStories').then(m => ({ default: m.FarmerStoriesPage })))
-const WomenFarmersPage    = lazy(() => import('./pages/WomenFarmers').then(m => ({ default: m.WomenFarmersPage })))
 const CertificationsPage  = lazy(() => import('./pages/Certifications').then(m => ({ default: m.CertificationsPage })))
 const ShopByFarmsPage     = lazy(() => import('./pages/ShopByFarms').then(m => ({ default: m.ShopByFarmsPage })))
 const SellerOrdersPage     = lazy(() => import('./pages/SellerOrders').then(m => ({ default: m.SellerOrdersPage })))
@@ -38,8 +36,6 @@ const AdminCategories     = lazy(() => import('./pages/admin/Categories').then(m
 const AdminSellers        = lazy(() => import('./pages/admin/Sellers').then(m => ({ default: m.AdminSellers })))
 const AdminOrders         = lazy(() => import('./pages/admin/Orders').then(m => ({ default: m.AdminOrders })))
 const AdminUsers          = lazy(() => import('./pages/admin/Users').then(m => ({ default: m.AdminUsers })))
-const SubscriptionsPage   = lazy(() => import('./pages/Subscriptions').then(m => ({ default: m.SubscriptionsPage })))
-const ReferralPage        = lazy(() => import('./pages/Referral').then(m => ({ default: m.ReferralPage })))
 
 const Loader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-cream">
@@ -89,26 +85,6 @@ const RequireGuest: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // ── This inner component can safely use useLocation ──────────────────────────
 const AppRoutes: React.FC = () => {
   const location = useLocation()
-  const navigate  = useNavigate()
-  const { isAuthenticated, logout } = useAuthStore()
-  const { setCart } = useCartStore()
-  const [showIdleWarning, setShowIdleWarning] = useState(false)
-
-  const handleWarn    = useCallback(() => setShowIdleWarning(true),  [])
-  const handleActivity = useCallback(() => setShowIdleWarning(false), [])
-  const handleLogout  = useCallback(() => {
-    setShowIdleWarning(false)
-    logout()
-    setCart(null)
-    navigate('/login', { replace: true })
-  }, [logout, setCart, navigate])
-
-  useIdleTimer({
-    enabled: isAuthenticated,
-    onWarn:     handleWarn,
-    onLogout:   handleLogout,
-    onActivity: handleActivity,
-  })
 
   useEffect(() => {
     trackPageView(location.pathname)
@@ -117,11 +93,6 @@ const AppRoutes: React.FC = () => {
   return (
     <>
       <ScrollTop />
-      <IdleWarningModal
-        isOpen={showIdleWarning}
-        onStayLoggedIn={handleActivity}
-        onLogoutNow={handleLogout}
-      />
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route path="/"                element={<HomePage />} />
@@ -135,7 +106,6 @@ const AppRoutes: React.FC = () => {
           <Route path="/shop-by-farms"   element={<ShopByFarmsPage />} />
           <Route path="/farmers"         element={<ShopByFarmsPage />} />
           <Route path="/farmer-stories"  element={<FarmerStoriesPage />} />
-          <Route path="/women-farmers"   element={<WomenFarmersPage />} />
           <Route path="/certifications"  element={<CertificationsPage />} />
           <Route path="/login"           element={<RequireGuest><LoginPage /></RequireGuest>} />
           <Route path="/register"        element={<RequireGuest><RegisterPage /></RequireGuest>} />
@@ -150,8 +120,6 @@ const AppRoutes: React.FC = () => {
           <Route path="/seller/products/:id/edit" element={<RequireAuth role="farmer"><SellerAddProductPage /></RequireAuth>} />
           <Route path="/profile"         element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/notifications"   element={<RequireAuth><NotificationsPage /></RequireAuth>} />
-          <Route path="/subscriptions"   element={<RequireAuth><SubscriptionsPage /></RequireAuth>} />
-          <Route path="/referral"        element={<RequireAuth><ReferralPage /></RequireAuth>} />
           <Route path="/admin"           element={<RequireAuth><AdminDashboard /></RequireAuth>} />
           <Route path="/admin/products"  element={<RequireAuth><AdminProducts /></RequireAuth>} />
           <Route path="/admin/categories" element={<RequireAuth><AdminCategories /></RequireAuth>} />

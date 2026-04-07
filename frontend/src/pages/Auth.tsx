@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Leaf, Phone, Mail, ArrowRight, ChevronLeft } from 'lucide-react'
-import { authApi, cartApi } from '../services/api'
-import { useAuthStore, useCartStore, useGuestCartStore } from '../store'
+import { authApi } from '../services/api'
+import { useAuthStore } from '../store'
 import { SEO } from '../components/SEO'
 import { Button, Input } from '../components/ui'
 import toast from 'react-hot-toast'
@@ -165,18 +165,6 @@ export const LoginPage: React.FC = () => {
         user_role: res.user.role,
       })
       toast.success(`Welcome back, ${res.user.name}!`)
-      // Merge guest cart into user cart if there are guest items
-      const guestItems = useGuestCartStore.getState().items
-      if (guestItems.length > 0) {
-        try {
-          const mergedCart = await cartApi.mergeGuestCart(
-            guestItems.map(i => ({ productId: i.productId, quantity: i.quantity }))
-          )
-          useCartStore.getState().setCart(mergedCart)
-          useGuestCartStore.getState().clearGuestCart()
-          toast.success(`${guestItems.length} cart item(s) saved to your cart!`)
-        } catch { /* merge failed silently — login still succeeds */ }
-      }
       navigate(from, { replace: true })
     } catch { toast.error('Invalid OTP. Please try again.') }
     finally { setLoading(false) }

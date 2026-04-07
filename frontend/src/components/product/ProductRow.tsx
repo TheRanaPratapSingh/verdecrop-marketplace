@@ -194,28 +194,46 @@ export const ProductRow: React.FC<ProductRowProps> = ({ title, products, loading
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-3 px-4 sm:px-0">
+      {/* ── Section header ── */}
+      <div className="flex items-center justify-between mb-4 px-6 sm:px-10">
         <h2 className="font-display text-xl sm:text-2xl font-semibold text-stone-900">{title}</h2>
         <Link to={seeAllLink} className="flex items-center gap-0.5 text-sm font-label font-semibold text-forest-600 hover:text-forest-800 transition-colors">
           See All <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
+      {/* ── Slider track ── */}
       <div className="relative">
-        {canScrollLeft && (
-          <button onClick={scrollLeft} className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-8 h-8 items-center justify-center bg-white border border-stone-200 rounded-full shadow-md hover:shadow-lg hover:border-forest-300 transition-all duration-150">
-            <ChevronLeft className="w-4 h-4 text-stone-600" />
-          </button>
-        )}
-        {canScrollRight && (
-          <button onClick={scrollRight} className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-8 h-8 items-center justify-center bg-white border border-stone-200 rounded-full shadow-md hover:shadow-lg hover:border-forest-300 transition-all duration-150">
-            <ChevronRight className="w-4 h-4 text-stone-600" />
-          </button>
-        )}
-        <div ref={scrollRef} onScroll={updateArrows} className="flex gap-3 overflow-x-auto pb-2 px-4 sm:px-0 scrollbar-hide scroll-smooth snap-x snap-mandatory">
+        {/* Left arrow – fades in once user has scrolled right */}
+        <button
+          onClick={scrollLeft}
+          aria-label="Scroll left"
+          className={`hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 items-center justify-center bg-white border border-stone-200 rounded-full shadow-md hover:shadow-lg hover:border-forest-300 transition-all duration-200 ${canScrollLeft ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}
+        >
+          <ChevronLeft className="w-4 h-4 text-stone-600" />
+        </button>
+        {/* Right arrow – fades out when all cards are visible */}
+        <button
+          onClick={scrollRight}
+          aria-label="Scroll right"
+          className={`hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 items-center justify-center bg-white border border-stone-200 rounded-full shadow-md hover:shadow-lg hover:border-forest-300 transition-all duration-200 ${canScrollRight ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}
+        >
+          <ChevronRight className="w-4 h-4 text-stone-600" />
+        </button>
+        {/* Scroll container:
+            – pl-6/pl-10 aligns the first card with the section header text
+            – scroll-pl-6/scroll-pl-10 keeps snap targets aligned with that offset
+            – end spacer div ensures the last card never gets clipped at the right edge */}
+        <div
+          ref={scrollRef}
+          onScroll={updateArrows}
+          className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-3 pl-6 sm:pl-10 scroll-pl-6 sm:scroll-pl-10 snap-x snap-mandatory"
+        >
           {loading
-            ? Array.from({ length: skeletonCount }).map((_, i) => <div key={i} className="snap-start"><SkeletonCard /></div>)
-            : products.map(p => <div key={p.id} className="snap-start"><CompactProductCard product={p} /></div>)
+            ? Array.from({ length: skeletonCount }).map((_, i) => <div key={i} className="snap-start flex-shrink-0"><SkeletonCard /></div>)
+            : products.map(p => <div key={p.id} className="snap-start flex-shrink-0"><CompactProductCard product={p} /></div>)
           }
+          {/* Right spacer: ensures the last card scrolls fully into view */}
+          <div className="flex-shrink-0 w-6 sm:w-10" aria-hidden="true" />
         </div>
       </div>
     </div>

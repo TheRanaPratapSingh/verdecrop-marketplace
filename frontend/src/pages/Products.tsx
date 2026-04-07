@@ -1,20 +1,19 @@
-import React, { useEffect, useState } from 'react'
-import { useSearchParams, Link, useParams, useNavigate, useLocation } from 'react-router-dom'
+import React, { useEffect, useState, useCallback } from 'react'
+import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom'
 import { Filter, SlidersHorizontal, X, Star, Heart, ShoppingCart, Leaf, ChevronLeft, ChevronRight, MapPin, ChevronDown, Sparkles } from 'lucide-react'
-import { productApi, categoryApi, cartApi, wishlistApi } from '../services/api'
+import { productApi, categoryApi, cartApi } from '../services/api'
 import { resolveAssetUrl, resolveLocalUrl, resolveProductImage } from '../lib/image'
 import { PageLayout } from '../components/layout'
 import { ProductGrid, CategoryIcon } from '../components/product'
 import { SEO } from '../components/SEO'
 import { Button, Badge, Spinner, Pagination, PriceDisplay, StarRating, EmptyState } from '../components/ui'
-import { useCartStore, useAuthStore, useWishlistStore, useGuestCartStore } from '../store'
+import { useCartStore, useAuthStore } from '../store'
 import type { Product, Category } from '../types'
 import toast from 'react-hot-toast'
 import { trackEvent } from '../lib/analytics'
 
 // ── Products List Page ────────────────────────────────────────────────────────
 export const ProductsPage: React.FC = () => {
-  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -23,7 +22,6 @@ export const ProductsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  // Read display params from searchParams (for sidebar highlights, header title, etc.)
   const page = Number(searchParams.get('page') || 1)
   const search = searchParams.get('search') || ''
   const categoryId = searchParams.get('categoryId') || ''
@@ -35,7 +33,6 @@ export const ProductsPage: React.FC = () => {
   const farmerId = searchParams.get('farmerId') || ''
   const farmerName = searchParams.get('farmerName') || ''
 
-  // Single-param helper (used by sort, price, organic, page controls)
   const setParam = (key: string, value: string) => {
     const p = new URLSearchParams(searchParams)
     if (value) p.set(key, value); else p.delete(key)
@@ -46,63 +43,28 @@ export const ProductsPage: React.FC = () => {
   const matchedCategory = categorySlug ? categories.find(c => c.slug === categorySlug) : undefined
   const resolvedCategoryId = categoryId || (matchedCategory ? String(matchedCategory.id) : '')
 
-  // ── Fetch products whenever the URL query string changes ──────────────────
-  // Reads all params directly from location.search so it never depends on
-  // derived state (resolvedCategoryId) or async category data loading.
-  // The cancellation flag prevents a slow in-flight request from overwriting
-  // results that arrived from a more recent navigation.
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const pageVal     = Number(params.get('page') || 1)
-    const searchVal   = params.get('search')      || ''
-    const catIdVal    = params.get('categoryId')  || ''
-    const catSlugVal  = params.get('categorySlug') || ''
-    const sortByVal   = params.get('sortBy')      || 'newest'
-    const organicVal  = params.get('isOrganic')   || ''
-    const minVal      = params.get('minPrice')    || ''
-    const maxVal      = params.get('maxPrice')    || ''
-    const farmerVal   = params.get('farmerId')    || ''
-
-    let cancelled = false
-
-    // Clear stale products immediately so no old data is shown during load
-    setProducts([])
+  const loadProducts = useCallback(async () => {
     setLoading(true)
+    try {
+      const params: Record<string, string> = { page: String(page), pageSize: '20', sortBy }
+      if (search) params.search = search
+      if (resolvedCategoryId) params.categoryId = resolvedCategoryId
+      else if (categorySlug) params.categorySlug = categorySlug
+      if (isOrganic) params.isOrganic = isOrganic
+      if (minPrice) params.minPrice = minPrice
+      if (maxPrice) params.maxPrice = maxPrice
+      if (farmerId) params.farmerId = farmerId
 
-    const fetchProducts = async () => {
-      try {
-        const queryParams: Record<string, string> = {
-          page: String(pageVal),
-          pageSize: '20',
-          sortBy: sortByVal,
-        }
-        if (searchVal)  queryParams.search      = searchVal
-        if (catIdVal)   queryParams.categoryId  = catIdVal
-        else if (catSlugVal) queryParams.categorySlug = catSlugVal
-        if (organicVal) queryParams.isOrganic   = organicVal
-        if (minVal)     queryParams.minPrice    = minVal
-        if (maxVal)     queryParams.maxPrice    = maxVal
-        if (farmerVal)  queryParams.farmerId    = farmerVal
+      const res = await productApi.getAll(params)
+      const apiItems = Array.isArray(res) ? res : (res?.items || [])
+      const filteredItems = farmerId ? apiItems.filter(p => String(p.farmerId) === String(farmerId)) : apiItems
+      setProducts(filteredItems)
+      setTotal(farmerId ? filteredItems.length : (res?.totalCount || 0))
+      setTotalPages(farmerId ? 1 : (res?.totalPages || 1))
+    } finally { setLoading(false) }
+  }, [page, search, resolvedCategoryId, categorySlug, sortBy, isOrganic, minPrice, maxPrice, farmerId])
 
-        const res = await productApi.getAll(queryParams)
-        if (cancelled) return
-
-        const apiItems = Array.isArray(res) ? res : (res?.items || [])
-        const filteredItems = farmerVal
-          ? apiItems.filter(p => String(p.farmerId) === String(farmerVal))
-          : apiItems
-        setProducts(filteredItems)
-        setTotal(farmerVal ? filteredItems.length : (res?.totalCount || 0))
-        setTotalPages(farmerVal ? 1 : (res?.totalPages || 1))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    fetchProducts()
-    return () => { cancelled = true }
-  }, [location.search])
-
+  useEffect(() => { loadProducts() }, [loadProducts])
   useEffect(() => { categoryApi.getAll().then(setCategories).catch(() => {}) }, [])
 
   const clearFilters = () => setSearchParams(new URLSearchParams())
@@ -164,14 +126,7 @@ export const ProductsPage: React.FC = () => {
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 font-body">Category</h3>
                 <div className="space-y-1.5">
                   <button
-                    onClick={() => {
-                      // Atomic update — both params cleared in one setSearchParams call
-                      const p = new URLSearchParams(searchParams)
-                      p.delete('categoryId')
-                      p.delete('categorySlug')
-                      p.delete('page')
-                      setSearchParams(p)
-                    }}
+                    onClick={() => { setParam('categoryId', ''); setParam('categorySlug', '') }}
                     className={`w-full text-left text-sm px-3 py-2 rounded-xl transition font-body ${!categoryId && !categorySlug ? 'bg-leaf-50 text-leaf-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
                   >
                     All Categories
@@ -179,16 +134,7 @@ export const ProductsPage: React.FC = () => {
                   {categories.map(cat => (
                     <button
                       key={cat.id}
-                      onClick={() => {
-                        // Atomic update — both params written in one setSearchParams call
-                        // Two separate setParam() calls would each capture the same stale
-                        // searchParams snapshot and the second would overwrite the first.
-                        const p = new URLSearchParams(searchParams)
-                        p.set('categoryId', String(cat.id))
-                        p.set('categorySlug', cat.slug)
-                        p.delete('page')
-                        setSearchParams(p)
-                      }}
+                      onClick={() => { setParam('categoryId', String(cat.id)); setParam('categorySlug', cat.slug) }}
                       className={`w-full text-left text-sm px-3 py-2 rounded-xl transition font-body flex justify-between items-center ${(categoryId === String(cat.id) || categorySlug === cat.slug) ? 'bg-leaf-50 text-leaf-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                       <span className="flex items-center gap-2">
@@ -297,17 +243,9 @@ export const ProductDetailPage: React.FC = () => {
   const [buyingNow, setBuyingNow] = useState(false)
   const [activeImg, setActiveImg] = useState(0)
   const [wishlisted, setWishlisted] = useState(false)
-  const [wishlistLoading, setWishlistLoading] = useState(false)
   const [openSection, setOpenSection] = useState<'details' | 'nutrition' | 'story'>('details')
   const { setCart, openCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
-  const { isWishlisted, addId, removeId } = useWishlistStore()
-  const { addItem: addGuestItem } = useGuestCartStore()
-
-  // Sync wishlisted from store when product loads
-  useEffect(() => {
-    if (product) setWishlisted(isWishlisted(product.id))
-  }, [product, isWishlisted])
 
   useEffect(() => {
     if (!slug) return
@@ -332,27 +270,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleAddToCart = async () => {
     if (!product) return
-    if (!isAuthenticated) {
-      addGuestItem({
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        imageUrl: product.imageUrl,
-        unit: product.unit,
-        quantity: qty * unitPack,
-        stockQuantity: product.stockQuantity,
-        slug: product.slug,
-      })
-      trackEvent('add_to_cart', {
-        product_id: product.id,
-        product_name: product.name,
-        quantity: qty * unitPack,
-        value: product.price * qty * unitPack,
-      })
-      toast.success('Added to cart!', { icon: '🛒' })
-      return
-    }
+    if (!isAuthenticated) { toast.error('Please login to continue'); return }
     setAdding(true)
     try {
       const cart = await cartApi.addItem(product.id, qty * unitPack)
@@ -364,34 +282,14 @@ export const ProductDetailPage: React.FC = () => {
         value: product.price * qty * unitPack,
       })
       toast.success('Added to cart!', { icon: '🛒' })
+      openCart()
     } catch { toast.error('Could not add to cart') }
     finally { setAdding(false) }
   }
 
   const handleBuyNow = async () => {
     if (!product) return
-    if (!isAuthenticated) {
-      addGuestItem({
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        imageUrl: product.imageUrl,
-        unit: product.unit,
-        quantity: qty * unitPack,
-        stockQuantity: product.stockQuantity,
-        slug: product.slug,
-      })
-      trackEvent('buy_now', {
-        product_id: product.id,
-        product_name: product.name,
-        quantity: qty * unitPack,
-        value: product.price * qty * unitPack,
-      })
-      toast.success('Ready to checkout', { icon: '⚡' })
-      navigate('/checkout')
-      return
-    }
+    if (!isAuthenticated) { toast.error('Please login to continue'); return }
     setBuyingNow(true)
     try {
       const cart = await cartApi.addItem(product.id, qty * unitPack)
@@ -544,31 +442,15 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-display font-semibold text-stone-900 tracking-tight">{product.name}</h1>
               </div>
-              <button
-                title="Add to wishlist"
-                disabled={wishlistLoading}
-                onClick={async () => {
-                  if (!isAuthenticated) { toast.error('Please login to save to wishlist'); return }
-                  if (!product || wishlistLoading) return
-                  setWishlistLoading(true)
-                  const nowWishlisted = isWishlisted(product.id)
-                  // Optimistic
-                  if (nowWishlisted) { removeId(product.id); setWishlisted(false) }
-                  else { addId(product.id); setWishlisted(true) }
-                  try {
-                    if (nowWishlisted) { await wishlistApi.remove(product.id); toast.success('Removed from wishlist') }
-                    else { await wishlistApi.add(product.id); toast.success(`${product.name} saved!`, { icon: '❤️' }) }
-                  } catch {
-                    // Revert
-                    if (nowWishlisted) { addId(product.id); setWishlisted(true) }
-                    else { removeId(product.id); setWishlisted(false) }
-                    toast.error('Could not update wishlist')
-                  } finally { setWishlistLoading(false) }
-                }}
-                className="w-11 h-11 rounded-2xl border border-stone-200 hover:border-red-300 hover:bg-red-50 transition disabled:opacity-60"
-              >
-                <Heart className={`w-5 h-5 mx-auto transition-colors ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} />
-              </button>
+              {isAuthenticated && (
+                <button
+                  title="Add to wishlist"
+                  onClick={() => setWishlisted(v => !v)}
+                  className="w-11 h-11 rounded-2xl border border-stone-200 hover:border-red-300 hover:bg-red-50 transition"
+                >
+                  <Heart className={`w-5 h-5 mx-auto transition-colors ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-sm mb-4">

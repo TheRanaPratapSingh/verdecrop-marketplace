@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus, Minus, RefreshCw, Gift } from 'lucide-react'
-import { useAuthStore, useCartStore, useNotifStore, useGuestCartStore, useWishlistStore } from '../../store'
-import { cartApi, wishlistApi } from '../../services/api'
-import toast from 'react-hot-toast'
+import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus } from 'lucide-react'
+import { useAuthStore, useCartStore, useNotifStore } from '../../store'
+import { cartApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
 import { resolveAssetUrl } from '../../lib/image'
 
@@ -11,8 +10,6 @@ export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore()
   const { cart, setCart, openCart, itemCount } = useCartStore()
   const { unreadCount } = useNotifStore()
-  const guestCount = useGuestCartStore(s => s.items.reduce((sum, i) => sum + i.quantity, 0))
-  const badgeCount = isAuthenticated ? itemCount() : guestCount
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -35,26 +32,18 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', fn)
   }, [])
 
-  const { setWishlist, clearWishlist } = useWishlistStore()
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      cartApi.get().then(setCart).catch(() => {})
-      wishlistApi.getAll().then(items => setWishlist(items.map(p => p.id))).catch(() => {})
-    } else {
-      clearWishlist()
-    }
-  }, [isAuthenticated])
+  useEffect(() => { if (isAuthenticated) cartApi.get().then(setCart).catch(() => {}) }, [isAuthenticated])
   useEffect(() => { setMobileOpen(false); setUserMenuOpen(false) }, [location.pathname])
 
   // Cart badge bump animation when item is added
   useEffect(() => {
-    if (badgeCount > prevItemCount.current) {
+    const count = itemCount()
+    if (count > prevItemCount.current) {
       setCartBump(true)
       setTimeout(() => setCartBump(false), 400)
     }
-    prevItemCount.current = badgeCount
-  }, [badgeCount])
+    prevItemCount.current = count
+  }, [itemCount()])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,32 +63,11 @@ export const Navbar: React.FC = () => {
         { to: '/products?isOrganic=true', label: 'Organic' },
         { to: '/products?isFeatured=true', label: 'Featured' },
         { to: '/shop-by-farms', label: 'Shop by Farms' },
-        { to: '/women-farmers', label: '👩‍🌾 Women Farmers' },
       ]
 
-  // Links that own a specific query param — used to suppress the plain /products match
-  const FILTER_PARAMS = ['isOrganic', 'isFeatured']
-
   const isActive = (to: string) => {
-    if (to.includes('?')) {
-      // Exact match on both pathname and the full query string
-      const [toPath, toQuery] = to.split('?')
-      if (location.pathname !== toPath) return false
-      const params = new URLSearchParams(location.search)
-      const toParams = new URLSearchParams(toQuery)
-      // Every key=value in the link must be present in current URL
-      for (const [key, val] of toParams.entries()) {
-        if (params.get(key) !== val) return false
-      }
-      return true
-    }
-    // Plain path — only active when none of the filter-param links also match
-    if (to === '/products') {
-      const params = new URLSearchParams(location.search)
-      const hasFilterParam = FILTER_PARAMS.some(p => params.has(p))
-      return location.pathname === to && !hasFilterParam
-    }
-    return location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'))
+    if (to.includes('?')) return location.pathname + location.search === to || location.search === to.slice(to.indexOf('?'))
+    return location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
   }
 
   return (
@@ -124,31 +92,26 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop nav links */}
           <div className="hidden lg:flex items-center gap-0.5 flex-1">
-            {navLinks.map(l => {
-              const active = isActive(l.to)
-              return (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  className={`relative px-4 py-2 text-[13px] font-label font-semibold tracking-wide rounded-xl transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-1 group/link ${
-                    active
-                      ? 'text-forest-700'
-                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50/70'
+            {navLinks.map(l => (
+              <Link
+                key={l.to}
+                to={l.to}
+                className={`relative px-4 py-2 text-[13px] font-label font-semibold tracking-wide rounded-xl transition-all duration-200 group/link ${
+                  isActive(l.to)
+                    ? 'text-forest-700'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                {l.label}
+                {/* animated underline */}
+                <span
+                  className={`absolute bottom-0.5 left-4 right-4 h-[2px] rounded-full bg-forest-600 transition-all duration-250 ${
+                    isActive(l.to) ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 group-hover/link:opacity-60 group-hover/link:scale-x-100'
                   }`}
-                >
-                  {l.label}
-                  {/* active underline — solid when active, fades in on hover only when inactive */}
-                  <span
-                    className={`absolute bottom-0.5 left-4 right-4 h-[2px] rounded-full bg-forest-600 transition-all duration-200 ${
-                      active
-                        ? 'opacity-100 scale-x-100'
-                        : 'opacity-0 scale-x-50 group-hover/link:opacity-40 group-hover/link:scale-x-100'
-                    }`}
-                    style={{ transformOrigin: 'center' }}
-                  />
-                </Link>
-              )
-            })}
+                  style={{ transformOrigin: 'left' }}
+                />
+              </Link>
+            ))}
 
             {/* Admin pill — separate visual identity */}
             {isAdmin && (
@@ -205,21 +168,21 @@ export const Navbar: React.FC = () => {
               </button>
             )}
 
-            {/* Cart — always visible to non-farmer users */}
+            {/* Cart — always visible for non-farmer users */}
             {!isFarmer && (
               <button
-                onClick={() => openCart()}
+                onClick={isAuthenticated ? openCart : () => navigate('/login')}
                 className="relative p-2.5 text-stone-400 hover:text-forest-700 hover:bg-forest-50 rounded-xl transition-all duration-150 hover:scale-110"
                 aria-label="Cart"
               >
                 <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
-                {badgeCount > 0 && (
+                {isAuthenticated && itemCount() > 0 && (
                   <span
                     className={`absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center px-1 transition-transform duration-200 ${
                       cartBump ? 'scale-125' : 'scale-100'
                     }`}
                   >
-                    {badgeCount > 9 ? '9+' : badgeCount}
+                    {itemCount() > 9 ? '9+' : itemCount()}
                   </span>
                 )}
               </button>
@@ -302,8 +265,6 @@ export const Navbar: React.FC = () => {
                                 { to: '/profile', icon: User, label: 'My Profile' },
                                 { to: '/orders', icon: Package, label: 'My Orders' },
                                 { to: '/wishlist', icon: Heart, label: 'Wishlist' },
-                                { to: '/subscriptions', icon: RefreshCw, label: 'Subscriptions' },
-                                { to: '/referral', icon: Gift, label: 'Referral & Wallet' },
                                 ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Admin Panel' }] : []),
                               ]
                         ).map(item => (
@@ -342,6 +303,9 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center gap-2 ml-1">
                 <Link to="/login">
                   <Button variant="ghost" size="sm" className="text-[13px] font-label font-semibold">Log in</Button>
+                </Link>
+                <Link to="/register" className="hidden sm:block">
+                  <Button variant="primary" size="sm" className="text-[13px] px-5">Sign up</Button>
                 </Link>
               </div>
             )}
@@ -402,29 +366,24 @@ export const Navbar: React.FC = () => {
 
             {/* Nav links */}
             <div className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-              {navLinks.map(l => {
-                const active = isActive(l.to)
-                return (
-                  <Link
-                    key={l.to}
-                    to={l.to}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-1 ${
-                      active
-                        ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-600'
-                        : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                    }`}
-                  >
-                    {l.label}
-                  </Link>
-                )
-              })}
+              {navLinks.map(l => (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-all duration-150 ${
+                    isActive(l.to)
+                      ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-600'
+                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              ))}
 
               {isAdmin && (
                 <Link
                   to="/admin"
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-colors duration-150 mt-1 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1 ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-label font-semibold transition-all duration-150 mt-1 ${
                     location.pathname.startsWith('/admin')
                       ? 'bg-amber-50 text-amber-700 border-l-2 border-amber-500'
                       : 'text-amber-600 hover:bg-amber-50'
@@ -459,8 +418,6 @@ export const Navbar: React.FC = () => {
                     <Link to="/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><User className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Profile</Link>
                     <Link to="/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Package className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> My Orders</Link>
                     <Link to="/wishlist" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Heart className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Wishlist</Link>
-                    <Link to="/subscriptions" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><RefreshCw className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Subscriptions</Link>
-                    <Link to="/referral" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[13px] font-body text-stone-600 hover:bg-stone-50 rounded-xl transition-all"><Gift className="w-4 h-4 text-stone-400" strokeWidth={1.8} /> Referral & Wallet</Link>
                   </>
                 }
                 <button
@@ -473,6 +430,7 @@ export const Navbar: React.FC = () => {
             ) : (
               <div className="border-t border-stone-100 px-4 py-3 flex gap-2">
                 <Link to="/login" onClick={() => setMobileOpen(false)} className="flex-1 text-center px-4 py-2.5 text-[13px] font-label font-semibold text-stone-700 border border-stone-200 rounded-xl hover:bg-stone-50 transition-all">Log in</Link>
+                <Link to="/register" onClick={() => setMobileOpen(false)} className="flex-1 text-center px-4 py-2.5 text-[13px] font-label font-semibold text-white bg-forest-700 rounded-xl hover:bg-forest-600 transition-all">Sign up</Link>
               </div>
             )}
           </div>
@@ -510,39 +468,19 @@ export const Navbar: React.FC = () => {
 export const CartDrawer: React.FC = () => {
   const { cart, isOpen, closeCart, setCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
-  const { items: guestItems, updateItem: updateGuestItem, removeItem: removeGuestItem } = useGuestCartStore()
   const navigate = useNavigate()
   const [removing, setRemoving] = useState<number | null>(null)
-  const [updating, setUpdating] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (isOpen && !isAuthenticated) {
+      closeCart()
+      navigate('/login')
+    }
+  }, [isOpen, isAuthenticated, closeCart, navigate])
+
   if (!isOpen) return null
 
-  // Use auth cart or guest cart depending on auth state
-  const displayItems = isAuthenticated
-    ? (cart?.items ?? [])
-    : guestItems.map(g => ({
-        id: g.productId,
-        productId: g.productId,
-        productName: g.productName,
-        price: g.price,
-        quantity: g.quantity,
-        total: g.price * g.quantity,
-        imageUrl: g.imageUrl,
-        unit: g.unit,
-        stockQuantity: g.stockQuantity,
-        slug: g.slug,
-      }))
-  const displaySubtotal = isAuthenticated
-    ? (cart?.subtotal ?? 0)
-    : guestItems.reduce((s, i) => s + i.price * i.quantity, 0)
-  const displayItemCount = isAuthenticated
-    ? (cart?.itemCount ?? 0)
-    : guestItems.reduce((s, i) => s + i.quantity, 0)
-
   const handleRemove = async (itemId: number) => {
-    if (!isAuthenticated) {
-      removeGuestItem(itemId)
-      return
-    }
     if (!cart) return
     // Optimistic update: remove item from local state immediately
     const optimistic: typeof cart = {
@@ -567,36 +505,9 @@ export const CartDrawer: React.FC = () => {
     }
   }
 
-  const handleUpdateQty = async (item: typeof displayItems[number], newQty: number) => {
-    if (!isAuthenticated) {
-      if (newQty <= 0) { removeGuestItem(item.productId); return }
-      if (newQty > item.stockQuantity) { toast.error(`Only ${item.stockQuantity} ${item.unit} available`); return }
-      updateGuestItem(item.productId, newQty)
-      return
-    }
-    if (!cart) return
-    if (newQty <= 0) { handleRemove(item.id); return }
-    if (newQty > item.stockQuantity) { toast.error(`Only ${item.stockQuantity} ${item.unit} available`); return }
-    const optimistic: typeof cart = {
-      ...cart,
-      items: cart.items.map(i => i.id === item.id ? { ...i, quantity: newQty, total: i.price * newQty } : i),
-      subtotal: cart.items.reduce((s, i) => s + (i.id === item.id ? i.price * newQty : i.total), 0),
-    }
-    setCart(optimistic)
-    setUpdating(item.id)
-    try {
-      const updated = await cartApi.updateItem(item.id, newQty)
-      if (updated && typeof updated === 'object' && 'items' in updated) setCart(updated)
-    } catch {
-      setCart(cart)
-    } finally {
-      setUpdating(null)
-    }
-  }
-
-  const delivery = displaySubtotal >= 500 ? 0 : 49
-  const total = displaySubtotal + delivery
-  const freeLeft = Math.max(0, 500 - displaySubtotal)
+  const delivery = (cart?.subtotal ?? 0) >= 500 ? 0 : 49
+  const total = (cart?.subtotal ?? 0) + delivery
+  const freeLeft = Math.max(0, 500 - (cart?.subtotal ?? 0))
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -605,18 +516,18 @@ export const CartDrawer: React.FC = () => {
         <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100">
           <div>
             <h2 className="font-display text-2xl font-semibold text-stone-900">Your Cart</h2>
-              {displayItemCount > 0 && <p className="text-xs text-stone-400 font-body mt-0.5">{displayItemCount} item{displayItemCount > 1 ? 's' : ''}</p>}
+            {(cart?.itemCount ?? 0) > 0 && <p className="text-xs text-stone-400 font-body mt-0.5">{cart?.itemCount} item{(cart?.itemCount ?? 0) > 1 ? 's' : ''}</p>}
           </div>
           <button onClick={closeCart} className="p-2 hover:bg-stone-100 rounded-xl transition-colors text-stone-400"><X className="w-5 h-5" /></button>
         </div>
 
-        {displaySubtotal > 0 && (
+        {(cart?.subtotal ?? 0) > 0 && (
           <div className="mx-6 mt-4 p-3.5 bg-forest-50 rounded-2xl border border-forest-100">
             {freeLeft > 0 ? (
               <>
                 <p className="text-xs font-label font-medium text-forest-700">Add ₹{freeLeft.toFixed(0)} more for <span className="font-bold">free delivery</span></p>
                 <div className="mt-2 h-1.5 bg-forest-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-forest-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (displaySubtotal / 500) * 100)}%` }} />
+                  <div className="h-full bg-forest-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ((cart?.subtotal ?? 0) / 500) * 100)}%` }} />
                 </div>
               </>
             ) : (
@@ -626,7 +537,7 @@ export const CartDrawer: React.FC = () => {
         )}
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
-          {!displayItems.length ? (
+          {!cart?.items?.length ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
               <div className="w-20 h-20 bg-stone-100 rounded-3xl flex items-center justify-center mb-5">
                 <ShoppingCart className="w-8 h-8 text-stone-300" strokeWidth={1.5} />
@@ -635,53 +546,32 @@ export const CartDrawer: React.FC = () => {
               <p className="text-sm text-stone-400 font-body mt-1.5 mb-6">Discover our fresh organic produce</p>
               <Button onClick={() => { closeCart(); navigate('/products') }} variant="primary" size="sm" className="gap-2">Browse Products <ArrowRight className="w-4 h-4" /></Button>
             </div>
-          ) : displayItems.map(item => (
-              <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
+          ) : cart.items.map(item => (
+            <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
               <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
                 {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-1">
-                  <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
-                  <button onClick={() => handleRemove(item.id)} className="opacity-0 group-hover:opacity-100 p-1 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0">
-                    {removing === item.id ? <Spinner size="sm" /> : <X className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                <p className="text-[15px] font-display font-semibold text-forest-700 mt-0.5">₹{item.total.toFixed(0)}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <button
-                    onClick={() => handleUpdateQty(item, item.quantity - 1)}
-                    disabled={updating === item.id}
-                    className="w-6 h-6 rounded-md bg-stone-100 hover:bg-stone-200 flex items-center justify-center transition-colors disabled:opacity-40"
-                  >
-                    <Minus className="w-3 h-3 text-stone-600" />
-                  </button>
-                  <span className="min-w-[28px] text-center text-sm font-label font-semibold text-stone-800">
-                    {updating === item.id ? <Spinner size="sm" /> : item.quantity}
-                  </span>
-                  <button
-                    onClick={() => handleUpdateQty(item, item.quantity + 1)}
-                    disabled={updating === item.id || item.quantity >= item.stockQuantity}
-                    className="w-6 h-6 rounded-md bg-stone-100 hover:bg-stone-200 flex items-center justify-center transition-colors disabled:opacity-40"
-                  >
-                    <Plus className="w-3 h-3 text-stone-600" />
-                  </button>
-                  <span className="text-xs text-stone-400 font-body">{item.unit}</span>
-                </div>
+                <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
+                <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit}</p>
+                <p className="text-[15px] font-display font-semibold text-forest-700 mt-1">₹{item.total.toFixed(0)}</p>
               </div>
+              <button onClick={() => handleRemove(item.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5">
+                {removing === item.id ? <Spinner size="sm" /> : <X className="w-3.5 h-3.5" />}
+              </button>
             </div>
           ))}
         </div>
 
-        {displayItems.length > 0 && (
+        {(cart?.items?.length ?? 0) > 0 && (
           <div className="border-t border-stone-100 px-6 py-5 space-y-4">
             <div className="space-y-2 text-sm font-body">
-              <div className="flex justify-between text-stone-500"><span>Subtotal</span><span>₹{displaySubtotal.toFixed(0)}</span></div>
+              <div className="flex justify-between text-stone-500"><span>Subtotal</span><span>₹{cart?.subtotal?.toFixed(0)}</span></div>
               <div className="flex justify-between text-stone-500"><span>Delivery</span><span className={delivery === 0 ? 'text-forest-600 font-semibold' : ''}>{delivery === 0 ? 'Free' : `₹${delivery}`}</span></div>
               <div className="flex justify-between font-label font-bold text-stone-900 text-base pt-2 border-t border-stone-100"><span>Total</span><span>₹{total.toFixed(0)}</span></div>
             </div>
             <Button onClick={() => { closeCart(); navigate(isAuthenticated ? '/checkout' : '/login') }} variant="primary" className="w-full justify-center py-3.5" size="md">
-              {isAuthenticated ? `Checkout · ₹${total.toFixed(0)}` : 'Login to Checkout'} <ArrowRight className="w-4 h-4" />
+              Checkout · ₹{total.toFixed(0)} <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         )}
