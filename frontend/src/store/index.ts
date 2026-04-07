@@ -127,3 +127,81 @@ export const useUIStore = create<UIState>((set) => ({
   searchQuery: '',
   setSearchQuery: (searchQuery) => set({ searchQuery }),
 }))
+
+// ── Guest Cart Store ──────────────────────────────────────────────────────────
+export interface GuestCartItem {
+  productId: number
+  productName: string
+  price: number
+  originalPrice?: number
+  imageUrl?: string
+  unit: string
+  quantity: number
+  stockQuantity: number
+  slug?: string
+}
+
+interface GuestCartState {
+  items: GuestCartItem[]
+  addItem: (item: GuestCartItem) => void
+  updateItem: (productId: number, quantity: number) => void
+  removeItem: (productId: number) => void
+  clearCart: () => void
+}
+
+export const useGuestCartStore = create<GuestCartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      addItem: (item) => {
+        const existing = get().items.find((i: GuestCartItem) => i.productId === item.productId)
+        if (existing) {
+          set({ items: get().items.map((i: GuestCartItem) => i.productId === item.productId ? { ...i, quantity: i.quantity + item.quantity } : i) })
+        } else {
+          set({ items: [...get().items, item] })
+        }
+      },
+      updateItem: (productId, quantity) => {
+        if (quantity <= 0) {
+          set({ items: get().items.filter((i: GuestCartItem) => i.productId !== productId) })
+        } else {
+          set({ items: get().items.map((i: GuestCartItem) => i.productId === productId ? { ...i, quantity } : i) })
+        }
+      },
+      removeItem: (productId) => set({ items: get().items.filter((i: GuestCartItem) => i.productId !== productId) }),
+      clearCart: () => set({ items: [] }),
+    }),
+    {
+      name: 'verdecrop-guest-cart',
+      storage: {
+        getItem: (key) => {
+          const raw = safeStorage.getItem(key)
+          return raw ? JSON.parse(raw) : null
+        },
+        setItem: (key, value) => safeStorage.setItem(key, JSON.stringify(value)),
+        removeItem: (key) => safeStorage.removeItem(key),
+      },
+    }
+  )
+)
+
+// ── Wishlist Store ────────────────────────────────────────────────────────────
+interface WishlistState {
+  ids: Set<number>
+  isWishlisted: (id: number) => boolean
+  addId: (id: number) => void
+  removeId: (id: number) => void
+  setWishlist: (ids: number[]) => void
+}
+
+export const useWishlistStore = create<WishlistState>()((set, get) => ({
+  ids: new Set<number>(),
+  isWishlisted: (id) => get().ids.has(id),
+  addId: (id) => set((s) => ({ ids: new Set([...s.ids, id]) })),
+  removeId: (id) => {
+    const next = new Set(get().ids)
+    next.delete(id)
+    set({ ids: next })
+  },
+  setWishlist: (ids) => set({ ids: new Set(ids) }),
+}))

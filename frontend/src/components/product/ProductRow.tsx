@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Leaf, Minus, Plus, ChevronRight, ChevronLeft } from 'lucide-react'
 import { useAuthStore, useCartStore, useGuestCartStore } from '../../store'
+import type { GuestCartItem } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner } from '../ui'
 import type { Product } from '../../types'
@@ -17,7 +18,7 @@ const CompactProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const [updating, setUpdating] = useState(false)
 
   const cartItem = isAuthenticated ? cart?.items.find(i => i.productId === product.id) : null
-  const guestItem = !isAuthenticated ? guestItems.find(i => i.productId === product.id) : null
+  const guestItem = !isAuthenticated ? guestItems.find((i: GuestCartItem) => i.productId === product.id) : null
   const cartQty = cartItem?.quantity ?? guestItem?.quantity ?? 0
 
   const base = resolveAssetUrl(product.imageUrl) || resolveLocalUrl(product.imageUrl) || resolveProductImage(product.slug, product.name)
