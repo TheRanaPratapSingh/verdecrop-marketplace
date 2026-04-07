@@ -8,6 +8,7 @@ import {
 import { categoryApi, productApi } from '../services/api'
 import { PageLayout } from '../components/layout'
 import { ProductRow } from '../components/product/ProductRow'
+import { CategorySection } from '../components/product/CategorySection'
 import { SEO } from '../components/SEO'
 import type { Category, Product } from '../types'
 import toast from 'react-hot-toast'
@@ -87,6 +88,7 @@ const HomePage: React.FC = () => {
   const navigate = useNavigate()
   const [categories, setCategories] = useState<Category[]>([])
   const [featured, setFeatured] = useState<Product[]>([])
+  const [categoryProducts, setCategoryProducts] = useState<Record<string, Product[]>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -109,8 +111,27 @@ const HomePage: React.FC = () => {
       productApi.getFeatured(12)
     ])
       .then(([cats, prods]) => {
-        setCategories(cats || [])
+        const allCats = cats || []
+        setCategories(allCats)
         setFeatured(prods || [])
+
+        // Fetch products for each category highlight in parallel
+        const fetchCatProducts = CATEGORY_HIGHLIGHTS.map(async (highlight) => {
+          const matched = allCats.find(c => c.name.toLowerCase().includes(highlight.nameKeyword))
+          if (!matched) return { key: highlight.nameKeyword, products: [] }
+          try {
+            const result = await productApi.getAll({ categoryId: matched.id, pageSize: 6 })
+            return { key: highlight.nameKeyword, products: result?.items || [] }
+          } catch {
+            return { key: highlight.nameKeyword, products: [] }
+          }
+        })
+
+        Promise.all(fetchCatProducts).then((results) => {
+          const map: Record<string, Product[]> = {}
+          results.forEach(r => { map[r.key] = r.products })
+          setCategoryProducts(map)
+        })
       })
       .catch((err) => {
         console.error('API ERROR:', err)
@@ -242,6 +263,26 @@ const HomePage: React.FC = () => {
           seeAllLink="/products?isFeatured=true"
           skeletonCount={8}
         />
+      </section>
+
+      {/* ── CATEGORY PRODUCT SECTIONS ────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 pb-10 space-y-12">
+        {CATEGORY_HIGHLIGHTS.map((highlight) => {
+          const matched = categories.find(c => c.name.toLowerCase().includes(highlight.nameKeyword))
+          const seeAllLink = matched
+            ? `/products?categoryId=${matched.id}`
+            : `/products?search=${highlight.nameKeyword}`
+          return (
+            <CategorySection
+              key={highlight.nameKeyword}
+              title={highlight.title}
+              emoji={highlight.emoji}
+              products={categoryProducts[highlight.nameKeyword] || []}
+              loading={loading}
+              seeAllLink={seeAllLink}
+            />
+          )
+        })}
       </section>
 
       {/* ── TRUST SECTION ────────────────────────────────────────────────────── */}
