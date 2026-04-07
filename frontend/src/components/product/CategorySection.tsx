@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ChevronRight, Leaf, Minus, Plus } from 'lucide-react'
-import { useAuthStore, useCartStore, useGuestCartStore } from '../../store'
-import type { GuestCartItem } from '../../store'
+import { useAuthStore, useCartStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner } from '../ui'
 import type { Product } from '../../types'
@@ -14,13 +13,12 @@ import { WishlistButton } from './WishlistButton'
 const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const { isAuthenticated } = useAuthStore()
   const { cart, setCart, openCart } = useCartStore()
-  const { items: guestItems, addItem: addGuestItem, updateItem: updateGuestItem } = useGuestCartStore()
+  const navigate = useNavigate()
   const [adding, setAdding] = useState(false)
   const [updating, setUpdating] = useState(false)
 
   const cartItem = isAuthenticated ? cart?.items.find(i => i.productId === product.id) : null
-  const guestItem = !isAuthenticated ? guestItems.find((i: GuestCartItem) => i.productId === product.id) : null
-  const cartQty = cartItem?.quantity ?? guestItem?.quantity ?? 0
+  const cartQty = cartItem?.quantity ?? 0
 
   const base = resolveAssetUrl(product.imageUrl) || resolveLocalUrl(product.imageUrl) || resolveProductImage(product.slug, product.name)
   const [imgSrc, setImgSrc] = useState<string | undefined>(base)
@@ -43,24 +41,7 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault()
     if (product.stockQuantity === 0) { toast.error('Out of stock'); return }
-    if (!isAuthenticated) {
-      addGuestItem({
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        imageUrl: product.imageUrl,
-        unit: product.unit,
-        quantity: 1,
-        stockQuantity: product.stockQuantity,
-        slug: product.slug,
-      })
-      toast.success(`${product.name} added!`, {
-        style: { borderRadius: '14px', background: '#175820', color: '#fff' },
-        icon: String.fromCodePoint(0x1F6D2),
-      })
-      return
-    }
+    if (!isAuthenticated) { navigate('/login'); return }
     setAdding(true)
     try {
       const updated = await cartApi.addItem(product.id, 1)
@@ -78,12 +59,7 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   const handleIncrease = async (e: React.MouseEvent) => {
     e.preventDefault()
-    if (!isAuthenticated) {
-      if (!guestItem) return
-      if (guestItem.quantity >= product.stockQuantity) { toast.error('Max stock reached'); return }
-      updateGuestItem(product.id, guestItem.quantity + 1)
-      return
-    }
+    if (!isAuthenticated) { navigate('/login'); return }
     if (!cartItem) return
     setUpdating(true)
     try {
@@ -98,11 +74,7 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   const handleDecrease = async (e: React.MouseEvent) => {
     e.preventDefault()
-    if (!isAuthenticated) {
-      if (!guestItem) return
-      updateGuestItem(product.id, guestItem.quantity - 1)
-      return
-    }
+    if (!isAuthenticated) { navigate('/login'); return }
     if (!cartItem) return
     setUpdating(true)
     try {
