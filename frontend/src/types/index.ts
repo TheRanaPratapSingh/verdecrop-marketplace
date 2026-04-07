@@ -43,6 +43,11 @@ export interface Farmer {
   ownerName: string
   avatarUrl?: string
   pinCode?: string
+  isWomenLed?: boolean
+  isPremium?: boolean
+  womenStory?: string
+  premiumPlan?: string
+  premiumExpiresAt?: string
 }
 
 export interface Product {
@@ -234,4 +239,61 @@ export interface SellerProductDetail extends SellerProduct {
   deliveryTime?: string
   availableCities: string[]
   isFarmToHome: boolean
+}
+
+export interface SubscriptionItem {
+  productId: number
+  productName: string
+  imageUrl?: string
+  quantity: number
+  unit: string
+  price: number
+}
+
+export interface Subscription {
+  id: number
+  boxType: string
+  frequency: string
+  status: string
+  price: number
+  startDate: string
+  endDate?: string
+  nextDeliveryDate: string
+  notes?: string
+  createdAt: string
+  address: Address
+  items: SubscriptionItem[]
+}
+
+export interface ReferralCode {
+  id: number
+  code: string
+  usageCount: number
+  isActive: boolean
+  createdAt: string
+}
+
+export interface ReferralEntry {
+  id: number
+  referredUserId: number
+  referredUserName: string
+  status: string
+  creditsAwarded: number
+  completedAt?: string
+  createdAt: string
+}
+
+export interface WalletCredit {
+  id: number
+  amount: number
+  type: string
+  description: string
+  createdAt: string
+}
+
+export interface WalletSummary {
+  totalEarned: number
+  totalRedeemed: number
+  balance: number
+  recent: WalletCredit[]
 }

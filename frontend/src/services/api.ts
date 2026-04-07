@@ -2,7 +2,8 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import type {
   AuthResponse, User, Category, Farmer, Product, Cart,
   Address, Order, Review, Notification, PagedResult,
-  ApiResponse, DashboardStats, WishlistItem, SellerProduct, SellerProductDetail
+  ApiResponse, DashboardStats, WishlistItem, SellerProduct, SellerProductDetail,
+  Subscription, ReferralCode, ReferralEntry, WalletSummary
 } from '../types'
 import { useAuthStore } from '../store'
 
@@ -141,6 +142,9 @@ export const farmerApi = {
   approve: (id: number, approve: boolean) => unwrap<boolean>(api.put(`/farmers/${id}/approve`, approve)),
   uploadPhoto: (id: number, form: FormData) =>
     unwrap<{ url: string }>(api.post(`/farmers/${id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
+  getWomenLed: () => unwrap<Farmer[]>(api.get('/farmers/women-led')),
+  setWomenLed: (id: number, isWomenLed: boolean, story?: string) =>
+    unwrap<Farmer>(api.put(`/farmers/${id}/women-led`, { isWomenLed, story })),
 }
 
 // ── Products ─────────────────────────────────────────────────────────────────
@@ -225,4 +229,24 @@ export const notificationApi = {
 // ── Admin ─────────────────────────────────────────────────────────────────────
 export const adminApi = {
   getDashboard: () => unwrap<DashboardStats>(api.get('/admin/dashboard')),
+}
+
+// ── Subscriptions ─────────────────────────────────────────────────────────────
+export const subscriptionApi = {
+  getAll: () => unwrap<Subscription[]>(api.get('/subscriptions')),
+  getById: (id: number) => unwrap<Subscription>(api.get(`/subscriptions/${id}`)),
+  create: (data: { addressId: number; boxType: string; frequency: string; notes?: string; items?: { productId: number; quantity: number }[] }) =>
+    unwrap<Subscription>(api.post('/subscriptions', data)),
+  update: (id: number, data: { addressId?: number; notes?: string; items?: { productId: number; quantity: number }[] }) =>
+    unwrap<Subscription>(api.put(`/subscriptions/${id}`, data)),
+  pauseResume: (id: number, pause: boolean) => unwrap<Subscription>(api.put(`/subscriptions/${id}/pause`, { pause })),
+  cancel: (id: number) => unwrap<boolean>(api.delete(`/subscriptions/${id}`)),
+}
+
+// ── Referral ──────────────────────────────────────────────────────────────────
+export const referralApi = {
+  getMyCode: () => unwrap<ReferralCode>(api.get('/referral/code')),
+  getMyReferrals: () => unwrap<ReferralEntry[]>(api.get('/referral/my-referrals')),
+  getWallet: () => unwrap<WalletSummary>(api.get('/referral/wallet')),
+  applyCode: (code: string) => unwrap<boolean>(api.post('/referral/apply', { code })),
 }
