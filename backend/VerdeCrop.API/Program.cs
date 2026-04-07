@@ -27,10 +27,24 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // ── Database ──────────────────────────────────────────────────────────────────
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException(
+        "FATAL: ConnectionStrings:DefaultConnection is missing. " +
+        "Set it in Azure App Service → Configuration → Connection strings.");
+
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOpts => sqlOpts.CommandTimeout(60)));
+        connectionString,
+        sqlOpts =>
+        {
+            sqlOpts.CommandTimeout(60);
+            // Retries up to 5 times with exponential back-off — required for Azure SQL Basic/Standard
+            sqlOpts.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+        }));
 
 // ── JWT Auth ──────────────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:SecretKey"];
@@ -251,6 +265,13 @@ app.UseExceptionHandler(errorApp =>
         context.Response.ContentType = "application/json";
         var feature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
         var ex = feature?.Error;
+
+        // Always log the full exception — visible in Azure App Service log stream
+        Log.Error(ex, "Unhandled exception [{ExType}] on {Method} {Path}",
+            ex?.GetType().Name,
+            context.Request.Method,
+            context.Request.Path);
+
         var message = app.Environment.IsDevelopment() ? ex?.Message : "Internal server error";
         await context.Response.WriteAsJsonAsync(new { success = false, message });
     });
@@ -271,9 +292,10 @@ if (autoMigrateOnStartup)
     }
     catch (Exception ex)
     {
-        Log.Error(ex, "Database migration failed during startup.");
-        if (app.Environment.IsDevelopment())
-            throw;
+        // Always log — critical to see in Azure Log Stream even in production
+        Log.Fatal(ex, "Database migration FAILED during startup. APIs will return 500 until resolved.");
+        if (!app.Environment.IsDevelopment())
+            throw; // Crash fast in production so Azure restarts + alerts fire
     }
 }
 
@@ -300,6 +322,30 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// ── DB diagnostic endpoint (remove or restrict after debugging) ───────────────
+app.MapGet("/health/db", async (AppDbContext db) =>
+{
+    try
+    {
+        var canConnect = await db.Database.CanConnectAsync();
+        var pending    = (await db.Database.GetPendingMigrationsAsync()).ToList();
+        return Results.Ok(new
+        {
+            connected       = canConnect,
+            pendingMigrations = pending.Count,
+            migrations      = pending,
+            server          = db.Database.GetDbConnection().DataSource
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            title:  "Database connection failed",
+            detail: ex.Message,
+            statusCode: 503);
+    }
+});
 
 Log.Information("Graamo API started");
 app.Run();

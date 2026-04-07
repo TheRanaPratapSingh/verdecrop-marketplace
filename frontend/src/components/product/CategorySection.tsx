@@ -120,8 +120,9 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
   return (
     <Link
       to={`/products/${product.slug}`}
-      className="group w-full bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col border border-stone-100 hover:border-forest-200"
+      className="group w-full bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden flex flex-col border border-stone-100/80 hover:border-forest-200 hover:-translate-y-1"
     >
+      {/* ── Product image ── */}
       <div className="relative w-full aspect-square bg-gradient-to-br from-emerald-50 to-stone-50 overflow-hidden">
         {imgSrc ? (
           <img
@@ -136,8 +137,8 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
         )}
 
         {product.isOrganic && (
-          <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-label font-bold bg-forest-700/90 text-white leading-tight backdrop-blur-sm">
-            <Leaf className="w-2 h-2" strokeWidth={2.5} />ORG
+          <span className="absolute top-2 left-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-label font-bold bg-forest-700 text-white leading-tight shadow-sm">
+            <Leaf className="w-2.5 h-2.5" strokeWidth={2.5} />ORG
           </span>
         )}
 
@@ -146,11 +147,12 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
             productId={product.id}
             productName={product.name}
             size="sm"
-            className="absolute top-1.5 right-1.5 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100"
+            className="absolute top-2 right-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           />
         )}
 
-        <div onClick={e => e.preventDefault()} className="absolute bottom-1.5 right-1.5">
+        {/* ── Cart stepper / ADD button ── */}
+        <div onClick={e => e.preventDefault()} className="absolute bottom-2 right-2">
           {cartQty > 0 ? (
             <div className="flex items-center bg-forest-700 rounded-xl overflow-hidden shadow-md h-7">
               <button
@@ -175,7 +177,7 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
             <button
               onClick={handleAdd}
               disabled={adding}
-              className="px-3 h-7 bg-white border-2 border-forest-600 text-forest-700 text-xs font-label font-bold rounded-xl shadow-md hover:bg-forest-600 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-50"
+              className="px-3.5 h-7 bg-forest-600 text-white text-xs font-label font-bold rounded-xl shadow-btn hover:bg-forest-700 hover:shadow-btn-hover active:scale-95 transition-all duration-150 disabled:opacity-50"
             >
               {adding ? <Spinner size="sm" /> : 'ADD'}
             </button>
@@ -191,20 +193,27 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
         )}
       </div>
 
-      <div className="p-2 flex flex-col flex-1">
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-sm font-display font-bold text-forest-700">₹{product.price}</span>
-          {product.originalPrice && product.originalPrice > product.price && (
-            <span className="text-[10px] text-stone-400 line-through font-body">₹{product.originalPrice}</span>
-          )}
-        </div>
-        {savingsAmt > 0 && (
-          <span className="text-[9px] font-label font-semibold text-forest-600 leading-tight">₹{savingsAmt} OFF</span>
-        )}
-        <p className="text-[11px] font-label font-medium text-stone-800 leading-tight line-clamp-2 mt-0.5 group-hover:text-forest-700 transition-colors">
+      {/* ── Product info ── */}
+      <div className="px-3 pt-2.5 pb-3 flex flex-col flex-1 gap-0.5">
+        {/* Name — second most prominent */}
+        <p className="text-[13px] font-label font-bold text-stone-900 leading-snug line-clamp-2 group-hover:text-forest-700 transition-colors duration-200">
           {product.name}
         </p>
-        <p className="text-[10px] text-stone-400 font-body mt-0.5">{product.unit}</p>
+        {/* Unit / weight — muted */}
+        <p className="text-[10.5px] font-body text-[#666] leading-tight">{product.unit}</p>
+        {/* Price row — most prominent */}
+        <div className="flex items-baseline gap-1.5 flex-wrap mt-1.5">
+          <span className="text-[15px] font-label font-bold text-[#111] leading-none">₹{product.price}</span>
+          {product.originalPrice && product.originalPrice > product.price && (
+            <span className="text-[11px] text-[#999] line-through font-body leading-none">₹{product.originalPrice}</span>
+          )}
+        </div>
+        {/* Savings badge */}
+        {savingsAmt > 0 && (
+          <span className="inline-flex self-start mt-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-label font-bold bg-forest-50 text-forest-700 border border-forest-100 leading-tight">
+            ₹{savingsAmt} OFF
+          </span>
+        )}
       </div>
     </Link>
   )
@@ -212,13 +221,12 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
 // ── Skeleton card (mirrors GridProductCard shape) ─────────────────────────────
 const GridSkeletonCard: React.FC = () => (
-  <div className="w-full bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden animate-pulse">
+  <div className="w-full bg-white rounded-2xl shadow-card border border-stone-100/80 overflow-hidden animate-pulse">
     <div className="aspect-square bg-stone-100" />
-    <div className="p-2 space-y-1.5">
-      <div className="h-3 bg-stone-100 rounded-full w-2/3" />
-      <div className="h-2.5 bg-stone-100 rounded-full w-1/2" />
+    <div className="px-3 pt-2.5 pb-3 space-y-2">
       <div className="h-3 bg-stone-100 rounded-full w-full" />
-      <div className="h-2.5 bg-stone-100 rounded-full w-1/3" />
+      <div className="h-2.5 bg-stone-100 rounded-full w-1/2" />
+      <div className="h-4 bg-stone-100 rounded-full w-2/3 mt-1" />
     </div>
   </div>
 )

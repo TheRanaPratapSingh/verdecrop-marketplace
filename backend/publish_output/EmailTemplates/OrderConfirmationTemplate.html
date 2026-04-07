@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Order Confirmation - {{AppName}}</title>
+    <style>
+      body { margin:0; padding:0; background:#eef3fb; font-family:Arial,Helvetica,sans-serif; color:#17324d; }
+      .wrapper { width:100%; padding:32px 12px; background:#eef3fb; }
+      .card { width:100%; max-width:620px; margin:0 auto; background:#ffffff; border-radius:20px; overflow:hidden; box-shadow:0 10px 30px rgba(13,42,74,.08); }
+      .header { background:linear-gradient(135deg,#112f52,#1f4c7a); padding:22px 28px; color:#ffffff; position:relative; }
+      .brand { font-size:28px; font-weight:800; }
+      .brand-accent { color:#f8b133; }
+      .status { position:absolute; right:28px; top:22px; background:#13c296; color:#ffffff; font-size:12px; font-weight:700; padding:7px 14px; border-radius:999px; letter-spacing:.5px; }
+      .content { padding:32px 28px; }
+      h1 { margin:0 0 10px; font-size:32px; color:#17324d; }
+      p { margin:0 0 16px; color:#6b7d93; font-size:15px; line-height:1.7; }
+      .reference-box { display:inline-block; margin:12px 0 24px; background:#f7f9fc; border:1px solid #dce5f0; border-radius:14px; padding:16px 18px; }
+      .reference-label { color:#9aabc0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.1px; margin-bottom:6px; }
+      .reference-value { color:#23466e; font-size:28px; font-weight:800; letter-spacing:3px; }
+      .section-label { color:#f59e0b; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1.3px; margin:4px 0 10px; }
+      .title-strong { color:#17324d; font-size:27px; font-weight:800; line-height:1.35; margin:0 0 18px; }
+      .breakdown { border:1px solid #dce5f0; border-radius:16px; background:#fafcff; padding:18px; margin:20px 0; }
+      .breakdown-title { color:#4b6788; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:14px; }
+      .row { display:flex; justify-content:space-between; gap:16px; padding:8px 0; color:#6b7d93; font-size:14px; border-bottom:1px solid #edf2f7; }
+      .row:last-of-type { border-bottom:none; }
+      .row strong { color:#17324d; }
+      .total { display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:14px; border-top:1px solid #dce5f0; }
+      .total-label { color:#17324d; font-size:20px; font-weight:800; }
+      .total-value { color:#17324d; font-size:28px; font-weight:800; }
+      .info { margin-top:16px; background:#fff8ee; border:1px solid #ffd7a5; border-radius:14px; padding:16px 18px; }
+      .info-title { color:#c97300; font-size:14px; font-weight:800; margin-bottom:10px; }
+      .info ul { margin:0; padding-left:18px; color:#7a6a53; }
+      .info li { margin-bottom:8px; line-height:1.5; }
+      .footer { padding:18px 28px 26px; color:#a0aec0; font-size:12px; text-align:center; border-top:1px solid #edf2f7; }
+      @media screen and (max-width: 600px) {
+        .header,.content,.footer { padding-left:20px; padding-right:20px; }
+        .status { position:static; display:inline-block; margin-top:14px; }
+        h1 { font-size:28px; }
+        .title-strong { font-size:22px; }
+        .reference-value,.total-value { font-size:24px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="card">
+        <div class="header">
+          <div class="brand">{{AppName}}</div>
+          <div class="status">✓ CONFIRMED</div>
+        </div>
+        <div class="content">
+          <h1>Order Confirmed! 🎉</h1>
+          <p>Your payment has been received and your order is now confirmed. We’re getting your fresh items ready for dispatch.</p>
+
+          <div class="reference-box">
+            <div class="reference-label">Order Reference</div>
+            <div class="reference-value">{{OrderNumber}}</div>
+          </div>
+
+          <div class="section-label">Your Order</div>
+          <div class="title-strong">Fresh organic products from trusted sellers</div>
+
+          <div class="breakdown">
+            <div class="breakdown-title">Price Breakdown</div>
+            <div class="row"><span>Order Amount</span><strong>₹{{Amount}}</strong></div>
+            <div class="row"><span>Processing</span><strong>Included</strong></div>
+            <div class="row"><span>Delivery Status</span><strong>Preparing for dispatch</strong></div>
+            <div class="total">
+              <div class="total-label">Total Paid</div>
+              <div class="total-value">₹{{Amount}}</div>
+            </div>
+          </div>
+
+          <div class="info">
+            <div class="info-title">Important</div>
+            <ul>
+              <li>Please keep this order reference for future communication.</li>
+              <li>You will receive another update once your order is packed and shipped.</li>
+              <li>If you need support, reply to this email and our team will help you.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer">© 2026 {{AppName}} · Trusted organic shopping made simple</div>
+      </div>
+    </div>
+  </body>
+</html>
