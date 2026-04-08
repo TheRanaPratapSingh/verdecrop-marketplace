@@ -473,7 +473,7 @@ export const CartDrawer: React.FC = () => {
   const { cart, isOpen, closeCart, setCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
   const navigate = useNavigate()
-  const [removing, setRemoving] = useState<number | null>(null)
+  const [updating, setUpdating] = useState<number | null>(null)
 
   // Guests should never see the drawer — redirect to login
   useEffect(() => {
@@ -485,26 +485,36 @@ export const CartDrawer: React.FC = () => {
 
   if (!isOpen || !isAuthenticated) return null
 
-  // ── Auth-only cart ────────────────────────────────────────────────────────
-  const handleRemove = async (itemId: number) => {
+  // ── Optimistic update helper ───────────────────────────────────────────────
+  const applyOptimistic = (itemId: number, newQty: number) => {
     if (!cart) return
-    const optimistic: typeof cart = {
+    const updatedItems = newQty <= 0
+      ? cart.items.filter(i => i.id !== itemId)
+      : cart.items.map(i => i.id === itemId
+          ? { ...i, quantity: newQty, total: i.price * newQty }
+          : i)
+    setCart({
       ...cart,
-      items: cart.items.filter(i => i.id !== itemId),
-      subtotal: cart.items.filter(i => i.id !== itemId).reduce((s, i) => s + i.total, 0),
-      itemCount: cart.items.filter(i => i.id !== itemId).length,
-    }
-    setCart(optimistic)
-    setRemoving(itemId)
+      items: updatedItems,
+      subtotal: updatedItems.reduce((s, i) => s + i.total, 0),
+      itemCount: updatedItems.length,
+    })
+  }
+
+  const handleUpdate = async (itemId: number, newQty: number) => {
+    if (!cart || updating === itemId) return
+    const prev = cart
+    applyOptimistic(itemId, newQty)
+    setUpdating(itemId)
     try {
-      const updated = await cartApi.removeItem(itemId)
-      if (updated && typeof updated === 'object' && 'items' in updated) {
-        setCart(updated)
-      }
+      const updated = newQty <= 0
+        ? await cartApi.removeItem(itemId)
+        : await cartApi.updateItem(itemId, newQty)
+      if (updated && typeof updated === 'object' && 'items' in updated) setCart(updated)
     } catch {
-      setCart(cart)
+      setCart(prev)
     } finally {
-      setRemoving(null)
+      setUpdating(null)
     }
   }
 
@@ -553,18 +563,55 @@ export const CartDrawer: React.FC = () => {
               <Button onClick={() => { closeCart(); navigate('/products') }} variant="primary" size="sm" className="gap-2">Browse Products <ArrowRight className="w-4 h-4" /></Button>
             </div>
           ) : cart!.items.map(item => (
-            <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
+            <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors">
+              {/* Thumbnail */}
               <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
-                {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
+                {item.imageUrl
+                  ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>
+                }
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
-                <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit}</p>
-                <p className="text-[15px] font-display font-semibold text-forest-700 mt-1">₹{item.total.toFixed(0)}</p>
+
+              {/* Info + stepper */}
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                <div>
+                  <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
+                  <p className="text-xs text-stone-400 font-body mt-0.5">{item.unit}</p>
+                </div>
+
+                <div className="flex items-center justify-between mt-2">
+                  {/* Price */}
+                  <p className="text-[15px] font-display font-semibold text-forest-700">₹{item.total.toFixed(0)}</p>
+
+                  {/* Stepper */}
+                  <div className="flex items-center gap-0 bg-forest-700 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => handleUpdate(item.id, item.quantity - 1)}
+                      disabled={updating === item.id}
+                      className="w-8 h-8 flex items-center justify-center text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"
+                      aria-label="Decrease quantity"
+                    >
+                      {updating === item.id
+                        ? <Spinner size="sm" />
+                        : item.quantity === 1
+                          ? <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          : <span className="text-lg leading-none font-bold">−</span>
+                      }
+                    </button>
+                    <span className="w-8 text-center text-sm font-label font-bold text-white select-none">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => handleUpdate(item.id, item.quantity + 1)}
+                      disabled={updating === item.id || item.quantity >= (item.stockQuantity ?? 99)}
+                      className="w-8 h-8 flex items-center justify-center text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"
+                      aria-label="Increase quantity"
+                    >
+                      <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <button onClick={() => handleRemove(item.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5">
-                {removing === item.id ? <Spinner size="sm" /> : <X className="w-3.5 h-3.5" />}
-              </button>
             </div>
           ))}
         </div>
