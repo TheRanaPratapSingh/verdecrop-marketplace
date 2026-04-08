@@ -7,7 +7,7 @@ import { PageLayout } from '../components/layout'
 import { ProductGrid, CategoryIcon } from '../components/product'
 import { SEO } from '../components/SEO'
 import { Button, Badge, Spinner, Pagination, PriceDisplay, StarRating, EmptyState } from '../components/ui'
-import { useCartStore, useAuthStore } from '../store'
+import { useCartStore, useAuthStore, useGuestCartStore } from '../store'
 import type { Product, Category } from '../types'
 import toast from 'react-hot-toast'
 import { trackEvent } from '../lib/analytics'
@@ -246,6 +246,7 @@ export const ProductDetailPage: React.FC = () => {
   const [openSection, setOpenSection] = useState<'details' | 'nutrition' | 'story'>('details')
   const { setCart, openCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
+  const { addItem: addGuestItem } = useGuestCartStore()
 
   useEffect(() => {
     if (!slug) return
@@ -270,7 +271,24 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleAddToCart = async () => {
     if (!product) return
-    if (!isAuthenticated) { toast.error('Please login to continue'); return }
+    if (!isAuthenticated) {
+      addGuestItem({
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        imageUrl: product.imageUrl,
+        unit: product.unit,
+        quantity: qty * unitPack,
+        stockQuantity: product.stockQuantity,
+        slug: product.slug,
+      })
+      toast.success(`${product.name} added to cart!`, {
+        style: { borderRadius: '14px', background: '#175820', color: '#fff' },
+        icon: '🛒',
+      })
+      return
+    }
     setAdding(true)
     try {
       const cart = await cartApi.addItem(product.id, qty * unitPack)
@@ -289,7 +307,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleBuyNow = async () => {
     if (!product) return
-    if (!isAuthenticated) { toast.error('Please login to continue'); return }
+    if (!isAuthenticated) { navigate('/login'); return }
     setBuyingNow(true)
     try {
       const cart = await cartApi.addItem(product.id, qty * unitPack)
