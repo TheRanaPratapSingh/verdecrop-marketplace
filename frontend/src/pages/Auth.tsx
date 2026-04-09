@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Leaf, Phone, Mail, ArrowRight, ChevronLeft } from 'lucide-react'
-import { authApi, cartApi } from '../services/api'
-import { useAuthStore, useCartStore, useGuestCartStore } from '../store'
+import { authApi } from '../services/api'
+import { useAuthStore } from '../store'
 import { SEO } from '../components/SEO'
 import { Button, Input } from '../components/ui'
 import toast from 'react-hot-toast'
@@ -124,8 +124,6 @@ const AuthLayout: React.FC<{ children: React.ReactNode; title: string; subtitle:
 // ── Login Page ────────────────────────────────────────────────────────────────
 export const LoginPage: React.FC = () => {
   const { setAuth } = useAuthStore()
-  const { setCart } = useCartStore()
-  const { items: guestItems, clearCart: clearGuestCart } = useGuestCartStore()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/'
@@ -166,18 +164,6 @@ export const LoginPage: React.FC = () => {
         method,
         user_role: res.user.role,
       })
-      // Merge guest cart into user cart if guest had items
-      if (guestItems.length > 0) {
-        try {
-          const mergedCart = await cartApi.merge(
-            guestItems.map(i => ({ productId: i.productId, quantity: i.quantity }))
-          )
-          if (mergedCart) setCart(mergedCart)
-          clearGuestCart()
-        } catch {
-          // Merge failed silently — user cart is unaffected
-        }
-      }
       toast.success(`Welcome back, ${res.user.name}!`)
       navigate(from, { replace: true })
     } catch { toast.error('Invalid OTP. Please try again.') }

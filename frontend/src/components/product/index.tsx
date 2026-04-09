@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, ShoppingCart, Leaf, Star } from 'lucide-react'
-import { useAuthStore, useCartStore, useGuestCartStore } from '../../store'
+import { useAuthStore, useCartStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner } from '../ui'
 import type { Product, Category } from '../../types'
@@ -62,7 +62,6 @@ export const CategoryIcon: React.FC<{
 export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const { isAuthenticated } = useAuthStore()
   const { setCart, openCart } = useCartStore()
-  const { addItem: addGuestItem } = useGuestCartStore()
   const [adding, setAdding] = useState(false)
   const [wishlisted, setWishlisted] = useState(false)
   const productBaseImage = resolveAssetUrl(product.imageUrl) || resolveLocalUrl(product.imageUrl) || resolveProductImage(product.slug, product.name)
@@ -83,24 +82,7 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
-    if (!isAuthenticated) {
-      addGuestItem({
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        imageUrl: product.imageUrl,
-        unit: product.unit,
-        quantity: 1,
-        stockQuantity: product.stockQuantity,
-        slug: product.slug,
-      })
-      toast.success(`${product.name} added!`, {
-        style: { borderRadius: '14px', background: '#175820', color: '#fff' },
-        icon: '🛒',
-      })
-      return
-    }
+    if (!isAuthenticated) { toast.error('Please login to add to cart'); return }
     setAdding(true)
     try {
       const cart = await cartApi.addItem(product.id, 1)

@@ -2,14 +2,13 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus } from 'lucide-react'
 import { useAuthStore, useCartStore, useNotifStore, useGuestCartStore } from '../../store'
-import { cartApi, categoryApi } from '../../services/api'
+import { cartApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
 import { resolveAssetUrl } from '../../lib/image'
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore()
   const { cart, setCart, openCart, itemCount } = useCartStore()
-  const { items: guestItems } = useGuestCartStore()
   const { unreadCount } = useNotifStore()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -36,18 +35,15 @@ export const Navbar: React.FC = () => {
   useEffect(() => { if (isAuthenticated) cartApi.get().then(setCart).catch(() => {}) }, [isAuthenticated])
   useEffect(() => { setMobileOpen(false); setUserMenuOpen(false) }, [location.pathname])
 
-  // Unified cart count: auth = server cart total, guest = local store total
-  const guestCount = guestItems.reduce((sum, i) => sum + i.quantity, 0)
-  const displayCount = isAuthenticated ? itemCount() : guestCount
-
-  // Cart badge bump animation
+  // Cart badge bump animation when item is added (authenticated only)
   useEffect(() => {
-    if (displayCount > prevItemCount.current) {
+    const count = itemCount()
+    if (count > prevItemCount.current) {
       setCartBump(true)
       setTimeout(() => setCartBump(false), 400)
     }
-    prevItemCount.current = displayCount
-  }, [displayCount])
+    prevItemCount.current = count
+  }, [itemCount()])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,19 +66,8 @@ export const Navbar: React.FC = () => {
       ]
 
   const isActive = (to: string) => {
-    if (to.includes('?')) {
-      const [toPath, toSearch] = to.split('?')
-      return location.pathname === toPath && location.search === `?${toSearch}`
-    }
-    // For plain-path links: match exact or nested routes
-    const pathMatches = location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'))
-    if (!pathMatches) return false
-    // If a query-param nav link also matches the current URL, it takes priority
-    const queryNavLinks = navLinks.filter(l => l.to.includes('?'))
-    return !queryNavLinks.some(l => {
-      const [lPath, lSearch] = l.to.split('?')
-      return location.pathname === lPath && location.search === `?${lSearch}`
-    })
+    if (to.includes('?')) return location.pathname + location.search === to || location.search === to.slice(to.indexOf('?'))
+    return location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
   }
 
   return (
@@ -191,13 +176,13 @@ export const Navbar: React.FC = () => {
                 aria-label="Cart"
               >
                 <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
-                {displayCount > 0 && (
+                {isAuthenticated && itemCount() > 0 && (
                   <span
                     className={`absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-forest-600 text-white text-[10px] font-label font-bold rounded-full flex items-center justify-center px-1 transition-transform duration-200 ${
                       cartBump ? 'scale-125' : 'scale-100'
                     }`}
                   >
-                    {displayCount > 9 ? '9+' : displayCount}
+                    {itemCount() > 9 ? '9+' : itemCount()}
                   </span>
                 )}
               </button>
@@ -483,58 +468,44 @@ export const Navbar: React.FC = () => {
 export const CartDrawer: React.FC = () => {
   const { cart, isOpen, closeCart, setCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
+  const { items: guestItems, removeItem: removeGuestItem } = useGuestCartStore()
   const navigate = useNavigate()
-  const [updating, setUpdating] = useState<number | null>(null)
+  const [removing, setRemoving] = useState<number | null>(null)
 
-  // Guests should never see the drawer — redirect to login
-  useEffect(() => {
-    if (isOpen && !isAuthenticated) {
-      closeCart()
-      navigate('/login')
-    }
-  }, [isOpen, isAuthenticated, closeCart, navigate])
+  if (!isOpen) return null
 
-  if (!isOpen || !isAuthenticated) return null
-
-  // ── Optimistic update helper ───────────────────────────────────────────────
-  const applyOptimistic = (itemId: number, newQty: number) => {
+  // ── Authenticated: use server cart ────────────────────────────────────────
+  const handleRemove = async (itemId: number) => {
     if (!cart) return
-    const updatedItems = newQty <= 0
-      ? cart.items.filter(i => i.id !== itemId)
-      : cart.items.map(i => i.id === itemId
-          ? { ...i, quantity: newQty, total: i.price * newQty }
-          : i)
-    setCart({
+    const optimistic: typeof cart = {
       ...cart,
-      items: updatedItems,
-      subtotal: updatedItems.reduce((s, i) => s + i.total, 0),
-      itemCount: updatedItems.length,
-    })
-  }
-
-  const handleUpdate = async (itemId: number, newQty: number) => {
-    if (!cart || updating === itemId) return
-    const prev = cart
-    applyOptimistic(itemId, newQty)
-    setUpdating(itemId)
+      items: cart.items.filter(i => i.id !== itemId),
+      subtotal: cart.items.filter(i => i.id !== itemId).reduce((s, i) => s + i.total, 0),
+      itemCount: cart.items.filter(i => i.id !== itemId).length,
+    }
+    setCart(optimistic)
+    setRemoving(itemId)
     try {
-      const updated = newQty <= 0
-        ? await cartApi.removeItem(itemId)
-        : await cartApi.updateItem(itemId, newQty)
-      if (updated && typeof updated === 'object' && 'items' in updated) setCart(updated)
+      const updated = await cartApi.removeItem(itemId)
+      if (updated && typeof updated === 'object' && 'items' in updated) {
+        setCart(updated)
+      }
     } catch {
-      setCart(prev)
+      setCart(cart)
     } finally {
-      setUpdating(null)
+      setRemoving(null)
     }
   }
 
-  const subtotal = cart?.subtotal ?? 0
+  // ── Guest: compute totals from local store ────────────────────────────────
+  const guestSubtotal = guestItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+  const subtotal = isAuthenticated ? (cart?.subtotal ?? 0) : guestSubtotal
   const delivery = subtotal >= 500 ? 0 : 49
   const total = subtotal + delivery
   const freeLeft = Math.max(0, 500 - subtotal)
-  const hasItems = (cart?.items?.length ?? 0) > 0
-  const itemCountDisplay = cart?.itemCount ?? 0
+  const hasItems = isAuthenticated ? (cart?.items?.length ?? 0) > 0 : guestItems.length > 0
+  const itemCountDisplay = isAuthenticated ? (cart?.itemCount ?? 0) : guestItems.reduce((s, i) => s + i.quantity, 0)
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -573,58 +544,41 @@ export const CartDrawer: React.FC = () => {
               <p className="text-sm text-stone-400 font-body mt-1.5 mb-6">Discover our fresh organic produce</p>
               <Button onClick={() => { closeCart(); navigate('/products') }} variant="primary" size="sm" className="gap-2">Browse Products <ArrowRight className="w-4 h-4" /></Button>
             </div>
-          ) : cart!.items.map(item => (
-            <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors">
-              {/* Thumbnail */}
-              <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
-                {item.imageUrl
-                  ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>
-                }
-              </div>
-
-              {/* Info + stepper */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between">
-                <div>
+          ) : isAuthenticated ? (
+            // ── Authenticated cart items ──────────────────────────────────
+            cart!.items.map(item => (
+              <div key={item.id} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
+                <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
+                  {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
+                </div>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
-                  <p className="text-xs text-stone-400 font-body mt-0.5">{item.unit}</p>
+                  <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit}</p>
+                  <p className="text-[15px] font-display font-semibold text-forest-700 mt-1">₹{item.total.toFixed(0)}</p>
                 </div>
-
-                <div className="flex items-center justify-between mt-2">
-                  {/* Price */}
-                  <p className="text-[15px] font-display font-semibold text-forest-700">₹{item.total.toFixed(0)}</p>
-
-                  {/* Stepper */}
-                  <div className="flex items-center gap-0 bg-forest-700 rounded-xl overflow-hidden">
-                    <button
-                      onClick={() => handleUpdate(item.id, item.quantity - 1)}
-                      disabled={updating === item.id}
-                      className="w-8 h-8 flex items-center justify-center text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"
-                      aria-label="Decrease quantity"
-                    >
-                      {updating === item.id
-                        ? <Spinner size="sm" />
-                        : item.quantity === 1
-                          ? <X className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          : <span className="text-lg leading-none font-bold">−</span>
-                      }
-                    </button>
-                    <span className="w-8 text-center text-sm font-label font-bold text-white select-none">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => handleUpdate(item.id, item.quantity + 1)}
-                      disabled={updating === item.id || item.quantity >= (item.stockQuantity ?? 99)}
-                      className="w-8 h-8 flex items-center justify-center text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"
-                      aria-label="Increase quantity"
-                    >
-                      <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                    </button>
-                  </div>
-                </div>
+                <button onClick={() => handleRemove(item.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5">
+                  {removing === item.id ? <Spinner size="sm" /> : <X className="w-3.5 h-3.5" />}
+                </button>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            // ── Guest cart items ──────────────────────────────────────────
+            guestItems.map(item => (
+              <div key={item.productId} className="flex gap-3.5 p-3 rounded-2xl hover:bg-white transition-colors group">
+                <div className="w-16 h-16 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
+                  {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt={item.productName} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-label font-semibold text-stone-800 truncate">{item.productName}</p>
+                  <p className="text-xs text-stone-400 font-body mt-0.5">{item.quantity} {item.unit}</p>
+                  <p className="text-[15px] font-display font-semibold text-forest-700 mt-1">₹{(item.price * item.quantity).toFixed(0)}</p>
+                </div>
+                <button onClick={() => removeGuestItem(item.productId)} className="opacity-0 group-hover:opacity-100 p-1.5 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all flex-shrink-0 self-start mt-0.5">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))
+          )}
         </div>
 
         {hasItems && (
@@ -634,8 +588,11 @@ export const CartDrawer: React.FC = () => {
               <div className="flex justify-between text-stone-500"><span>Delivery</span><span className={delivery === 0 ? 'text-forest-600 font-semibold' : ''}>{delivery === 0 ? 'Free' : `₹${delivery}`}</span></div>
               <div className="flex justify-between font-label font-bold text-stone-900 text-base pt-2 border-t border-stone-100"><span>Total</span><span>₹{total.toFixed(0)}</span></div>
             </div>
-            <Button onClick={() => { closeCart(); navigate('/checkout') }} variant="primary" className="w-full justify-center py-3.5" size="md">
-              Checkout · ₹{total.toFixed(0)} <ArrowRight className="w-4 h-4" />
+            {!isAuthenticated && (
+              <p className="text-xs text-stone-400 font-body text-center">Log in to complete your order</p>
+            )}
+            <Button onClick={() => { closeCart(); navigate(isAuthenticated ? '/checkout' : '/login') }} variant="primary" className="w-full justify-center py-3.5" size="md">
+              {isAuthenticated ? `Checkout · ₹${total.toFixed(0)}` : 'Log in to Checkout'} <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         )}
@@ -644,16 +601,7 @@ export const CartDrawer: React.FC = () => {
   )
 }
 
-export const Footer: React.FC = () => {
-  const [shopCategories, setShopCategories] = useState<Array<{ id: number; name: string; slug: string }>>([])
-  useEffect(() => { categoryApi.getAll().then(setShopCategories).catch(() => {}) }, [])
-
-  const staticCols = [
-    { title: 'Farmers', links: ['Become a Seller', 'Farmer Stories', 'Certifications'] },
-    { title: 'Company', links: ['About Us', 'Blog', 'Careers', 'Contact'] },
-  ]
-
-  return (
+export const Footer: React.FC = () => (
   <footer className="bg-stone-950 text-stone-400 mt-24 relative overflow-hidden">
     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-forest-600/40 to-transparent" />
     <div className="max-w-7xl mx-auto px-8 pt-16 pb-10">
@@ -673,7 +621,7 @@ export const Footer: React.FC = () => {
           </div>
 
           <div className="mt-8 bg-stone-900 border border-stone-800 p-4 rounded-2xl">
-            <p className="text-sm text-stone-300 font-body mb-3">Subscribe for offers &amp; updates</p>
+            <p className="text-sm text-stone-300 font-body mb-3">Subscribe for offers & updates</p>
             <div className="flex gap-2">
               <input
                 type="email"
@@ -684,27 +632,11 @@ export const Footer: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Shop column — populated dynamically from the API */}
-        <div>
-          <h4 className="text-xs font-label font-semibold tracking-wide text-amber-300 uppercase mb-4">Shop</h4>
-          <ul className="space-y-3">
-            {shopCategories.map(cat => (
-              <li key={cat.id}>
-                <Link
-                  to={`/products?categoryId=${cat.id}&categorySlug=${cat.slug}`}
-                  className="text-sm font-body text-stone-300 hover:text-white transition-colors duration-200 flex items-center gap-2"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  {cat.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Farmers & Company columns — static */}
-        {staticCols.map(col => (
+        {[
+          { title: 'Shop', links: ['Vegetables', 'Fruits', 'Grains & Pulses', 'Herbs & Spices'] },
+          { title: 'Farmers', links: ['Become a Seller', 'Farmer Stories', 'Certifications'] },
+          { title: 'Company', links: ['About Us', 'Blog', 'Careers', 'Contact'] },
+        ].map(col => (
           <div key={col.title}>
             <h4 className="text-xs font-label font-semibold tracking-wide text-amber-300 uppercase mb-4">{col.title}</h4>
             <ul className="space-y-3">
@@ -712,9 +644,11 @@ export const Footer: React.FC = () => {
                 <li key={link}>
                   <Link
                     to={
-                      link === 'About Us'
-                        ? '/about-us'
-                        : `/${link.replace(/\s+/g, '-').toLowerCase()}`
+                      col.title === 'Shop'
+                        ? `/products?categorySlug=${link.replace(/\s+/g, '-').toLowerCase()}`
+                        : link === 'About Us'
+                          ? '/about-us'
+                          : `/${link.replace(/\s+/g, '-').toLowerCase()}`
                     }
                     className="text-sm font-body text-stone-300 hover:text-white transition-colors duration-200 flex items-center gap-2"
                   >
@@ -757,8 +691,7 @@ export const Footer: React.FC = () => {
       </div>
     </div>
   </footer>
-  )
-}
+)
 
 export const PageLayout: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <>

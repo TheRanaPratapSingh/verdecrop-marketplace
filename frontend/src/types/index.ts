@@ -86,7 +86,6 @@ export interface CartItem {
   quantity: number
   unit: string
   total: number
-  stockQuantity: number
 }
 
 export interface Cart {

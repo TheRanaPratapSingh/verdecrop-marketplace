@@ -7,7 +7,7 @@ import { PageLayout } from '../components/layout'
 import { ProductGrid, CategoryIcon } from '../components/product'
 import { SEO } from '../components/SEO'
 import { Button, Badge, Spinner, Pagination, PriceDisplay, StarRating, EmptyState } from '../components/ui'
-import { useCartStore, useAuthStore, useGuestCartStore } from '../store'
+import { useCartStore, useAuthStore } from '../store'
 import type { Product, Category } from '../types'
 import toast from 'react-hot-toast'
 import { trackEvent } from '../lib/analytics'
@@ -41,14 +41,7 @@ export const ProductsPage: React.FC = () => {
   }
 
   const matchedCategory = categorySlug ? categories.find(c => c.slug === categorySlug) : undefined
-  // When a slug is present it is the authoritative filter: use the slug-resolved id.
-  // If categories have not loaded yet leave resolvedCategoryId empty so loadProducts
-  // falls through to sending categorySlug directly to the API (backend supports it).
-  const resolvedCategoryId = matchedCategory
-    ? String(matchedCategory.id)
-    : categorySlug
-      ? ''
-      : categoryId
+  const resolvedCategoryId = categoryId || (matchedCategory ? String(matchedCategory.id) : '')
 
   const loadProducts = useCallback(async () => {
     setLoading(true)
@@ -106,12 +99,9 @@ export const ProductsPage: React.FC = () => {
                 ? `Results for "${search}"`
                 : farmerId
                   ? `Products from ${farmerName || 'Selected Farm'}`
-                  : matchedCategory?.name
-                      || (resolvedCategoryId
-                        ? categories.find(c => c.id === Number(resolvedCategoryId))?.name || 'Products'
-                        : categorySlug
-                          ? 'Products'
-                          : 'All Products')}
+                  : resolvedCategoryId
+                    ? categories.find(c => c.id === Number(resolvedCategoryId))?.name || 'Products'
+                    : 'All Products'}
             </h1>
             {!loading && <p className="text-sm text-gray-500 font-body mt-0.5">{total.toLocaleString()} products</p>}
           </div>
@@ -256,7 +246,6 @@ export const ProductDetailPage: React.FC = () => {
   const [openSection, setOpenSection] = useState<'details' | 'nutrition' | 'story'>('details')
   const { setCart, openCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
-  const { addItem: addGuestItem } = useGuestCartStore()
 
   useEffect(() => {
     if (!slug) return
@@ -281,24 +270,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleAddToCart = async () => {
     if (!product) return
-    if (!isAuthenticated) {
-      addGuestItem({
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        imageUrl: product.imageUrl,
-        unit: product.unit,
-        quantity: qty * unitPack,
-        stockQuantity: product.stockQuantity,
-        slug: product.slug,
-      })
-      toast.success(`${product.name} added to cart!`, {
-        style: { borderRadius: '14px', background: '#175820', color: '#fff' },
-        icon: '🛒',
-      })
-      return
-    }
+    if (!isAuthenticated) { toast.error('Please login to continue'); return }
     setAdding(true)
     try {
       const cart = await cartApi.addItem(product.id, qty * unitPack)
@@ -317,7 +289,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleBuyNow = async () => {
     if (!product) return
-    if (!isAuthenticated) { navigate('/login'); return }
+    if (!isAuthenticated) { toast.error('Please login to continue'); return }
     setBuyingNow(true)
     try {
       const cart = await cartApi.addItem(product.id, qty * unitPack)

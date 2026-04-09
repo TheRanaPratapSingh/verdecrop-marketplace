@@ -24,8 +24,6 @@
 @layer utilities {
   .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .line-clamp-3 { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-  .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
-  .scrollbar-hide::-webkit-scrollbar { display: none; }
   .font-display  { font-family: 'Cormorant Garamond', Georgia, serif; }
   .font-label    { font-family: 'Syne', system-ui, sans-serif; }
 

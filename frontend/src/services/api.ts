@@ -179,8 +179,6 @@ export const cartApi = {
   updateItem: (id: number, quantity: number) => unwrap<Cart>(api.put(`/cart/items/${id}`, { quantity })),
   removeItem: (id: number) => unwrap<Cart>(api.delete(`/cart/items/${id}`)),
   clear: () => unwrap<boolean>(api.delete('/cart')),
-  merge: (items: { productId: number; quantity: number }[]) =>
-    unwrap<Cart>(api.post('/cart/merge', { items })),
 }
 
 // ── Orders ───────────────────────────────────────────────────────────────────
