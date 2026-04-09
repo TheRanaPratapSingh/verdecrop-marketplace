@@ -41,7 +41,14 @@ export const ProductsPage: React.FC = () => {
   }
 
   const matchedCategory = categorySlug ? categories.find(c => c.slug === categorySlug) : undefined
-  const resolvedCategoryId = categoryId || (matchedCategory ? String(matchedCategory.id) : '')
+  // When a slug is present it is the authoritative filter: use the slug-resolved id.
+  // If categories have not loaded yet leave resolvedCategoryId empty so loadProducts
+  // falls through to sending categorySlug directly to the API (backend supports it).
+  const resolvedCategoryId = matchedCategory
+    ? String(matchedCategory.id)
+    : categorySlug
+      ? ''
+      : categoryId
 
   const loadProducts = useCallback(async () => {
     setLoading(true)
@@ -99,9 +106,12 @@ export const ProductsPage: React.FC = () => {
                 ? `Results for "${search}"`
                 : farmerId
                   ? `Products from ${farmerName || 'Selected Farm'}`
-                  : resolvedCategoryId
-                    ? categories.find(c => c.id === Number(resolvedCategoryId))?.name || 'Products'
-                    : 'All Products'}
+                  : matchedCategory?.name
+                      || (resolvedCategoryId
+                        ? categories.find(c => c.id === Number(resolvedCategoryId))?.name || 'Products'
+                        : categorySlug
+                          ? 'Products'
+                          : 'All Products')}
             </h1>
             {!loading && <p className="text-sm text-gray-500 font-body mt-0.5">{total.toLocaleString()} products</p>}
           </div>
