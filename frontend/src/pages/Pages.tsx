@@ -1033,68 +1033,192 @@ export const NotificationsPage: React.FC = () => {
   const displayed = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications
   const unread = notifications.filter(n => !n.isRead).length
 
-  const TYPE_ICONS: Record<string, { icon: React.ElementType; bg: string; color: string }> = {
-    order:    { icon: Package,   bg: 'bg-blue-100',   color: 'text-blue-600' },
-    promo:    { icon: Star,      bg: 'bg-orange-100', color: 'text-orange-600' },
-    system:   { icon: Bell,      bg: 'bg-leaf-100',   color: 'text-leaf-600' },
-    announce: { icon: BellOff,   bg: 'bg-purple-100', color: 'text-purple-600' },
+  const TYPE_CONFIG: Record<string, { icon: React.ElementType; bg: string; color: string; label: string }> = {
+    order:    { icon: Package,  bg: 'bg-blue-100',   color: 'text-blue-600',   label: 'Order' },
+    promo:    { icon: Star,     bg: 'bg-amber-100',  color: 'text-amber-600',  label: 'Offer' },
+    system:   { icon: Bell,     bg: 'bg-forest-100', color: 'text-forest-600', label: 'System' },
+    announce: { icon: BellOff,  bg: 'bg-purple-100', color: 'text-purple-600', label: 'News' },
   }
 
-  if (loading) return <PageLayout><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageLayout>
+  const formatTime = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'Just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    const days = Math.floor(hrs / 24)
+    if (days === 1) return 'Yesterday'
+    if (days < 7) return `${days}d ago`
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  }
+
+  const handleClearAll = () => {
+    notifications.forEach(n => notificationApi.delete(n.id).catch(() => {}))
+    setNotifications([])
+  }
+
+  if (loading) return (
+    <PageLayout>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
+        <div className="flex flex-col gap-3 mt-16">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex gap-3.5 p-4 rounded-2xl bg-white border border-stone-100 animate-pulse">
+              <div className="w-10 h-10 rounded-2xl bg-stone-100 flex-shrink-0" />
+              <div className="flex-1 space-y-2 py-0.5">
+                <div className="h-3.5 bg-stone-100 rounded-full w-2/5" />
+                <div className="h-2.5 bg-stone-100 rounded-full w-4/5" />
+                <div className="h-2 bg-stone-100 rounded-full w-1/4 mt-1" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </PageLayout>
+  )
 
   return (
     <PageLayout>
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-display font-bold text-gray-900 flex items-center gap-3">
-            Notifications
-            {unread > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unread}</span>}
-          </h1>
-          {unread > 0 && (
-            <Button size="sm" variant="ghost" onClick={() => { markAllRead(); notificationApi.markAllRead() }}>
-              Mark all read
-            </Button>
-          )}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
+
+        {/* ── Header ── */}
+        <div className="mb-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-10 h-10 bg-forest-50 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Bell className="w-5 h-5 text-forest-600" strokeWidth={2} />
+                </div>
+                <h1 className="text-2xl font-display font-bold text-stone-900 flex items-center gap-2.5">
+                  Notifications
+                  {unread > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 bg-red-500 text-white text-[11px] font-label font-bold rounded-full leading-none">
+                      {unread}
+                    </span>
+                  )}
+                </h1>
+              </div>
+              <p className="text-sm font-body text-stone-400 ml-[52px]">Stay updated with your orders and activity</p>
+            </div>
+
+            {notifications.length > 0 && (
+              <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+                {unread > 0 && (
+                  <button
+                    onClick={() => { markAllRead(); notificationApi.markAllRead() }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-label font-semibold text-forest-700 bg-forest-50 hover:bg-forest-100 rounded-xl border border-forest-200 transition-all duration-150"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" strokeWidth={2} />
+                    Mark all read
+                  </button>
+                )}
+                <button
+                  onClick={handleClearAll}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-label font-semibold text-stone-500 bg-stone-50 hover:bg-red-50 hover:text-red-500 rounded-xl border border-stone-200 hover:border-red-200 transition-all duration-150"
+                >
+                  <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
+                  Clear all
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-2 mb-5">
-          {[['all', 'All'], ['unread', `Unread (${unread})`]].map(([id, label]) => (
-            <button key={id} onClick={() => setFilter(id as any)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition font-body ${filter === id ? 'bg-leaf-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              {label}
-            </button>
-          ))}
+        {/* ── Filter pills ── */}
+        <div className="flex gap-2 mb-6">
+          {(['all', 'unread'] as const).map(id => {
+            const count = id === 'all' ? notifications.length : unread
+            return (
+              <button
+                key={id}
+                onClick={() => setFilter(id)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-label font-semibold transition-all duration-200 ${
+                  filter === id
+                    ? 'bg-forest-600 text-white shadow-sm'
+                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                }`}
+              >
+                {id === 'all' ? 'All' : 'Unread'}
+                {count > 0 && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+                    filter === id ? 'bg-white/25 text-white' : 'bg-stone-200 text-stone-500'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
+        {/* ── Notification list / empty state ── */}
         {displayed.length === 0 ? (
-          <EmptyState icon={<Bell className="w-12 h-12 text-gray-200" />}
-            title={filter === 'unread' ? 'No unread notifications' : 'No notifications'}
-            description="We'll notify you about orders, offers, and more." />
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <div className="w-20 h-20 bg-stone-100 rounded-3xl flex items-center justify-center">
+              <Bell className="w-9 h-9 text-stone-300" strokeWidth={1.5} />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-label font-semibold text-stone-600 mb-1">
+                {filter === 'unread' ? 'All caught up!' : 'No notifications yet'}
+              </p>
+              <p className="text-sm font-body text-stone-400 max-w-xs">
+                {filter === 'unread'
+                  ? 'You have no unread notifications right now.'
+                  : "We'll notify you about orders, offers, and more."}
+              </p>
+            </div>
+            {filter === 'unread' && notifications.length > 0 && (
+              <button
+                onClick={() => setFilter('all')}
+                className="text-xs font-label font-semibold text-forest-600 hover:underline mt-1"
+              >
+                View all notifications
+              </button>
+            )}
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {displayed.map(n => {
-              const cfg = TYPE_ICONS[n.type] || TYPE_ICONS.system
+              const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.system
               const Icon = cfg.icon
               return (
                 <div
                   key={n.id}
                   onClick={() => { if (!n.isRead) { markRead(n.id); notificationApi.markRead(n.id) } }}
-                  className={`flex gap-3 p-4 rounded-2xl border transition cursor-pointer hover:shadow-sm ${
-                    n.isRead ? 'bg-white border-gray-100' : 'bg-leaf-50 border-leaf-100'
+                  className={`group relative flex gap-3.5 p-4 rounded-2xl border transition-all duration-200 cursor-pointer select-none ${
+                    n.isRead
+                      ? 'bg-white border-stone-100 hover:border-stone-200 hover:shadow-sm'
+                      : 'bg-forest-50 border-forest-100 hover:border-forest-200 hover:shadow-sm'
                   }`}
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.bg}`}>
-                    <Icon className={`w-5 h-5 ${cfg.color}`} />
+                  {/* Type icon */}
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${cfg.bg}`}>
+                    <Icon className={`w-5 h-5 ${cfg.color}`} strokeWidth={2} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${n.isRead ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'} font-body`}>{n.title}</p>
-                    <p className="text-xs text-gray-500 font-body mt-0.5 line-clamp-2">{n.body}</p>
-                    <p className="text-[10px] text-gray-400 font-body mt-1">{new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 pr-8">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <p className={`text-sm leading-snug font-body ${n.isRead ? 'font-normal text-stone-700' : 'font-semibold text-stone-900'}`}>
+                        {n.title}
+                      </p>
+                      <span className={`text-[9px] font-label font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide leading-none flex-shrink-0 ${cfg.bg} ${cfg.color}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <p className="text-xs font-body text-stone-500 line-clamp-2 leading-relaxed">{n.body}</p>
+                    <p className="text-[11px] font-body text-stone-400 mt-1.5">{formatTime(n.createdAt)}</p>
                   </div>
-                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                    {!n.isRead && <div className="w-2 h-2 rounded-full bg-leaf-500 mt-1" />}
-                    <button onClick={e => { e.stopPropagation(); remove(n.id); notificationApi.delete(n.id) }} className="text-gray-300 hover:text-red-400 transition">
-                      <X className="w-4 h-4" />
+
+                  {/* Unread dot + delete (hover-only) */}
+                  <div className="absolute top-4 right-4 flex flex-col items-center gap-2">
+                    {!n.isRead && <div className="w-2 h-2 rounded-full bg-forest-500 mt-0.5" />}
+                    <button
+                      onClick={e => { e.stopPropagation(); remove(n.id); notificationApi.delete(n.id) }}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-stone-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all duration-150"
+                      aria-label="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
                     </button>
                   </div>
                 </div>
@@ -1102,6 +1226,7 @@ export const NotificationsPage: React.FC = () => {
             })}
           </div>
         )}
+
       </div>
     </PageLayout>
   )
