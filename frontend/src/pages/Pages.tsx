@@ -690,88 +690,270 @@ export const ProfilePage: React.FC = () => {
     setShowAddrModal(false)
   }
 
+  const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+  const TABS = [
+    { id: 'profile',   label: 'Profile',   icon: User },
+    { id: 'addresses', label: 'Addresses', icon: MapPin },
+    { id: 'security',  label: 'Security',  icon: CreditCard },
+  ]
+
   return (
     <PageLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-leaf-700 to-leaf-500 rounded-3xl p-6 mb-6 flex items-center gap-5 text-white relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full" />
-          <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
-              {user?.avatarUrl
-                ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
-                : <span className="text-3xl font-bold font-display">{user?.name?.[0]?.toUpperCase()}</span>}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+
+        {/* ── Hero Header Card ─────────────────────────────────────────── */}
+        <div className="relative bg-gradient-to-br from-forest-800 via-forest-700 to-forest-600 rounded-3xl p-6 sm:p-8 overflow-hidden shadow-xl">
+          {/* decorative blobs */}
+          <div className="absolute -top-12 -right-12 w-56 h-56 bg-white/5 rounded-full pointer-events-none" />
+          <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
+          <div className="absolute top-1/2 right-24 -translate-y-1/2 w-20 h-20 bg-white/5 rounded-full pointer-events-none" />
+
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-5">
+            {/* Avatar */}
+            <div className="relative self-start sm:self-auto flex-shrink-0">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/15 border-2 border-white/25 overflow-hidden flex items-center justify-center shadow-lg">
+                {user?.avatarUrl
+                  ? <img src={resolveAssetUrl(user.avatarUrl)} alt={user.name} className="w-full h-full object-cover" />
+                  : <span className="text-3xl sm:text-4xl font-bold font-display text-white">{initials}</span>
+                }
+              </div>
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="absolute -bottom-1.5 -right-1.5 bg-white text-forest-700 rounded-full p-1.5 shadow-md hover:shadow-lg hover:scale-110 active:scale-95 transition-all"
+                title="Change photo"
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
             </div>
-            <button onClick={() => fileRef.current?.click()} className="absolute -bottom-1 -right-1 bg-white text-leaf-600 rounded-full p-1.5 shadow hover:shadow-md transition">
-              <Camera className="w-3.5 h-3.5" />
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-display font-bold text-white leading-tight truncate">{user?.name || 'Your Name'}</h1>
+              <p className="text-forest-200 text-sm font-body mt-0.5 truncate">{user?.email || user?.phone || '—'}</p>
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 border border-white/20 rounded-full text-xs font-label font-semibold text-white capitalize tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-forest-300" />
+                  {user?.role || 'Customer'}
+                </span>
+                {user?.phone && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full text-xs font-body text-forest-100">
+                    <Phone className="w-3 h-3" /> {user.phone}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Edit hint */}
+            <button
+              onClick={() => setTab('profile')}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-sm font-label font-medium text-white transition-all active:scale-95 self-start"
+            >
+              <Edit2 className="w-3.5 h-3.5" /> Edit Profile
             </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
           </div>
-          <div className="relative z-10">
-            <h1 className="text-2xl font-display font-bold">{user?.name}</h1>
-            <p className="text-leaf-100 text-sm font-body">{user?.email || user?.phone}</p>
-            <Badge variant="green" className="mt-1 capitalize">{user?.role}</Badge>
+
+          {/* Stats strip */}
+          <div className="relative mt-6 grid grid-cols-3 divide-x divide-white/10 bg-white/10 rounded-2xl overflow-hidden">
+            {[
+                { label: 'Addresses', value: addresses.length },
+                { label: 'Account Type', value: user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '—' },
+                { label: 'Status', value: 'Verified' },
+              ].map(stat => (
+              <div key={stat.label} className="flex flex-col items-center py-3 px-2">
+                <span className="text-lg font-display font-bold text-white">{stat.value}</span>
+                <span className="text-[11px] text-forest-200 font-body mt-0.5 text-center">{stat.label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <TabGroup tabs={[{id:'profile',label:'Profile'},{id:'addresses',label:'Addresses'},{id:'security',label:'Security'}]} active={tab} onChange={setTab} className="mb-6" />
+        {/* ── Pill Tabs ────────────────────────────────────────────────── */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-label font-semibold whitespace-nowrap transition-all duration-200 ${
+                tab === id
+                  ? 'bg-forest-700 text-white shadow-md'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-800'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
 
+        {/* ── Profile Tab ──────────────────────────────────────────────── */}
         {tab === 'profile' && (
-          <Card className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              <Input label="Full Name" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} leftIcon={<User className="w-4 h-4" />} />
-              <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} leftIcon={<Mail className="w-4 h-4" />} />
-              <Input label="Phone" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} leftIcon={<Phone className="w-4 h-4" />} />
+          <div className="bg-white rounded-3xl shadow-sm border border-stone-100 overflow-hidden">
+            <div className="px-6 py-5 border-b border-stone-100 flex items-center gap-3">
+              <div className="w-9 h-9 bg-forest-50 rounded-xl flex items-center justify-center">
+                <User className="w-4.5 h-4.5 text-forest-700" />
+              </div>
+              <div>
+                <h2 className="font-label font-bold text-stone-900 text-base">Personal Information</h2>
+                <p className="text-xs text-stone-400 font-body">Update your name, email and phone</p>
+              </div>
             </div>
-            <Button onClick={saveProfile} loading={saving}><Save className="w-4 h-4" /> Save Changes</Button>
-          </Card>
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {/* Full Name */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-label font-semibold text-stone-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" /> Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Your full name"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-xl text-sm font-body text-stone-800 placeholder-stone-300 bg-stone-50 focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-100 outline-none transition-all"
+                  />
+                </div>
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-label font-semibold text-stone-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5" /> Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="you@email.com"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-xl text-sm font-body text-stone-800 placeholder-stone-300 bg-stone-50 focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-100 outline-none transition-all"
+                  />
+                </div>
+                {/* Phone */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-label font-semibold text-stone-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" /> Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="+91 XXXXX XXXXX"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-xl text-sm font-body text-stone-800 placeholder-stone-300 bg-stone-50 focus:bg-white focus:border-forest-500 focus:ring-2 focus:ring-forest-100 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  onClick={saveProfile}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-forest-700 hover:bg-forest-600 active:scale-95 disabled:opacity-60 text-white text-sm font-label font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  {saving ? <Spinner size="sm" /> : <Save className="w-4 h-4" />}
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
+        {/* ── Addresses Tab ────────────────────────────────────────────── */}
         {tab === 'addresses' && (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-display font-semibold text-gray-900">Saved Addresses</h2>
-              <Button size="sm" onClick={() => { setEditAddr(null); setAddrForm({}); setShowAddrModal(true) }}>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="font-label font-bold text-stone-900 text-lg">Saved Addresses</h2>
+                <p className="text-xs text-stone-400 font-body mt-0.5">{addresses.length} address{addresses.length !== 1 ? 'es' : ''} saved</p>
+              </div>
+              <button
+                onClick={() => { setEditAddr(null); setAddrForm({}); setShowAddrModal(true) }}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-forest-700 hover:bg-forest-600 active:scale-95 text-white text-sm font-label font-semibold rounded-xl shadow-sm transition-all"
+              >
                 <Plus className="w-4 h-4" /> Add New
-              </Button>
+              </button>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {addresses.map(addr => (
-                <Card key={addr.id} className={`p-4 border-2 ${addr.isDefault ? 'border-leaf-400' : 'border-transparent'}`}>
-                  {addr.isDefault && <Badge variant="green" size="sm" className="mb-2">Default</Badge>}
-                  <p className="font-semibold text-sm text-gray-800 font-body">{addr.label} · {addr.fullName}</p>
-                  <p className="text-sm text-gray-500 font-body">{addr.street}</p>
-                  <p className="text-sm text-gray-500 font-body">{addr.city}, {addr.state} – {addr.pinCode}</p>
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={() => { setEditAddr(addr); setAddrForm(addr); setShowAddrModal(true) }} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                      <Edit2 className="w-3 h-3" /> Edit
-                    </button>
-                    <button onClick={async () => { await userApi.deleteAddress(addr.id); setAddresses(a => a.filter(x => x.id !== addr.id)) }} className="text-xs text-red-500 hover:underline flex items-center gap-1">
-                      <Trash2 className="w-3 h-3" /> Delete
-                    </button>
-                    {!addr.isDefault && (
-                      <button onClick={async () => { await userApi.setDefaultAddress(addr.id); setAddresses(a => a.map(x => ({...x, isDefault: x.id === addr.id}))) }} className="text-xs text-leaf-600 hover:underline ml-auto">
-                        Set Default
-                      </button>
+
+            {addresses.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-stone-100 shadow-sm p-12 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-stone-50 rounded-2xl flex items-center justify-center mb-4">
+                  <MapPin className="w-7 h-7 text-stone-300" strokeWidth={1.5} />
+                </div>
+                <p className="font-display text-lg text-stone-600 mb-1">No addresses yet</p>
+                <p className="text-sm text-stone-400 font-body mb-5">Add a delivery address to speed up checkout</p>
+                <button
+                  onClick={() => { setEditAddr(null); setAddrForm({}); setShowAddrModal(true) }}
+                  className="flex items-center gap-1.5 px-5 py-2.5 bg-forest-700 text-white text-sm font-label font-semibold rounded-xl shadow-sm hover:bg-forest-600 transition-all"
+                >
+                  <Plus className="w-4 h-4" /> Add Address
+                </button>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {addresses.map(addr => (
+                  <div
+                    key={addr.id}
+                    className={`relative bg-white rounded-2xl border-2 p-5 shadow-sm transition-all hover:shadow-md ${
+                      addr.isDefault ? 'border-forest-400 bg-forest-50/30' : 'border-stone-100'
+                    }`}
+                  >
+                    {addr.isDefault && (
+                      <span className="absolute top-4 right-4 inline-flex items-center gap-1 px-2 py-0.5 bg-forest-100 text-forest-700 text-[10px] font-label font-bold rounded-full uppercase tracking-wide">
+                        <CheckCircle className="w-3 h-3" /> Default
+                      </span>
                     )}
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 bg-forest-50 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Home className="w-4 h-4 text-forest-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-label font-bold text-stone-800 text-sm capitalize">{addr.label}</p>
+                        <p className="text-sm font-body text-stone-600 mt-0.5">{addr.fullName}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-0.5 ml-12">
+                      <p className="text-sm text-stone-500 font-body">{addr.street}</p>
+                      <p className="text-sm text-stone-500 font-body">{addr.city}, {addr.state} – {addr.pinCode}</p>
+                      {addr.phone && <p className="text-sm text-stone-400 font-body">{addr.phone}</p>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-4 pt-3 border-t border-stone-100">
+                      <button
+                        onClick={() => { setEditAddr(addr); setAddrForm(addr); setShowAddrModal(true) }}
+                        className="flex items-center gap-1 text-xs font-label font-semibold text-forest-700 hover:text-forest-600 transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button
+                        onClick={async () => { await userApi.deleteAddress(addr.id); setAddresses(a => a.filter(x => x.id !== addr.id)) }}
+                        className="flex items-center gap-1 text-xs font-label font-semibold text-red-400 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
+                      {!addr.isDefault && (
+                        <button
+                          onClick={async () => { await userApi.setDefaultAddress(addr.id); setAddresses(a => a.map(x => ({ ...x, isDefault: x.id === addr.id }))) }}
+                          className="ml-auto text-xs font-label font-semibold text-stone-400 hover:text-forest-700 transition-colors"
+                        >
+                          Set Default
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </Card>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
+
             {showAddrModal && (
-              <Modal isOpen onClose={() => setShowAddrModal(false)} title={editAddr ? 'Edit Address' : 'Add Address'}>
+              <Modal isOpen onClose={() => setShowAddrModal(false)} title={editAddr ? 'Edit Address' : 'Add New Address'}>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label="Label" placeholder="Home" value={addrForm.label||''} onChange={e => setAddrForm(f => ({...f, label: e.target.value}))} />
-                    <Input label="Full Name" value={addrForm.fullName||''} onChange={e => setAddrForm(f => ({...f, fullName: e.target.value}))} />
+                    <Input label="Label" placeholder="Home / Work" value={addrForm.label || ''} onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))} />
+                    <Input label="Full Name" value={addrForm.fullName || ''} onChange={e => setAddrForm(f => ({ ...f, fullName: e.target.value }))} />
                   </div>
-                  <Input label="Phone" value={addrForm.phone||''} onChange={e => setAddrForm(f => ({...f, phone: e.target.value}))} />
-                  <Input label="Street / Area" value={addrForm.street||''} onChange={e => setAddrForm(f => ({...f, street: e.target.value}))} />
+                  <Input label="Phone" value={addrForm.phone || ''} onChange={e => setAddrForm(f => ({ ...f, phone: e.target.value }))} />
+                  <Input label="Street / Area" value={addrForm.street || ''} onChange={e => setAddrForm(f => ({ ...f, street: e.target.value }))} />
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label="City" value={addrForm.city||''} onChange={e => setAddrForm(f => ({...f, city: e.target.value}))} />
-                    <Input label="State" value={addrForm.state||''} onChange={e => setAddrForm(f => ({...f, state: e.target.value}))} />
+                    <Input label="City" value={addrForm.city || ''} onChange={e => setAddrForm(f => ({ ...f, city: e.target.value }))} />
+                    <Input label="State" value={addrForm.state || ''} onChange={e => setAddrForm(f => ({ ...f, state: e.target.value }))} />
                   </div>
-                  <Input label="Pincode" value={addrForm.pinCode||''} onChange={e => setAddrForm(f => ({...f, pinCode: e.target.value}))} />
+                  <Input label="Pincode" value={addrForm.pinCode || ''} onChange={e => setAddrForm(f => ({ ...f, pinCode: e.target.value }))} />
                   <div className="flex gap-3 pt-1">
                     <Button variant="outline" className="flex-1" onClick={() => setShowAddrModal(false)}>Cancel</Button>
                     <Button className="flex-1" onClick={saveAddress}><Save className="w-4 h-4" /> Save</Button>
@@ -782,22 +964,55 @@ export const ProfilePage: React.FC = () => {
           </div>
         )}
 
+        {/* ── Security Tab ─────────────────────────────────────────────── */}
         {tab === 'security' && (
-          <Card className="p-6 space-y-4">
-            {[
-              { title: 'OTP Login', desc: 'Login via OTP on registered mobile/email', badge: 'Active', variant: 'green' as const },
-              { title: 'Two-Factor Auth', desc: 'Extra security layer', badge: 'Off', variant: 'gray' as const },
-            ].map(item => (
-              <div key={item.title} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                <div>
-                  <p className="font-semibold text-gray-800 font-body text-sm">{item.title}</p>
-                  <p className="text-xs text-gray-500 font-body">{item.desc}</p>
-                </div>
-                <Badge variant={item.variant}>{item.badge}</Badge>
+          <div className="bg-white rounded-3xl shadow-sm border border-stone-100 overflow-hidden">
+            <div className="px-6 py-5 border-b border-stone-100 flex items-center gap-3">
+              <div className="w-9 h-9 bg-forest-50 rounded-xl flex items-center justify-center">
+                <CreditCard className="w-4.5 h-4.5 text-forest-700" />
               </div>
-            ))}
-          </Card>
+              <div>
+                <h2 className="font-label font-bold text-stone-900 text-base">Security Settings</h2>
+                <p className="text-xs text-stone-400 font-body">Manage how you access your account</p>
+              </div>
+            </div>
+            <div className="divide-y divide-stone-100">
+              {[
+                {
+                  title: 'OTP Login',
+                  desc: 'Sign in using a one-time password on your registered phone or email',
+                  badge: 'Active',
+                  badgeColor: 'bg-forest-100 text-forest-700',
+                  icon: Phone,
+                },
+                {
+                  title: 'Two-Factor Authentication',
+                  desc: 'Add an extra layer of security to your account',
+                  badge: 'Off',
+                  badgeColor: 'bg-stone-100 text-stone-500',
+                  icon: CreditCard,
+                },
+              ].map(item => {
+                const Icon = item.icon
+                return (
+                  <div key={item.title} className="flex items-center gap-4 px-6 py-5 hover:bg-stone-50 transition-colors">
+                    <div className="w-10 h-10 bg-forest-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-4.5 h-4.5 text-forest-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-label font-semibold text-stone-800 text-sm">{item.title}</p>
+                      <p className="text-xs text-stone-400 font-body mt-0.5">{item.desc}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-label font-bold ${item.badgeColor}`}>
+                      {item.badge}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
+
       </div>
     </PageLayout>
   )
