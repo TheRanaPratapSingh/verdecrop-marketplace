@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ShoppingCart, Search, Menu, X, LogOut, Package, Heart, Settings, LayoutDashboard, Bell, ChevronDown, Leaf, ArrowRight, User, Sprout, Plus } from 'lucide-react'
 import { useAuthStore, useCartStore, useNotifStore, useGuestCartStore } from '../../store'
-import { cartApi } from '../../services/api'
+import { cartApi, categoryApi } from '../../services/api'
 import { Spinner, Button } from '../ui'
 import { resolveAssetUrl } from '../../lib/image'
 
@@ -644,7 +644,16 @@ export const CartDrawer: React.FC = () => {
   )
 }
 
-export const Footer: React.FC = () => (
+export const Footer: React.FC = () => {
+  const [shopCategories, setShopCategories] = useState<Array<{ id: number; name: string; slug: string }>>([])
+  useEffect(() => { categoryApi.getAll().then(setShopCategories).catch(() => {}) }, [])
+
+  const staticCols = [
+    { title: 'Farmers', links: ['Become a Seller', 'Farmer Stories', 'Certifications'] },
+    { title: 'Company', links: ['About Us', 'Blog', 'Careers', 'Contact'] },
+  ]
+
+  return (
   <footer className="bg-stone-950 text-stone-400 mt-24 relative overflow-hidden">
     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-forest-600/40 to-transparent" />
     <div className="max-w-7xl mx-auto px-8 pt-16 pb-10">
@@ -664,7 +673,7 @@ export const Footer: React.FC = () => (
           </div>
 
           <div className="mt-8 bg-stone-900 border border-stone-800 p-4 rounded-2xl">
-            <p className="text-sm text-stone-300 font-body mb-3">Subscribe for offers & updates</p>
+            <p className="text-sm text-stone-300 font-body mb-3">Subscribe for offers &amp; updates</p>
             <div className="flex gap-2">
               <input
                 type="email"
@@ -675,11 +684,27 @@ export const Footer: React.FC = () => (
             </div>
           </div>
         </div>
-        {[
-          { title: 'Shop', links: ['Vegetables', 'Fruits', 'Grains & Pulses', 'Herbs & Spices'] },
-          { title: 'Farmers', links: ['Become a Seller', 'Farmer Stories', 'Certifications'] },
-          { title: 'Company', links: ['About Us', 'Blog', 'Careers', 'Contact'] },
-        ].map(col => (
+
+        {/* Shop column — populated dynamically from the API */}
+        <div>
+          <h4 className="text-xs font-label font-semibold tracking-wide text-amber-300 uppercase mb-4">Shop</h4>
+          <ul className="space-y-3">
+            {shopCategories.map(cat => (
+              <li key={cat.id}>
+                <Link
+                  to={`/products?categoryId=${cat.id}&categorySlug=${cat.slug}`}
+                  className="text-sm font-body text-stone-300 hover:text-white transition-colors duration-200 flex items-center gap-2"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  {cat.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Farmers & Company columns — static */}
+        {staticCols.map(col => (
           <div key={col.title}>
             <h4 className="text-xs font-label font-semibold tracking-wide text-amber-300 uppercase mb-4">{col.title}</h4>
             <ul className="space-y-3">
@@ -687,11 +712,9 @@ export const Footer: React.FC = () => (
                 <li key={link}>
                   <Link
                     to={
-                      col.title === 'Shop'
-                        ? `/products?categorySlug=${link.replace(/\s+/g, '-').toLowerCase()}`
-                        : link === 'About Us'
-                          ? '/about-us'
-                          : `/${link.replace(/\s+/g, '-').toLowerCase()}`
+                      link === 'About Us'
+                        ? '/about-us'
+                        : `/${link.replace(/\s+/g, '-').toLowerCase()}`
                     }
                     className="text-sm font-body text-stone-300 hover:text-white transition-colors duration-200 flex items-center gap-2"
                   >
@@ -734,7 +757,8 @@ export const Footer: React.FC = () => (
       </div>
     </div>
   </footer>
-)
+  )
+}
 
 export const PageLayout: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <>
