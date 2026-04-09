@@ -70,8 +70,19 @@ export const Navbar: React.FC = () => {
       ]
 
   const isActive = (to: string) => {
-    if (to.includes('?')) return location.pathname + location.search === to || location.search === to.slice(to.indexOf('?'))
-    return location.pathname === to || (to !== '/' && location.pathname.startsWith(to))
+    if (to.includes('?')) {
+      const [toPath, toSearch] = to.split('?')
+      return location.pathname === toPath && location.search === `?${toSearch}`
+    }
+    // For plain-path links: match exact or nested routes
+    const pathMatches = location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'))
+    if (!pathMatches) return false
+    // If a query-param nav link also matches the current URL, it takes priority
+    const queryNavLinks = navLinks.filter(l => l.to.includes('?'))
+    return !queryNavLinks.some(l => {
+      const [lPath, lSearch] = l.to.split('?')
+      return location.pathname === lPath && location.search === `?${lSearch}`
+    })
   }
 
   return (
