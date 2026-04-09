@@ -334,7 +334,6 @@ export const BecomeSellerPage: React.FC = () => {
                           </div>
                           <div>
                             <p className="text-xs font-label font-semibold uppercase tracking-wider text-stone-500">Account Details</p>
-                            <p className="text-xs text-stone-400">Saved to Users table — Id, Name, Email, Phone</p>
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -376,7 +375,6 @@ export const BecomeSellerPage: React.FC = () => {
                           </div>
                           <div>
                             <p className="text-xs font-label font-semibold uppercase tracking-wider text-stone-500">Farm Details</p>
-                            <p className="text-xs text-stone-400">Saved to FarmerProfiles table — FarmName, Description, Location, State, PinCode</p>
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -430,7 +428,7 @@ export const BecomeSellerPage: React.FC = () => {
                               Bank &amp; Certification{' '}
                               <span className="normal-case font-normal text-stone-400">(optional)</span>
                             </p>
-                            <p className="text-xs text-stone-400">Saved to FarmerProfiles table — CertificationNumber, BankAccountNumber, BankIfsc</p>
+
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
