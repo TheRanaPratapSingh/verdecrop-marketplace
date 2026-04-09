@@ -96,8 +96,8 @@ const CompactProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   return (
     <Link to={`/products/${product.slug}`} className="group flex-shrink-0 w-[140px] sm:w-[156px] bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden flex flex-col border border-stone-100/80 hover:border-forest-200 hover:-translate-y-1">
-      {/* ── Product image — fixed aspect, never grows ── */}
-      <div className="relative w-full aspect-square bg-gradient-to-br from-emerald-50 to-stone-50 overflow-hidden flex-shrink-0">
+      {/* ── Product image ── */}
+      <div className="relative w-full aspect-square bg-gradient-to-br from-emerald-50 to-stone-50 overflow-hidden">
         {imgSrc ? (
           <img src={imgSrc} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onError={handleImgError} />
         ) : (
@@ -116,6 +116,20 @@ const CompactProductCard: React.FC<{ product: Product }> = ({ product }) => {
             className="absolute top-2 right-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           />
         )}
+        {/* ── Cart stepper / ADD button ── */}
+        <div onClick={e => e.preventDefault()} className="absolute bottom-2 right-2">
+          {cartQty > 0 ? (
+            <div className="flex items-center bg-forest-700 rounded-xl overflow-hidden shadow-md h-7">
+              <button onClick={handleDecrease} disabled={updating} className="flex items-center justify-center w-7 h-7 text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"><Minus className="w-3 h-3" strokeWidth={3} /></button>
+              <span className="px-1.5 min-w-[1.25rem] text-center text-white text-xs font-label font-bold">{updating ? <Spinner size="sm" /> : cartQty}</span>
+              <button onClick={handleIncrease} disabled={updating} className="flex items-center justify-center w-7 h-7 text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50"><Plus className="w-3 h-3" strokeWidth={3} /></button>
+            </div>
+          ) : product.stockQuantity !== 0 ? (
+            <button onClick={handleAdd} disabled={adding} className="px-3.5 h-7 bg-forest-600 text-white text-xs font-label font-bold rounded-xl shadow-btn hover:bg-forest-700 hover:shadow-btn-hover active:scale-95 transition-all duration-150 disabled:opacity-50">
+              {adding ? <Spinner size="sm" /> : 'ADD'}
+            </button>
+          ) : null}
+        </div>
         {product.stockQuantity === 0 && (
           <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] flex items-center justify-center">
             <span className="bg-stone-900 text-white text-[10px] font-label font-semibold px-2.5 py-1 rounded-full">Out of Stock</span>
@@ -123,65 +137,35 @@ const CompactProductCard: React.FC<{ product: Product }> = ({ product }) => {
         )}
       </div>
 
-      {/* ── Product info + CTA ── */}
-      <div className="px-2.5 pt-2.5 pb-2.5 flex flex-col flex-1 gap-0.5">
+      {/* ── Product info ── */}
+      <div className="px-2.5 pt-2.5 pb-3 flex flex-col flex-1 gap-0.5">
+        {/* Name — second most prominent */}
         <p className="text-[12.5px] font-label font-bold text-stone-900 leading-snug line-clamp-2 group-hover:text-forest-700 transition-colors duration-200">{product.name}</p>
+        {/* Unit / weight — muted */}
         <p className="text-[10px] font-body text-[#666] leading-tight">{product.unit}</p>
+        {/* Price row — most prominent */}
         <div className="flex items-baseline gap-1.5 flex-wrap mt-1">
           <span className="text-[14px] font-label font-bold text-[#111] leading-none">₹{product.price}</span>
           {product.originalPrice && product.originalPrice > product.price && (
             <span className="text-[10px] text-[#999] line-through font-body leading-none">₹{product.originalPrice}</span>
           )}
         </div>
-
-        {/* Savings badge — fixed-height container prevents card height shift */}
-        <div className="h-[18px] mt-0.5 flex items-center">
-          {savingsAmt > 0 && (
-            <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-label font-bold bg-forest-50 text-forest-700 border border-forest-100 leading-tight">₹{savingsAmt} OFF</span>
-          )}
-        </div>
-
-        {/* ── CTA — full-width, fixed h-8, same space for ADD and stepper ── */}
-        <div className="mt-auto pt-1.5" onClick={e => e.preventDefault()}>
-          {cartQty > 0 ? (
-            <div className="flex items-center justify-between w-full h-8 bg-forest-700 rounded-xl overflow-hidden shadow-md">
-              <button onClick={handleDecrease} disabled={updating} className="flex items-center justify-center w-8 h-8 text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50 flex-shrink-0">
-                <Minus className="w-3 h-3" strokeWidth={3} />
-              </button>
-              <span className="flex-1 text-center text-white text-xs font-label font-bold">
-                {updating ? <Spinner size="sm" /> : cartQty}
-              </span>
-              <button onClick={handleIncrease} disabled={updating} className="flex items-center justify-center w-8 h-8 text-white hover:bg-forest-600 active:bg-forest-800 transition-colors disabled:opacity-50 flex-shrink-0">
-                <Plus className="w-3 h-3" strokeWidth={3} />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={product.stockQuantity === 0 ? undefined : handleAdd}
-              disabled={adding || product.stockQuantity === 0}
-              className="w-full h-8 flex items-center justify-center bg-forest-600 text-white text-xs font-label font-bold rounded-xl shadow-btn hover:bg-forest-700 hover:shadow-btn-hover active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {adding ? <Spinner size="sm" /> : 'ADD'}
-            </button>
-          )}
-        </div>
+        {/* Savings badge */}
+        {savingsAmt > 0 && (
+          <span className="inline-flex self-start mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-label font-bold bg-forest-50 text-forest-700 border border-forest-100 leading-tight">₹{savingsAmt} OFF</span>
+        )}
       </div>
     </Link>
   )
 }
 
 const SkeletonCard: React.FC = () => (
-  <div className="flex-shrink-0 w-[140px] sm:w-[156px] bg-white rounded-2xl shadow-card border border-stone-100/80 overflow-hidden animate-pulse flex flex-col">
-    <div className="aspect-square bg-stone-100 flex-shrink-0" />
-    <div className="px-2.5 pt-2.5 pb-2.5 flex flex-col flex-1 gap-0.5">
+  <div className="flex-shrink-0 w-[140px] sm:w-[156px] bg-white rounded-2xl shadow-card border border-stone-100/80 overflow-hidden animate-pulse">
+    <div className="aspect-square bg-stone-100" />
+    <div className="px-2.5 pt-2.5 pb-3 space-y-2">
       <div className="h-3 bg-stone-100 rounded-full w-full" />
-      <div className="h-3 bg-stone-100 rounded-full w-4/5" />
       <div className="h-2.5 bg-stone-100 rounded-full w-1/2" />
       <div className="h-3.5 bg-stone-100 rounded-full w-2/3 mt-1" />
-      <div className="h-[18px] mt-0.5" />
-      <div className="mt-auto pt-1.5">
-        <div className="h-8 bg-stone-100 rounded-xl w-full" />
-      </div>
     </div>
   </div>
 )
