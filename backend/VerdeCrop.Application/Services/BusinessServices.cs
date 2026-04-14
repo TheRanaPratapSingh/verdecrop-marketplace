@@ -31,6 +31,15 @@ namespace VerdeCrop.Application.Services
 
         public async Task<bool> SendOtpAsync(SendOtpRequest req)
         {
+            if (string.Equals(req.Purpose, "register", StringComparison.OrdinalIgnoreCase))
+            {
+                var isEmailId = req.Identifier.Contains('@');
+                bool exists = isEmailId
+                    ? await _uow.Users.Query().AnyAsync(u => u.Email == req.Identifier)
+                    : await _uow.Users.Query().AnyAsync(u => u.Phone == req.Identifier);
+                if (exists) throw new InvalidOperationException("ALREADY_REGISTERED");
+            }
+
             var otp = await _otpSvc.GenerateOtpAsync(req.Identifier, req.Purpose);
 
             var isEmail = req.Identifier.Contains('@');

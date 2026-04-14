@@ -42,6 +42,10 @@ namespace VerdeCrop.API.Controllers
                     ? Ok(ApiResponse.Ok(true, "OTP sent successfully"))
                     : BadRequest(ApiResponse.Fail("Failed to send OTP"));
             }
+            catch (InvalidOperationException ex) when (ex.Message == "ALREADY_REGISTERED")
+            {
+                return Conflict(ApiResponse.Fail("ALREADY_REGISTERED"));
+            }
             catch (Exception ex)
             {
                 return StatusCode(429, ApiResponse.Fail(ex.Message));

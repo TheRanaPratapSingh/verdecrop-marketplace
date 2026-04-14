@@ -331,140 +331,136 @@ export const LoginPage: React.FC = () => {
 // ── Register Page ─────────────────────────────────────────────────────────────
 export const RegisterPage: React.FC = () => {
   const { setAuth } = useAuthStore()
+  const { setCart } = useCartStore()
+  const { items: guestItems, clearCart: clearGuestCart } = useGuestCartStore()
   const navigate = useNavigate()
 
   // Form fields
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
+  const [name, setName]           = useState('')
+  const [method, setMethod]       = useState<'phone' | 'email'>('phone')
+  const [phone, setPhone]         = useState('')
+  const [email, setEmail]         = useState('')
 
-  // OTP state
-  const [phoneOtp, setPhoneOtp] = useState('')
-  const [emailOtp, setEmailOtp] = useState('')
-  const [phoneVerified, setPhoneVerified] = useState(false)
-  const [emailVerified, setEmailVerified] = useState(false)
+  // Derived identifier based on method
+  const identifier = method === 'phone'
+    ? phone.replace(/\D/g, '').replace(/^(\d{10})$/, '+91$1')
+    : email.trim()
 
-  // Step tracking: 'details' | 'phone-otp' | 'email-otp' | 'done'
-  const [step, setStep] = useState<'details' | 'phone-otp' | 'email-otp' | 'done'>('details')
+  // OTP flow
+  const [step, setStep]           = useState<'form' | 'otp' | 'done'>('form')
+  const [otp, setOtp]             = useState('')
 
-  // Loading states
-  const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false)
-  const [verifyingPhoneOtp, setVerifyingPhoneOtp] = useState(false)
-  const [sendingEmailOtp, setSendingEmailOtp] = useState(false)
-  const [verifyingEmailOtp, setVerifyingEmailOtp] = useState(false)
-  const [creatingAccount, setCreatingAccount] = useState(false)
+  // Loading
+  const [sending, setSending]     = useState(false)
+  const [verifying, setVerifying] = useState(false)
 
-  // Resend timers
-  const [phoneTimer, setPhoneTimer] = useState(0)
-  const [emailTimer, setEmailTimer] = useState(0)
+  // Resend timer
+  const [resendTimer, setResendTimer] = useState(0)
 
-  // OTP sent tracking
-  const [emailOtpSent, setEmailOtpSent] = useState(false)
+  // Errors
+  const [nameError, setNameError]           = useState('')
+  const [identifierError, setIdentifierError] = useState('')
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false)
 
-  // Validation errors
-  const [nameError, setNameError] = useState('')
-  const [phoneError, setPhoneError] = useState('')
-  const [emailError, setEmailError] = useState('')
-
-  const startTimer = (setter: React.Dispatch<React.SetStateAction<number>>) => {
-    setter(30)
-    const iv = setInterval(() => setter(t => { if (t <= 1) { clearInterval(iv); return 0 } return t - 1 }), 1000)
+  const startTimer = () => {
+    setResendTimer(30)
+    const iv = setInterval(() => setResendTimer(t => { if (t <= 1) { clearInterval(iv); return 0 } return t - 1 }), 1000)
   }
 
-  const validatePhone = (val: string) => {
-    const digits = val.replace(/\D/g, '')
-    if (digits.length < 10) return 'Enter a valid 10-digit mobile number'
+  const validateIdentifier = () => {
+    if (method === 'phone') {
+      const digits = phone.replace(/\D/g, '')
+      if (digits.length !== 10) return 'Enter a valid 10-digit mobile number'
+    } else {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Enter a valid email address'
+    }
     return ''
   }
 
-  const validateEmail = (val: string) => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return 'Enter a valid email address'
-    return ''
-  }
-
-  const handleSendPhoneOtp = async () => {
+  const handleSendOtp = async () => {
     const nErr = name.trim().length < 2 ? 'Name must be at least 2 characters' : ''
-    const pErr = validatePhone(phone)
-    setNameError(nErr); setPhoneError(pErr)
-    if (nErr || pErr) return
-    setSendingPhoneOtp(true)
+    const iErr = validateIdentifier()
+    setNameError(nErr)
+    setIdentifierError(iErr)
+    setAlreadyRegistered(false)
+    if (nErr || iErr) return
+
+    setSending(true)
     try {
-      await authApi.sendOtp(phone.replace(/\D/g, '').replace(/^(\d{10})$/, '+91$1'), 'register')
-      setStep('phone-otp')
-      startTimer(setPhoneTimer)
-      toast.success('OTP sent to your mobile!')
+      await authApi.sendOtp(identifier, 'register')
+      setStep('otp')
+      startTimer()
+      toast.success(method === 'phone' ? 'OTP sent to your mobile!' : 'OTP sent to your email!')
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Failed to send OTP. Try again.')
-    } finally { setSendingPhoneOtp(false) }
+      const msg: string = e?.response?.data?.message ?? ''
+      if (msg === 'ALREADY_REGISTERED' || e?.response?.status === 409) {
+        setAlreadyRegistered(true)
+      } else {
+        toast.error('Failed to send OTP. Try again.')
+      }
+    } finally { setSending(false) }
   }
 
-  const handleVerifyPhoneOtp = async () => {
-    if (phoneOtp.length < 6) { toast.error('Enter the 6-digit OTP'); return }
-    setVerifyingPhoneOtp(true)
+  const handleVerifyOtp = async () => {
+    if (otp.length < 6) { toast.error('Enter the 6-digit OTP'); return }
+    setVerifying(true)
     try {
-      const normalizedPhone = phone.replace(/\D/g, '').replace(/^(\d{10})$/, '+91$1')
-      await authApi.verifyOtpOnly(normalizedPhone, phoneOtp)
-      setPhoneVerified(true)
-      setStep('email-otp')
-      toast.success('Mobile verified! ✓')
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Invalid OTP. Please try again.')
-    } finally { setVerifyingPhoneOtp(false) }
-  }
-
-  const handleSendEmailOtp = async () => {
-    const eErr = validateEmail(email)
-    setEmailError(eErr)
-    if (eErr) return
-    setSendingEmailOtp(true)
-    try {
-      await authApi.sendOtp(email, 'register')
-      setEmailOtpSent(true)
-      startTimer(setEmailTimer)
-      toast.success('OTP sent to your email!')
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Failed to send OTP. Try again.')
-    } finally { setSendingEmailOtp(false) }
-  }
-
-  const handleVerifyEmailOtp = async () => {
-    if (emailOtp.length < 6) { toast.error('Enter the 6-digit OTP'); return }
-    setVerifyingEmailOtp(true)
-    try {
-      await authApi.verifyOtpOnly(email, emailOtp)
-      setEmailVerified(true)
-      setStep('done')
-      toast.success('Email verified! ✓')
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Invalid OTP. Please try again.')
-    } finally { setVerifyingEmailOtp(false) }
-  }
-
-  const handleCreateAccount = async () => {
-    if (!phoneVerified || !emailVerified) return
-    setCreatingAccount(true)
-    try {
-      const normalizedPhone = phone.replace(/\D/g, '').replace(/^(\d{10})$/, '+91$1')
-      const res = await authApi.registerDual(name.trim(), normalizedPhone, email.trim())
+      const res = await authApi.verifyOtp(identifier, otp, name.trim())
       setAuth(res.user, res.accessToken, res.refreshToken)
-      trackEvent('register_success', { method: 'dual_otp', user_role: res.user.role })
+      trackEvent('register_success', { method, user_role: res.user.role })
+      if (guestItems.length > 0) {
+        try {
+          const mergedCart = await cartApi.merge(
+            guestItems.map(i => ({ productId: i.productId, quantity: i.quantity }))
+          )
+          if (mergedCart) setCart(mergedCart)
+          clearGuestCart()
+        } catch { /* silent */ }
+      }
       const msg = `Welcome to Graamo, ${res.user.name}! 🌱`
       toast.success(msg)
       navigate('/', { replace: true, state: { registrationSuccess: true, welcomeMessage: msg } })
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Registration failed. Please try again.')
-    } finally { setCreatingAccount(false) }
+      toast.error(e?.response?.data?.message || 'Invalid OTP. Please try again.')
+    } finally { setVerifying(false) }
   }
 
-  const stepIndex = step === 'details' ? 0 : step === 'phone-otp' ? 1 : step === 'email-otp' ? 2 : 3
+  const handleResendOtp = async () => {
+    setSending(true)
+    try {
+      await authApi.sendOtp(identifier, 'register')
+      startTimer()
+      toast.success('OTP resent!')
+    } catch (e: any) {
+      const msg: string = e?.response?.data?.message ?? ''
+      if (msg === 'ALREADY_REGISTERED' || e?.response?.status === 409) {
+        setAlreadyRegistered(true)
+        setStep('form')
+      } else {
+        toast.error('Failed to resend OTP.')
+      }
+    } finally { setSending(false) }
+  }
+
+  const switchMethod = (m: 'phone' | 'email') => {
+    setMethod(m)
+    setPhone('')
+    setEmail('')
+    setOtp('')
+    setStep('form')
+    setAlreadyRegistered(false)
+    setNameError('')
+    setIdentifierError('')
+    setResendTimer(0)
+  }
 
   return (
     <>
       <SEO title="Create Account" description="Join Graamo to shop fresh certified organic produce directly from Indian farmers." noIndex />
       <div className="min-h-screen bg-[#E3E3E3] flex items-center justify-center p-3 sm:p-5 lg:p-8">
-        <div className="w-full max-w-[1060px] bg-white rounded-[24px] lg:rounded-[28px] shadow-auth overflow-hidden flex flex-col lg:flex-row lg:min-h-[680px]">
+        <div className="w-full max-w-[1060px] bg-white rounded-[24px] lg:rounded-[28px] shadow-auth overflow-hidden flex flex-col lg:flex-row lg:min-h-[640px]">
 
-          {/* ── LEFT: Form panel ────────────────────────────────── */}
+          {/* ── LEFT: Form panel ── */}
           <div className="lg:w-[468px] flex-shrink-0 flex flex-col bg-white px-7 py-8 sm:px-10 overflow-y-auto">
 
             {/* Logo */}
@@ -475,64 +471,94 @@ export const RegisterPage: React.FC = () => {
               <span className="font-display font-bold text-xl text-stone-800 tracking-tight">Graamo</span>
             </Link>
 
-              {/* Header */}
-              <div className="mb-6">
-                <div className="inline-flex items-center gap-1.5 mb-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-forest-500" />
-                  <p className="text-[11px] font-bold font-body text-forest-600 uppercase tracking-[0.15em]">New Account</p>
-                </div>
-                <h1 className="font-display text-[2rem] font-bold text-stone-900 leading-tight">Create Account</h1>
-                <p className="text-sm text-stone-500 font-body mt-1">Join thousands of health-conscious families</p>
+            {/* Header */}
+            <div className="mb-6">
+              <div className="inline-flex items-center gap-1.5 mb-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-forest-500" />
+                <p className="text-[11px] font-bold font-body text-forest-600 uppercase tracking-[0.15em]">New Account</p>
               </div>
+              <h1 className="font-display text-[2rem] font-bold text-stone-900 leading-tight">Create your Graamo account</h1>
+              <p className="text-sm text-stone-500 font-body mt-1">Choose how you want to verify</p>
+            </div>
 
-              {/* Step indicator */}
-              <div className="flex items-center gap-1.5 mb-7">
-                {[
-                  { idx: 0, label: 'Details' },
-                  { idx: 1, label: 'Mobile' },
-                  { idx: 2, label: 'Email' },
-                  { idx: 3, label: 'Done' },
-                ].map((s, i, arr) => (
-                  <React.Fragment key={s.idx}>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-body transition-all duration-300
-                        ${stepIndex > s.idx
-                          ? 'bg-forest-600 text-white shadow-[0_0_0_3px_rgba(30,110,36,0.15)]'
-                          : stepIndex === s.idx
-                          ? 'bg-forest-500 text-white ring-2 ring-forest-300/60 shadow-[0_2px_8px_rgba(22,163,74,0.35)]'
-                          : 'bg-stone-100 text-stone-400'}`}>
-                        {stepIndex > s.idx ? <CheckCircle2 className="w-4 h-4" /> : s.idx + 1}
-                      </div>
-                      <span className={`text-[10px] font-body font-medium hidden sm:block transition-colors duration-300 ${stepIndex >= s.idx ? 'text-forest-700' : 'text-stone-400'}`}>{s.label}</span>
+            {/* Step indicator */}
+            <div className="flex items-center gap-1.5 mb-7">
+              {([{ idx: 0, label: 'Verify' }, { idx: 1, label: 'Done' }] as const).map((s, i, arr) => (
+                <React.Fragment key={s.idx}>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-body transition-all duration-300
+                      ${step === 'done' || (step === 'otp' && s.idx === 0)
+                        ? 'bg-forest-600 text-white shadow-[0_0_0_3px_rgba(30,110,36,0.15)]'
+                        : s.idx === 0 && step === 'form'
+                        ? 'bg-forest-500 text-white ring-2 ring-forest-300/60 shadow-[0_2px_8px_rgba(22,163,74,0.35)]'
+                        : s.idx === 1 && step === 'otp'
+                        ? 'bg-forest-500 text-white ring-2 ring-forest-300/60 shadow-[0_2px_8px_rgba(22,163,74,0.35)]'
+                        : 'bg-stone-100 text-stone-400'}`}>
+                      {step === 'done' ? <CheckCircle2 className="w-4 h-4" /> : s.idx + 1}
                     </div>
-                    {i < arr.length - 1 && (
-                      <div className="flex-1 relative h-0.5 rounded-full bg-stone-100 overflow-hidden">
-                        <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out ${stepIndex > s.idx ? 'w-full bg-forest-500' : 'w-0 bg-forest-500'}`} />
-                      </div>
-                    )}
-                  </React.Fragment>
-                ))}
-              </div>
-
-              {/* ── STEP 0: Details (name + phone) ── */}
-              {step === 'details' && (
-                <div className="space-y-4 animate-fade-up">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-stone-700 font-body">Full Name <span className="text-red-400">*</span></label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <input
-                        type="text"
-                        placeholder="Priya Sharma"
-                        value={name}
-                        onChange={e => { setName(e.target.value); if (nameError) setNameError('') }}
-                        className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
-                          ${nameError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
-                      />
-                    </div>
-                    {nameError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {nameError}</p>}
+                    <span className={`text-[10px] font-body font-medium hidden sm:block transition-colors duration-300
+                      ${(step === 'form' && s.idx === 0) || (step === 'otp' && s.idx <= 1) || step === 'done' ? 'text-forest-700' : 'text-stone-400'}`}>{s.label}</span>
                   </div>
+                  {i < arr.length - 1 && (
+                    <div className="flex-1 relative h-0.5 rounded-full bg-stone-100 overflow-hidden">
+                      <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out ${step === 'otp' || step === 'done' ? 'w-full bg-forest-500' : 'w-0'}`} />
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
 
+            {/* ── STEP: form ── */}
+            {step === 'form' && (
+              <div className="space-y-4 animate-fade-up">
+
+                {/* Name */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-stone-700 font-body">Full Name <span className="text-red-400">*</span></label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                    <input
+                      type="text"
+                      placeholder="Priya Sharma"
+                      value={name}
+                      onChange={e => { setName(e.target.value); if (nameError) setNameError('') }}
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
+                        ${nameError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
+                    />
+                  </div>
+                  {nameError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {nameError}</p>}
+                </div>
+
+                {/* Method toggle (segmented control) */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-stone-700 font-body">Verify with <span className="text-stone-400 font-normal">(choose one)</span></label>
+                  <div className="relative flex p-1 bg-stone-100 rounded-xl overflow-hidden">
+                    {/* Animated sliding indicator */}
+                    <div
+                      className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-[10px] bg-white shadow-sm transition-all duration-300 ease-out"
+                      style={{ left: method === 'phone' ? '4px' : 'calc(50%)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => switchMethod('phone')}
+                      className={`relative z-10 flex-1 py-2.5 text-sm font-semibold rounded-[10px] font-body flex items-center justify-center gap-2 transition-colors duration-200
+                        ${method === 'phone' ? 'text-forest-700' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      <Phone className="w-4 h-4" /> Mobile Number
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchMethod('email')}
+                      className={`relative z-10 flex-1 py-2.5 text-sm font-semibold rounded-[10px] font-body flex items-center justify-center gap-2 transition-colors duration-200
+                        ${method === 'email' ? 'text-forest-700' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      <Mail className="w-4 h-4" /> Email Address
+                    </button>
+                  </div>
+                </div>
+
+                {/* Phone or Email input */}
+                {method === 'phone' ? (
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-stone-700 font-body">Mobile Number <span className="text-red-400">*</span></label>
                     <div className="flex gap-2">
@@ -545,76 +571,17 @@ export const RegisterPage: React.FC = () => {
                           type="tel"
                           placeholder="98765 43210"
                           value={phone}
-                          onChange={e => { setPhone(e.target.value); if (phoneError) setPhoneError('') }}
-                          onKeyDown={e => e.key === 'Enter' && handleSendPhoneOtp()}
+                          onChange={e => { setPhone(e.target.value); if (identifierError) setIdentifierError(''); setAlreadyRegistered(false) }}
+                          onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
                           maxLength={10}
                           className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
-                            ${phoneError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
+                            ${identifierError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
                         />
                       </div>
                     </div>
-                    {phoneError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {phoneError}</p>}
+                    {identifierError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {identifierError}</p>}
                   </div>
-
-                  <button
-                    onClick={handleSendPhoneOtp}
-                    disabled={sendingPhoneOtp}
-                    className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-                    style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
-                  >
-                    {sendingPhoneOtp ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <><span>Send OTP to Mobile</span><ArrowRight className="w-4 h-4" /></>}
-                  </button>
-
-                  <p className="text-center text-sm text-stone-500 font-body">
-                    Already have an account?{' '}
-                    <Link to="/login" className="text-forest-700 font-semibold hover:underline">Log in</Link>
-                  </p>
-                </div>
-              )}
-
-              {/* ── STEP 1: Phone OTP ── */}
-              {step === 'phone-otp' && (
-                <div className="space-y-5 animate-fade-up">
-                  <button onClick={() => setStep('details')} className="flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 transition font-body">
-                    <ChevronLeft className="w-4 h-4" /> Back
-                  </button>
-
-                  <div className="text-center space-y-1">
-                    <div className="w-12 h-12 rounded-2xl bg-forest-50 border border-forest-200 flex items-center justify-center mx-auto mb-3">
-                      <Phone className="w-5 h-5 text-forest-600" />
-                    </div>
-                    <p className="font-semibold text-stone-800 font-body">Verify your mobile</p>
-                    <p className="text-sm text-stone-500 font-body">OTP sent to <strong className="text-stone-700">+91 {phone}</strong></p>
-                  </div>
-
-                  <OtpInput onChange={setPhoneOtp} />
-
-                  <button
-                    onClick={handleVerifyPhoneOtp}
-                    disabled={verifyingPhoneOtp || phoneOtp.length < 6}
-                    className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60"
-                    style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 14px rgba(22,163,74,0.35)' }}
-                  >
-                    {verifyingPhoneOtp ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /><span>Verify Mobile</span></>}
-                  </button>
-
-                  <p className="text-center text-sm font-body">
-                    {phoneTimer > 0
-                      ? <span className="text-stone-500">Resend OTP in <strong>{phoneTimer}s</strong></span>
-                      : <button onClick={handleSendPhoneOtp} className="text-forest-700 font-semibold hover:underline">Resend OTP</button>}
-                  </p>
-                </div>
-              )}
-
-              {/* ── STEP 2: Email + Email OTP ── */}
-              {step === 'email-otp' && (
-                <div className="space-y-5 animate-fade-up">
-                  {/* Phone verified badge */}
-                  <div className="flex items-center gap-2 bg-forest-50 border border-forest-200 rounded-xl px-3 py-2">
-                    <CheckCircle2 className="w-4 h-4 text-forest-600 flex-shrink-0" />
-                    <span className="text-sm font-body text-forest-700">Mobile <strong>+91 {phone}</strong> verified ✓</span>
-                  </div>
-
+                ) : (
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-stone-700 font-body">Email Address <span className="text-red-400">*</span></label>
                     <div className="relative">
@@ -623,130 +590,115 @@ export const RegisterPage: React.FC = () => {
                         type="email"
                         placeholder="you@example.com"
                         value={email}
-                        onChange={e => {
-                          setEmail(e.target.value)
-                          if (emailError) setEmailError('')
-                          if (emailOtpSent) setEmailOtpSent(false)
-                        }}
-                        disabled={emailOtpSent}
-                        className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30 disabled:opacity-60 disabled:cursor-default
-                          ${emailError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
+                        onChange={e => { setEmail(e.target.value); if (identifierError) setIdentifierError(''); setAlreadyRegistered(false) }}
+                        onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
+                        className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
+                          ${identifierError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
                       />
                     </div>
-                    {emailError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {emailError}</p>}
-                    {emailOtpSent && (
-                      <button
-                        onClick={() => { setEmailOtpSent(false); setEmailOtp('') }}
-                        className="text-xs text-forest-600 font-body font-medium hover:underline"
-                      >
-                        ✎ Change email
-                      </button>
-                    )}
+                    {identifierError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {identifierError}</p>}
                   </div>
+                )}
 
-                  {!emailOtpSent && (
-                    <button
-                      onClick={handleSendEmailOtp}
-                      disabled={sendingEmailOtp}
-                      className="w-full py-3 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-                      style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.35)' }}
+                {/* Already registered inline error */}
+                {alreadyRegistered && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-1.5 animate-fade-up">
+                    <p className="text-sm font-body text-amber-800 font-medium flex items-start gap-2">
+                      <span className="text-base leading-none mt-0.5">⚠️</span>
+                      <span>
+                        {method === 'phone'
+                          ? 'This mobile number is already registered. Please log in instead.'
+                          : 'This email is already associated with an account. Try logging in.'}
+                      </span>
+                    </p>
+                    <Link
+                      to="/login"
+                      className="inline-flex items-center gap-1.5 text-sm font-semibold font-body text-forest-700 hover:text-forest-900 hover:underline transition-colors"
                     >
-                      {sendingEmailOtp
-                        ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        : <><span>Send OTP to Email</span><ArrowRight className="w-4 h-4" /></>}
-                    </button>
-                  )}
-
-                  {emailOtpSent && !emailVerified && (
-                    <>
-                      <OtpInput onChange={setEmailOtp} />
-                      <button
-                        onClick={handleVerifyEmailOtp}
-                        disabled={verifyingEmailOtp || emailOtp.length < 6}
-                        className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-                        style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
-                      >
-                        {verifyingEmailOtp
-                          ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                          : <><CheckCircle2 className="w-4 h-4" /><span>Verify Email</span></>}
-                      </button>
-                      <p className="text-center text-sm font-body">
-                        {emailTimer > 0
-                          ? <span className="text-stone-500">Resend OTP in <strong>{emailTimer}s</strong></span>
-                          : <button onClick={handleSendEmailOtp} disabled={sendingEmailOtp} className="text-forest-700 font-semibold hover:underline disabled:opacity-60">
-                              {sendingEmailOtp ? 'Sending…' : 'Resend OTP'}
-                            </button>}
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* ── STEP 3: All verified — Create Account ── */}
-              {step === 'done' && (
-                <div className="space-y-5 animate-fade-up">
-                  {/* Success verification summary */}
-                  <div className="rounded-2xl overflow-hidden border border-forest-200">
-                    <div className="bg-forest-600 px-4 py-2.5 flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className="text-xs font-bold font-body text-white uppercase tracking-wide">Both verified — you're all set!</span>
-                    </div>
-                    <div className="bg-forest-50 p-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-forest-600 flex-shrink-0" />
-                        <span className="text-sm font-body text-forest-800">Mobile <strong>+91 {phone}</strong></span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-forest-600 flex-shrink-0" />
-                        <span className="text-sm font-body text-forest-800">Email <strong>{email}</strong></span>
-                      </div>
-                    </div>
+                      Go to Login <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
+                )}
 
-                  <div className="rounded-2xl bg-stone-50 border border-stone-200 px-4 py-3 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-forest-100 flex items-center justify-center flex-shrink-0">
-                      <User className="w-5 h-5 text-forest-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-body text-stone-800 font-semibold truncate">{name}</p>
-                      <p className="text-xs text-stone-500 font-body truncate">+91 {phone} · {email}</p>
-                    </div>
+                {/* Send OTP button */}
+                <button
+                  onClick={handleSendOtp}
+                  disabled={sending}
+                  className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
+                >
+                  {sending
+                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <><span>Send OTP {method === 'phone' ? 'to Mobile' : 'to Email'}</span><ArrowRight className="w-4 h-4" /></>}
+                </button>
+
+                <p className="text-center text-sm text-stone-500 font-body">
+                  Already have an account?{' '}
+                  <Link to="/login" className="text-forest-700 font-semibold hover:underline">Log in</Link>
+                </p>
+              </div>
+            )}
+
+            {/* ── STEP: otp ── */}
+            {step === 'otp' && (
+              <div className="space-y-5 animate-fade-up">
+                <button onClick={() => { setStep('form'); setOtp('') }} className="flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 transition font-body">
+                  <ChevronLeft className="w-4 h-4" /> Back
+                </button>
+
+                <div className="text-center space-y-1.5">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 ${method === 'phone' ? 'bg-forest-50 border border-forest-200' : 'bg-blue-50 border border-blue-200'}`}>
+                    {method === 'phone'
+                      ? <Phone className="w-5 h-5 text-forest-600" />
+                      : <Mail className="w-5 h-5 text-blue-600" />}
                   </div>
-
-                  <button
-                    onClick={handleCreateAccount}
-                    disabled={creatingAccount}
-                    className="w-full py-4 rounded-xl font-body font-bold text-base text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-70"
-                    style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 6px 24px rgba(22,163,74,0.50)' }}
-                  >
-                    {creatingAccount
-                      ? <><span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" /><span>Creating account…</span></>
-                      : <><Leaf className="w-5 h-5" /><span>Create Account</span></>}
-                  </button>
-
-                  <p className="text-center text-xs text-stone-400 font-body leading-relaxed">
-                    By creating an account, you agree to our{' '}
-                    <Link to="/terms" className="text-forest-600 hover:underline">Terms of Service</Link> and{' '}
-                    <Link to="/privacy" className="text-forest-600 hover:underline">Privacy Policy</Link>.
+                  <p className="font-semibold text-stone-800 font-body">
+                    Verify your {method === 'phone' ? 'mobile' : 'email'}
+                  </p>
+                  <p className="text-sm text-stone-500 font-body">
+                    OTP sent to{' '}
+                    <strong className="text-stone-700">
+                      {method === 'phone' ? `+91 ${phone}` : email}
+                    </strong>
                   </p>
                 </div>
-              )}
 
-              {/* Trust badges (shown on all steps) */}
-              <div className="flex items-center justify-center gap-4 mt-6 pt-5 border-t border-stone-100">
-                {[
-                  { icon: <ShieldCheck className="w-3.5 h-3.5 text-forest-600" />, label: 'Direct Farmers' },
-                  { icon: <Sprout className="w-3.5 h-3.5 text-forest-600" />, label: '100% Organic' },
-                  { icon: <Truck className="w-3.5 h-3.5 text-forest-600" />, label: 'Same Day' },
-                ].map(b => (
-                  <div key={b.label} className="flex items-center gap-1 text-xs font-body text-stone-400">
-                    {b.icon}<span>{b.label}</span>
-                  </div>
-                ))}
+                <OtpInput onChange={setOtp} />
+
+                <button
+                  onClick={handleVerifyOtp}
+                  disabled={verifying || otp.length < 6}
+                  className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
+                >
+                  {verifying
+                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <><CheckCircle2 className="w-4 h-4" /><span>Verify & Create Account</span></>}
+                </button>
+
+                <p className="text-center text-sm font-body">
+                  {resendTimer > 0
+                    ? <span className="text-stone-500">Resend OTP in <strong>{resendTimer}s</strong></span>
+                    : <button onClick={handleResendOtp} disabled={sending} className="text-forest-700 font-semibold hover:underline disabled:opacity-60">
+                        {sending ? 'Sending…' : 'Resend OTP'}
+                      </button>}
+                </p>
               </div>
-            </div>{/* closes LEFT form panel */}
+            )}
+
+            {/* Trust badges */}
+            <div className="flex items-center justify-center gap-4 mt-6 pt-5 border-t border-stone-100">
+              {[
+                { icon: <ShieldCheck className="w-3.5 h-3.5 text-forest-600" />, label: 'Direct Farmers' },
+                { icon: <Sprout className="w-3.5 h-3.5 text-forest-600" />, label: '100% Organic' },
+                { icon: <Truck className="w-3.5 h-3.5 text-forest-600" />, label: 'Same Day' },
+              ].map(b => (
+                <div key={b.label} className="flex items-center gap-1 text-xs font-body text-stone-400">
+                  {b.icon}<span>{b.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>{/* closes LEFT form panel */}
 
           {/* ── RIGHT: Animated branding panel ── */}
           <GraamoBrandingPanel />
