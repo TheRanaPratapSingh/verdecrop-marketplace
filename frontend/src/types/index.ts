@@ -73,6 +73,12 @@ export interface Product {
   reviewCount: number
   isActive: boolean
   reviews?: Review[]
+  // Extended fields
+  deliveryTime?: string
+  shelfLifeDays?: number
+  freshnessGuarantee?: string
+  certificationType?: string
+  // Structured content
   keyFeatures?: string[]
   nutritionInfo?: string
   farmStory?: string

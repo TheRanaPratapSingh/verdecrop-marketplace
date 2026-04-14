@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom'
-import { Filter, SlidersHorizontal, X, Star, Heart, ShoppingCart, Leaf, ChevronLeft, ChevronRight, MapPin, ChevronDown, Sparkles } from 'lucide-react'
+import { Filter, SlidersHorizontal, X, Star, Heart, ShoppingCart, Leaf, ChevronLeft, ChevronRight, MapPin, ChevronDown, Sparkles, CheckCircle2, FlaskConical, BookOpen, Package, Info } from 'lucide-react'
 import { productApi, categoryApi, cartApi } from '../services/api'
 import { resolveAssetUrl, resolveLocalUrl, resolveProductImage } from '../lib/image'
 import { PageLayout } from '../components/layout'
@@ -253,7 +253,7 @@ export const ProductDetailPage: React.FC = () => {
   const [buyingNow, setBuyingNow] = useState(false)
   const [activeImg, setActiveImg] = useState(0)
   const [wishlisted, setWishlisted] = useState(false)
-  const [openSection, setOpenSection] = useState<'details' | 'nutrition' | 'story'>('details')
+  const [openSection, setOpenSection] = useState<'overview' | 'features' | 'nutrition' | 'story' | 'additional'>('overview')
   const { setCart, openCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
   const { addItem: addGuestItem } = useGuestCartStore()
@@ -579,42 +579,215 @@ export const ProductDetailPage: React.FC = () => {
               ))}
             </div>
 
-            <div className="border border-stone-200 rounded-3xl bg-white overflow-hidden">
-              {[
+            {/* ── Premium Product Info Accordion ── */}
+            {(() => {
+              // Parse nutrition JSON safely
+              type NutRow = { nutrient: string; value: string }
+              let nutritionRows: NutRow[] = []
+              if (product.nutritionInfo) {
+                try { nutritionRows = JSON.parse(product.nutritionInfo) } catch { }
+              }
+
+              const sections: {
+                key: 'overview' | 'features' | 'nutrition' | 'story' | 'additional'
+                title: string
+                icon: React.ReactNode
+                hasContent: boolean
+              }[] = [
                 {
-                  key: 'details' as const,
-                  title: 'Product Details',
-                  body: `Category: ${product.categoryName}. Minimum order: ${product.minOrderQty} ${product.unit}. Available stock: ${product.stockQuantity} ${product.unit}. ${product.description || ''}`,
+                  key: 'overview',
+                  title: 'Product Overview',
+                  icon: <BookOpen className="w-4 h-4 text-forest-600" />,
+                  hasContent: true,
                 },
                 {
-                  key: 'nutrition' as const,
+                  key: 'features',
+                  title: 'Key Features',
+                  icon: <CheckCircle2 className="w-4 h-4 text-forest-600" />,
+                  hasContent: !!(product.keyFeatures && product.keyFeatures.length > 0),
+                },
+                {
+                  key: 'nutrition',
                   title: 'Nutritional Info',
-                  body: 'Rich in fiber, vitamins, and natural minerals. Ideal for clean daily nutrition and balanced meals.',
+                  icon: <FlaskConical className="w-4 h-4 text-forest-600" />,
+                  hasContent: nutritionRows.length > 0,
                 },
                 {
-                  key: 'story' as const,
+                  key: 'story',
                   title: 'Farm Story',
-                  body: `This produce comes directly from ${product.farmerName}, with careful harvesting and quality checks before dispatch.`,
+                  icon: <Leaf className="w-4 h-4 text-forest-600" />,
+                  hasContent: !!(product.farmStory),
                 },
-              ].map(section => {
-                const isOpen = openSection === section.key
-                return (
-                  <div key={section.key} className="border-b last:border-b-0 border-stone-100">
-                    <button
-                      title={`Toggle ${section.title}`}
-                      onClick={() => setOpenSection(isOpen ? 'details' : section.key)}
-                      className="w-full px-4 py-3.5 text-left flex items-center justify-between hover:bg-stone-50 transition"
-                    >
-                      <span className="text-sm font-semibold text-stone-800 inline-flex items-center gap-2"><Sparkles className="w-4 h-4 text-forest-600" />{section.title}</span>
-                      <ChevronDown className={`w-4 h-4 text-stone-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {isOpen && (
-                      <div className="px-4 pb-4 text-sm text-stone-600 leading-relaxed animate-fade-in">{section.body}</div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                {
+                  key: 'additional',
+                  title: 'Additional Details',
+                  icon: <Info className="w-4 h-4 text-forest-600" />,
+                  hasContent: !!(product.storageInstructions || product.packagingDetails || product.shelfLifeDays),
+                },
+              ]
+
+              return (
+                <div className="border border-stone-200 rounded-3xl bg-white overflow-hidden divide-y divide-stone-100">
+                  {sections.map(section => {
+                    const isOpen = openSection === section.key
+                    return (
+                      <div key={section.key}>
+                        <button
+                          title={`Toggle ${section.title}`}
+                          onClick={() => setOpenSection(isOpen ? 'overview' : section.key)}
+                          className="w-full px-4 py-3.5 text-left flex items-center justify-between hover:bg-stone-50 transition group"
+                        >
+                          <span className="text-sm font-semibold text-stone-800 inline-flex items-center gap-2">
+                            <span className="w-7 h-7 rounded-xl bg-forest-50 group-hover:bg-forest-100 flex items-center justify-center transition flex-shrink-0">
+                              {section.icon}
+                            </span>
+                            {section.title}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-stone-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isOpen && (
+                          <div className="px-4 pb-5 text-sm text-stone-600 leading-relaxed animate-fade-up">
+
+                            {/* ── OVERVIEW ── */}
+                            {section.key === 'overview' && (
+                              <div className="space-y-3">
+                                {product.description ? (
+                                  <p className="text-stone-600 leading-relaxed">{product.description}</p>
+                                ) : (
+                                  <p className="text-stone-400 italic">No description provided.</p>
+                                )}
+                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                  {[
+                                    { label: 'Category', value: product.categoryName },
+                                    { label: 'Min. Order', value: `${product.minOrderQty} ${product.unit}` },
+                                    { label: 'Stock', value: `${product.stockQuantity} ${product.unit}` },
+                                    ...(product.deliveryTime ? [{ label: 'Delivery', value: product.deliveryTime }] : []),
+                                  ].map(r => (
+                                    <div key={r.label} className="bg-stone-50 rounded-xl px-3 py-2">
+                                      <p className="text-[10px] uppercase tracking-wider text-stone-400 font-medium">{r.label}</p>
+                                      <p className="text-sm font-semibold text-stone-800 mt-0.5">{r.value}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* ── KEY FEATURES ── */}
+                            {section.key === 'features' && (
+                              <div>
+                                {(product.keyFeatures && product.keyFeatures.length > 0) ? (
+                                  <ul className="space-y-2.5 pt-1">
+                                    {product.keyFeatures.map((feat, i) => (
+                                      <li key={i} className="flex items-start gap-3">
+                                        <span className="w-5 h-5 rounded-full bg-forest-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                          <CheckCircle2 className="w-3 h-3 text-forest-600" />
+                                        </span>
+                                        <span className="text-stone-700">{feat}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="space-y-2.5 pt-1">
+                                    {[
+                                      product.isOrganic ? '100% Organic — Grown without pesticides' : null,
+                                      '🌾 Farm Fresh — Direct from source',
+                                      '🚚 Fast Delivery — Same or next day',
+                                      '💚 Quality Checked — Handpicked produce',
+                                    ].filter(Boolean).map((feat, i) => (
+                                      <div key={i} className="flex items-start gap-3">
+                                        <span className="w-5 h-5 rounded-full bg-forest-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                          <CheckCircle2 className="w-3 h-3 text-forest-600" />
+                                        </span>
+                                        <span className="text-stone-700">{feat}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* ── NUTRITION ── */}
+                            {section.key === 'nutrition' && (
+                              <div>
+                                {nutritionRows.length > 0 ? (
+                                  <div className="overflow-hidden rounded-xl border border-stone-200 mt-1">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="bg-forest-50">
+                                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-forest-800 uppercase tracking-wider">Nutrient</th>
+                                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-forest-800 uppercase tracking-wider">Per 100g</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-stone-100">
+                                        {nutritionRows.map((row, i) => (
+                                          <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/50'}>
+                                            <td className="px-4 py-2.5 text-stone-700 font-medium">{row.nutrient}</td>
+                                            <td className="px-4 py-2.5 text-stone-900 font-semibold text-right">{row.value}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <p className="text-stone-400 italic pt-1">Nutritional information not available for this product.</p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* ── FARM STORY ── */}
+                            {section.key === 'story' && (
+                              <div className="bg-gradient-to-br from-forest-50 to-amber-50/40 border border-forest-100 rounded-2xl p-4 mt-1">
+                                <div className="flex items-start gap-3 mb-3">
+                                  <div className="w-9 h-9 rounded-2xl bg-forest-100 text-forest-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                    {product.farmerName[0]}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-stone-900">{product.farmerName}</p>
+                                    <p className="text-xs text-stone-500 flex items-center gap-1">
+                                      <MapPin className="w-3 h-3" />
+                                      {product.farmLocation || 'Village Farm'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="text-stone-700 leading-relaxed text-[13px]">
+                                  {product.farmStory || `यह उत्पाद ${product.farmerName} द्वारा उगाया गया है। ताज़गी और गुणवत्ता की गारंटी के साथ, सीधे खेत से आपके घर तक।`}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* ── ADDITIONAL DETAILS ── */}
+                            {section.key === 'additional' && (
+                              <div className="space-y-3 pt-1">
+                                {[
+                                  product.storageInstructions && { icon: '🌡️', label: 'Storage', value: product.storageInstructions },
+                                  product.packagingDetails && { icon: '📦', label: 'Packaging', value: product.packagingDetails },
+                                  product.shelfLifeDays && { icon: '📅', label: 'Shelf Life', value: `${product.shelfLifeDays} days` },
+                                  product.freshnessGuarantee && { icon: '✅', label: 'Freshness Guarantee', value: product.freshnessGuarantee },
+                                  product.certificationType && product.certificationType !== 'None' && { icon: '🏅', label: 'Certification', value: product.certificationType },
+                                ].filter(Boolean).map((item: any) => (
+                                  <div key={item.label} className="flex items-start gap-3 bg-stone-50 rounded-xl px-3.5 py-3">
+                                    <span className="text-base leading-none mt-0.5">{item.icon}</span>
+                                    <div>
+                                      <p className="text-[10px] uppercase tracking-wider text-stone-400 font-medium">{item.label}</p>
+                                      <p className="text-sm text-stone-800 font-medium mt-0.5">{item.value}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                                {!product.storageInstructions && !product.packagingDetails && !product.shelfLifeDays && !product.freshnessGuarantee && (
+                                  <p className="text-stone-400 italic">No additional details available.</p>
+                                )}
+                              </div>
+                            )}
+
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
           </div>
         </div>
 

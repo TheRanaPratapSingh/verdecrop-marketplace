@@ -400,6 +400,11 @@ const emptyFormState = {
   imageUrls: [] as string[],
   isOrganic: true,
   isFeatured: false,
+  keyFeatures: [] as string[],
+  nutritionInfo: '',
+  farmStory: '',
+  storageInstructions: '',
+  packagingDetails: '',
 }
 
 export const AdminProducts: React.FC = () => {
@@ -542,6 +547,11 @@ export const AdminProducts: React.FC = () => {
       farmerId: targetFarmerId,
       isOrganic: !!formData.isOrganic,
       isFeatured: !!formData.isFeatured,
+      keyFeatures: formData.keyFeatures?.length ? formData.keyFeatures : undefined,
+      nutritionInfo: formData.nutritionInfo || undefined,
+      farmStory: formData.farmStory || undefined,
+      storageInstructions: formData.storageInstructions || undefined,
+      packagingDetails: formData.packagingDetails || undefined,
     }
 
     console.log('Creating/Updating product with payload:', JSON.stringify(payload, null, 2))
@@ -588,6 +598,11 @@ export const AdminProducts: React.FC = () => {
       imageUrls: product.imageUrls?.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : []),
       isOrganic: product.isOrganic ?? true,
       isFeatured: product.isFeatured ?? false,
+      keyFeatures: product.keyFeatures ?? [],
+      nutritionInfo: product.nutritionInfo ?? '',
+      farmStory: product.farmStory ?? '',
+      storageInstructions: product.storageInstructions ?? '',
+      packagingDetails: product.packagingDetails ?? '',
     })
     setSellerId(product.farmerId ?? sellerId)
     setShowModal(true)
@@ -943,6 +958,68 @@ export const AdminProducts: React.FC = () => {
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Product description"
                 />
+
+                {/* ── Key Features ── */}
+                <div>
+                  <label className="block text-sm font-label font-medium text-gray-700 mb-1">Key Features <span className="text-gray-400 font-normal">(one per line)</span></label>
+                  <textarea
+                    rows={4}
+                    placeholder="e.g. 100% Organic&#10;Farm Fresh&#10;No Chemicals&#10;High Protein"
+                    value={formData.keyFeatures?.join('\n') ?? ''}
+                    onChange={e => setFormData({ ...formData, keyFeatures: e.target.value.split('\n').filter(f => f.trim()) })}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 resize-none"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Each line = one bullet point on the product page</p>
+                </div>
+
+                {/* ── Nutrition Info ── */}
+                <div>
+                  <label className="block text-sm font-label font-medium text-gray-700 mb-1">Nutrition Info <span className="text-gray-400 font-normal">(JSON format)</span></label>
+                  <textarea
+                    rows={4}
+                    placeholder={'[{"nutrient":"Protein","value":"22g"},{"nutrient":"Fiber","value":"10g"}]'}
+                    value={formData.nutritionInfo}
+                    onChange={e => setFormData({ ...formData, nutritionInfo: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 resize-none font-mono text-xs"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Format: [{`{"nutrient":"...","value":"..."}`}, ...]</p>
+                </div>
+
+                {/* ── Farm Story ── */}
+                <div>
+                  <label className="block text-sm font-label font-medium text-gray-700 mb-1">Farm Story</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Share the story behind this product and the farm..."
+                    value={formData.farmStory}
+                    onChange={e => setFormData({ ...formData, farmStory: e.target.value })}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 resize-none"
+                  />
+                </div>
+
+                {/* ── Additional Details ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-label font-medium text-gray-700 mb-1">Storage Instructions</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Store in cool dry place"
+                      value={formData.storageInstructions}
+                      onChange={e => setFormData({ ...formData, storageInstructions: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-label font-medium text-gray-700 mb-1">Packaging Details</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1kg kraft paper bag"
+                      value={formData.packagingDetails}
+                      onChange={e => setFormData({ ...formData, packagingDetails: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
+                    />
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-label font-medium text-gray-700 mb-1">Category</label>
                   <select

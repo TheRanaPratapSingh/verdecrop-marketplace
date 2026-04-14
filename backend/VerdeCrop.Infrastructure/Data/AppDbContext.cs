@@ -106,6 +106,9 @@ namespace VerdeCrop.Infrastructure.Data
                 e.Property(p => p.ImageUrls).HasConversion(
                     v => string.Join(',', v),
                     v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+                e.Property(p => p.KeyFeatures).HasConversion(
+                    v => string.Join('\x1F', v),
+                    v => v.Split('\x1F', StringSplitOptions.RemoveEmptyEntries).ToList());
             });
 
             mb.Entity<FarmerProfile>(e => {
