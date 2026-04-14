@@ -114,7 +114,12 @@ namespace VerdeCrop.Application.DTOs
         string? ImageUrl, List<string> ImageUrls,
         bool IsOrganic, bool IsFeatured,
         decimal Rating, int ReviewCount, bool IsActive,
-        List<ReviewDto> Reviews);
+        List<ReviewDto> Reviews,
+        List<string>? KeyFeatures = null,
+        string? NutritionInfo = null,
+        string? FarmStory = null,
+        string? StorageInstructions = null,
+        string? PackagingDetails = null);
 
     public record ProductQueryParams(
         string? Search, int? CategoryId, string? CategorySlug, int? FarmerId,
@@ -147,7 +152,12 @@ namespace VerdeCrop.Application.DTOs
         [StringLength(500)] string? FreshnessGuarantee = null,
         [StringLength(50)] string? DeliveryTime = null,
         List<string>? AvailableCities = null,
-        bool IsFarmToHome = false
+        bool IsFarmToHome = false,
+        List<string>? KeyFeatures = null,
+        [StringLength(5000)] string? NutritionInfo = null,
+        [StringLength(5000)] string? FarmStory = null,
+        [StringLength(1000)] string? StorageInstructions = null,
+        [StringLength(500)] string? PackagingDetails = null
     );
 
     // ── FIX: Added CategoryId, ImageUrl, ImageUrls — were missing, updates couldn't change these fields
@@ -176,7 +186,12 @@ namespace VerdeCrop.Application.DTOs
         string? FreshnessGuarantee = null,
         string? DeliveryTime = null,
         List<string>? AvailableCities = null,
-        bool? IsFarmToHome = null
+        bool? IsFarmToHome = null,
+        List<string>? KeyFeatures = null,
+        string? NutritionInfo = null,
+        string? FarmStory = null,
+        string? StorageInstructions = null,
+        string? PackagingDetails = null
     );
 
     // ── Seller Product ─────────────────────────────────────────────────────────

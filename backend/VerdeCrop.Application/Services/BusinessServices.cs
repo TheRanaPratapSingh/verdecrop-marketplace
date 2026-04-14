@@ -338,7 +338,9 @@ namespace VerdeCrop.Application.Services
                             r.User != null ? r.User.Name : "",
                             r.User != null ? r.User.AvatarUrl : null,
                             r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
-                        )).ToList()))
+                        )).ToList(),
+                        p.KeyFeatures, p.NutritionInfo, p.FarmStory,
+                        p.StorageInstructions, p.PackagingDetails))
                     .FirstOrDefaultAsync();
                 return result;
             }
@@ -367,7 +369,9 @@ namespace VerdeCrop.Application.Services
                             r.User != null ? r.User.Name : "",
                             r.User != null ? r.User.AvatarUrl : null,
                             r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
-                        )).ToList()))
+                        )).ToList(),
+                        p.KeyFeatures, p.NutritionInfo, p.FarmStory,
+                        p.StorageInstructions, p.PackagingDetails))
                     .FirstOrDefaultAsync();
                 return result;
             }
@@ -472,6 +476,12 @@ namespace VerdeCrop.Application.Services
                 DeliveryTime = req.DeliveryTime,
                 AvailableCities = req.AvailableCities ?? new List<string>(),
                 IsFarmToHome = req.IsFarmToHome,
+                // Structured content
+                KeyFeatures = req.KeyFeatures ?? new List<string>(),
+                NutritionInfo = req.NutritionInfo,
+                FarmStory = req.FarmStory,
+                StorageInstructions = req.StorageInstructions,
+                PackagingDetails = req.PackagingDetails,
                 // Approval: admin-created products are immediately active; seller-created go to pending
                 Status = isAdminCreated ? "approved" : "pending",
                 IsActive = isAdminCreated,
@@ -533,6 +543,11 @@ namespace VerdeCrop.Application.Services
             if (req.DeliveryTime != null) product.DeliveryTime = req.DeliveryTime;
             if (req.AvailableCities != null) product.AvailableCities = req.AvailableCities;
             if (req.IsFarmToHome.HasValue) product.IsFarmToHome = req.IsFarmToHome.Value;
+            if (req.KeyFeatures != null) product.KeyFeatures = req.KeyFeatures;
+            if (req.NutritionInfo != null) product.NutritionInfo = req.NutritionInfo;
+            if (req.FarmStory != null) product.FarmStory = req.FarmStory;
+            if (req.StorageInstructions != null) product.StorageInstructions = req.StorageInstructions;
+            if (req.PackagingDetails != null) product.PackagingDetails = req.PackagingDetails;
 
             product.UpdatedAt = DateTime.UtcNow;
             await _uow.Products.UpdateAsync(product);
@@ -606,7 +621,9 @@ namespace VerdeCrop.Application.Services
                         p.Price, p.OriginalPrice, p.Unit, p.MinOrderQty, p.StockQuantity,
                         p.ImageUrl, p.ImageUrls, p.IsOrganic, p.IsFeatured,
                         p.Rating, p.ReviewCount, p.IsActive,
-                        new List<ReviewDto>()))
+                        new List<ReviewDto>(),
+                        p.KeyFeatures, p.NutritionInfo, p.FarmStory,
+                        p.StorageInstructions, p.PackagingDetails))
                     .FirstOrDefaultAsync();
             }
             catch { return null; }
@@ -727,7 +744,12 @@ namespace VerdeCrop.Application.Services
             p.Reviews?.Select(r => new ReviewDto(
                 r.Id, r.UserId, r.User?.Name ?? "", r.User?.AvatarUrl,
                 r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
-            )).ToList() ?? new List<ReviewDto>());
+            )).ToList() ?? new List<ReviewDto>(),
+            p.KeyFeatures.Count > 0 ? p.KeyFeatures : null,
+            p.NutritionInfo,
+            p.FarmStory,
+            p.StorageInstructions,
+            p.PackagingDetails);
     }
 
     // ── Dynamic Pricing Service ───────────────────────────────────────────────

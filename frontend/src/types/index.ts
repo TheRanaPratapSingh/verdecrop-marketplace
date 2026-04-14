@@ -73,6 +73,11 @@ export interface Product {
   reviewCount: number
   isActive: boolean
   reviews?: Review[]
+  keyFeatures?: string[]
+  nutritionInfo?: string
+  farmStory?: string
+  storageInstructions?: string
+  packagingDetails?: string
 }
 
 export type WishlistItem = Product

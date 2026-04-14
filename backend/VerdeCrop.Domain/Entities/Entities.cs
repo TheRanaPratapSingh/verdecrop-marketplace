@@ -139,6 +139,12 @@ namespace VerdeCrop.Domain.Entities
         public List<string> AvailableCities { get; set; } = new();
         public bool IsFarmToHome { get; set; } = false;
         public string Status { get; set; } = "approved"; // pending | approved | rejected
+        // Structured product content
+        public List<string> KeyFeatures { get; set; } = new();
+        public string? NutritionInfo { get; set; }  // JSON: [{"nutrient":"Protein","value":"22g"}]
+        public string? FarmStory { get; set; }
+        public string? StorageInstructions { get; set; }
+        public string? PackagingDetails { get; set; }
         public Category Category { get; set; } = null!;
         public FarmerProfile Farmer { get; set; } = null!;
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

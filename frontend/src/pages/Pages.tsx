@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Package, MapPin, CreditCard, CheckCircle, Clock, Truck, Home, Bell,
   Heart, Trash2, ShoppingCart, Plus, Edit2, Save, X, ChevronRight,
   User, Phone, Mail, Camera, Star, BellOff, ShieldCheck, Leaf, Tag,
-  Banknote, BadgeCheck
+  Banknote, BadgeCheck, QrCode, Timer, Copy
 } from 'lucide-react'
 import { orderApi, paymentApi, userApi, cartApi, notificationApi } from '../services/api'
 import { useAuthStore, useCartStore, useNotifStore } from '../store'
@@ -24,7 +24,17 @@ export const CheckoutPage: React.FC = () => {
   const [step, setStep] = useState<'address' | 'payment' | 'confirm'>('address')
   const [addresses, setAddresses] = useState<Address[]>([])
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay')
+  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cod'>('upi')
+  const [upiQr, setUpiQr] = useState<{ qrCodeImage: string; upiString: string; amount: number; orderNumber: string; expiresAt: string } | null>(null)
+  const [upiOrderId, setUpiOrderId] = useState<number | null>(null)
+  const [upiPolling, setUpiPolling] = useState(false)
+  const [upiPaid, setUpiPaid] = useState(false)
+  const [upiTxnRef, setUpiTxnRef] = useState('')
+  const [showTxnInput, setShowTxnInput] = useState(false)
+  const [confirmingUpi, setConfirmingUpi] = useState(false)
+  const [qrTimeLeft, setQrTimeLeft] = useState(600)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [couponCode, setCouponCode] = useState('')
   const [couponApplied, setCouponApplied] = useState(false)
   const [discount, setDiscount] = useState(0)
@@ -38,6 +48,13 @@ export const CheckoutPage: React.FC = () => {
       const def = addrs.find(a => a.isDefault)
       if (def) setSelectedAddress(def.id)
     })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
   }, [])
 
   if (!cart?.items?.length) {
@@ -79,6 +96,53 @@ export const CheckoutPage: React.FC = () => {
     setCouponApplied(false)
   }
 
+  const startUpiPolling = (orderId: number) => {
+    setUpiPolling(true)
+    pollingRef.current = setInterval(async () => {
+      try {
+        const status = await paymentApi.getUpiStatus(orderId)
+        if (status.status === 'paid') {
+          if (pollingRef.current) clearInterval(pollingRef.current)
+          if (timerRef.current) clearInterval(timerRef.current)
+          setUpiPaid(true)
+          setUpiPolling(false)
+          trackEvent('payment_success', { order_id: orderId, payment_method: 'upi' })
+          setTimeout(() => navigate(`/orders/${orderId}?success=1`), 1500)
+        }
+      } catch { /* ignore polling errors */ }
+    }, 5000)
+  }
+
+  const startCountdown = () => {
+    setQrTimeLeft(600)
+    timerRef.current = setInterval(() => {
+      setQrTimeLeft(t => {
+        if (t <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current)
+          if (pollingRef.current) clearInterval(pollingRef.current)
+          return 0
+        }
+        return t - 1
+      })
+    }, 1000)
+  }
+
+  const handleConfirmUpiManual = async () => {
+    if (!upiTxnRef.trim() || !upiOrderId) return
+    setConfirmingUpi(true)
+    try {
+      await paymentApi.confirmUpiPayment(upiOrderId, upiTxnRef.trim())
+      if (pollingRef.current) clearInterval(pollingRef.current)
+      if (timerRef.current) clearInterval(timerRef.current)
+      setUpiPaid(true)
+      trackEvent('payment_success', { order_id: upiOrderId, payment_method: 'upi_manual' })
+      setTimeout(() => navigate(`/orders/${upiOrderId}?success=1`), 1500)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(msg ?? 'Could not verify payment. Check your transaction ID.')
+    } finally { setConfirmingUpi(false) }
+  }
+
   const handlePlaceOrder = async () => {
     if (!selectedAddress) { toast.error('Select a delivery address'); return }
     setPlacingOrder(true)
@@ -93,25 +157,15 @@ export const CheckoutPage: React.FC = () => {
         order_id: order.id, order_number: order.orderNumber,
         payment_method: paymentMethod, total_amount: order.totalAmount, item_count: order.items.length,
       })
-      if (paymentMethod === 'razorpay') {
-        const rpOrder = await paymentApi.createRazorpayOrder(order!.id)
-        const razorpay = new (window as any).Razorpay({
-          key: rpOrder.keyId, amount: rpOrder.amount * 100, currency: rpOrder.currency,
-          order_id: rpOrder.razorpayOrderId, name: 'Graamo', description: `Order #${order!.orderNumber}`,
-          handler: async (response: any) => {
-            await paymentApi.verifyRazorpay({
-              razorpayOrderId: response.razorpay_order_id, razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature, orderId: order!.id
-            })
-            trackEvent('payment_success', { order_id: order.id, payment_method: 'razorpay', total_amount: order.totalAmount })
-            navigate(`/orders/${order!.id}?success=1`)
-          },
-          theme: { color: '#2d8a32' }
-        })
-        razorpay.open()
+      if (paymentMethod === 'upi') {
+        const qrData = await paymentApi.generateUpiQr(order.id)
+        setUpiQr(qrData)
+        setUpiOrderId(order.id)
+        startCountdown()
+        startUpiPolling(order.id)
       } else {
         trackEvent('payment_success', { order_id: order.id, payment_method: paymentMethod, total_amount: order.totalAmount })
-        navigate(`/orders/${order!.id}?success=1`)
+        navigate(`/orders/${order.id}?success=1`)
       }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -310,12 +364,12 @@ export const CheckoutPage: React.FC = () => {
                     {/* Payment options */}
                     <div className="space-y-3">
                       {[
-                        { id: 'razorpay', label: 'Razorpay', desc: 'Cards, UPI, Net Banking, Wallets', icon: '💳', badge: 'Recommended' },
-                        { id: 'cod',      label: 'Cash on Delivery', desc: 'Pay when your order arrives', icon: '💵', badge: null },
+                        { id: 'upi' as const, label: 'Pay by Scan (UPI)', desc: 'GPay, PhonePe, Paytm & all UPI apps', icon: '📱', badge: 'Recommended' },
+                        { id: 'cod' as const, label: 'Cash on Delivery', desc: 'Pay when your order arrives', icon: '💵', badge: null },
                       ].map(opt => (
                         <div
                           key={opt.id}
-                          onClick={() => setPaymentMethod(opt.id as any)}
+                          onClick={() => setPaymentMethod(opt.id)}
                           className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
                             ${paymentMethod === opt.id
                               ? 'border-forest-400 bg-forest-50/70 shadow-[0_0_0_1px_rgba(45,138,50,0.12)]'
@@ -387,8 +441,8 @@ export const CheckoutPage: React.FC = () => {
                       )}
                       <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
                         <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider font-body mb-1">Payment</p>
-                        <p className="text-sm font-semibold text-stone-800 font-body">{paymentMethod === 'razorpay' ? 'Razorpay' : 'Cash on Delivery'}</p>
-                        <p className="text-xs text-stone-500 font-body">{paymentMethod === 'razorpay' ? 'Card / UPI / Wallet' : 'Pay on delivery'}</p>
+                        <p className="text-sm font-semibold text-stone-800 font-body">{paymentMethod === 'upi' ? 'Pay by Scan (UPI)' : 'Cash on Delivery'}</p>
+                        <p className="text-xs text-stone-500 font-body">{paymentMethod === 'upi' ? 'GPay / PhonePe / Paytm' : 'Pay on delivery'}</p>
                       </div>
                     </div>
 
@@ -551,6 +605,102 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* ── UPI QR Payment Overlay ── */}
+        {upiQr && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+              {upiPaid ? (
+                <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                  <div className="w-20 h-20 rounded-full bg-forest-100 flex items-center justify-center mb-4 animate-bounce">
+                    <CheckCircle className="w-10 h-10 text-forest-600" />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-stone-900 mb-1">Payment Received!</h3>
+                  <p className="text-stone-500 font-body text-sm">Redirecting to your order…</p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-gradient-to-r from-forest-700 to-forest-500 px-5 py-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-white/70 text-xs font-body">Order #{upiQr.orderNumber}</p>
+                      <p className="text-white text-xl font-display font-bold">₹{upiQr.amount.toFixed(0)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white/20 rounded-xl px-3 py-1.5">
+                      <Timer className="w-4 h-4 text-white" />
+                      <span className="text-white font-body text-sm font-semibold">
+                        {Math.floor(qrTimeLeft / 60)}:{String(qrTimeLeft % 60).padStart(2, '0')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-5 text-center">
+                    <p className="text-xs text-stone-500 font-body mb-3">Scan with any UPI app to pay</p>
+                    <div className="inline-block p-3 border-2 border-stone-100 rounded-2xl shadow-inner bg-stone-50 mb-4">
+                      <img src={upiQr.qrCodeImage} alt="UPI QR Code" className="w-52 h-52 object-contain" />
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 mb-4">
+                      <QrCode className="w-4 h-4 text-stone-400 flex-shrink-0" />
+                      <p className="text-xs text-stone-600 font-body truncate flex-1">{upiQr.upiString}</p>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(upiQr.upiString); toast.success('UPI ID copied!') }}
+                        className="flex-shrink-0 p-1 hover:bg-stone-200 rounded-lg transition-colors"
+                        title="Copy UPI string"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-stone-500" />
+                      </button>
+                    </div>
+
+                    {upiPolling && !showTxnInput && (
+                      <div className="flex items-center justify-center gap-2 text-sm text-stone-500 font-body mb-4">
+                        <span className="w-3.5 h-3.5 border-2 border-forest-400/30 border-t-forest-500 rounded-full animate-spin" />
+                        Waiting for payment…
+                      </div>
+                    )}
+
+                    {qrTimeLeft === 0 && (
+                      <p className="text-xs text-red-500 font-body mb-3">QR expired. Please go back and retry.</p>
+                    )}
+
+                    {!showTxnInput ? (
+                      <button
+                        onClick={() => setShowTxnInput(true)}
+                        className="w-full py-2.5 rounded-xl border-2 border-forest-400 text-forest-600 text-sm font-semibold font-body hover:bg-forest-50 transition-colors mb-2"
+                      >
+                        I have paid — Enter Transaction ID
+                      </button>
+                    ) : (
+                      <div className="space-y-2 mb-2">
+                        <input
+                          type="text"
+                          placeholder="UPI Transaction ID (e.g. 123456789012)"
+                          value={upiTxnRef}
+                          onChange={e => setUpiTxnRef(e.target.value)}
+                          className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-sm font-body bg-stone-50 focus:outline-none focus:border-forest-400 focus:ring-2 focus:ring-forest-400/20 transition"
+                        />
+                        <button
+                          onClick={handleConfirmUpiManual}
+                          disabled={!upiTxnRef.trim() || confirmingUpi}
+                          className="w-full py-2.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 disabled:opacity-50 shadow-btn"
+                          style={{ background: 'linear-gradient(135deg, #2d8a32 0%, #1e6e24 100%)' }}
+                        >
+                          {confirmingUpi
+                            ? <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Verifying…</>
+                            : 'Confirm Payment'}
+                        </button>
+                        <button onClick={() => setShowTxnInput(false)} className="w-full text-center text-xs text-stone-400 font-body hover:text-stone-600 transition-colors">Cancel</button>
+                      </div>
+                    )}
+
+                    <p className="text-[10px] text-stone-400 font-body">
+                      Supported: GPay · PhonePe · Paytm · BHIM · Any UPI App
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Mobile sticky bottom CTA ── */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-3 shadow-[0_-4px_24px_rgba(0,0,0,0.10)]">
