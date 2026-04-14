@@ -25,6 +25,7 @@ using VerdeCrop.Infrastructure.Repositories;
 using Azure.Storage.Blobs;
 using FirebaseAdmin.Messaging;
 using Microsoft.EntityFrameworkCore;
+using QRCoder;
 
 namespace VerdeCrop.Infrastructure.Services
 {
@@ -471,6 +472,104 @@ namespace VerdeCrop.Infrastructure.Services
         }
 
         public Task<bool> HandleStripeWebhookAsync(string payload, string signature) => Task.FromResult(true);
+
+        // ── UPI QR ────────────────────────────────────────────────────────────
+
+        public async Task<UpiQrResponse?> GenerateUpiQrAsync(int orderId, int userId)
+        {
+            var order = await _uow.Orders.GetByIdAsync(orderId);
+            if (order == null || order.UserId != userId) return null;
+
+            // Prevent duplicate: if a pending QR already exists and is not expired, reuse it
+            var existing = await _uow.Payments.FirstOrDefaultAsync(
+                p => p.OrderId == orderId && p.Provider == "upi" && p.Status == "pending"
+                     && p.ExpiresAt > DateTime.UtcNow);
+            if (existing?.UpiString != null)
+                return BuildUpiQrResponse(existing, order);
+
+            var upiId  = _config["Upi:VpaId"]     ?? "graamo@upi";
+            var payeeName = _config["Upi:PayeeName"] ?? "Graamo";
+            var tn     = $"Order-{order.OrderNumber}";
+            var amount = order.TotalAmount.ToString("F2");
+            var upiString = $"upi://pay?pa={Uri.EscapeDataString(upiId)}&pn={Uri.EscapeDataString(payeeName)}&am={amount}&cu=INR&tn={Uri.EscapeDataString(tn)}";
+
+            var payment = new Domain.Entities.Payment
+            {
+                OrderId  = orderId,
+                Provider = "upi",
+                Amount   = order.TotalAmount,
+                Status   = "pending",
+                UpiString = upiString,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(10),
+            };
+            await _uow.Payments.AddAsync(payment);
+            await _uow.SaveChangesAsync();
+
+            return BuildUpiQrResponse(payment, order);
+        }
+
+        public async Task<UpiPaymentStatusResponse> GetUpiPaymentStatusAsync(int orderId)
+        {
+            var payment = await _uow.Payments.Query()
+                .Where(p => p.OrderId == orderId && p.Provider == "upi")
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (payment == null) return new UpiPaymentStatusResponse("not_found", null);
+            if (payment.ExpiresAt.HasValue && payment.ExpiresAt < DateTime.UtcNow && payment.Status == "pending")
+                return new UpiPaymentStatusResponse("expired", null);
+
+            return new UpiPaymentStatusResponse(payment.Status, payment.UpiTransactionRef);
+        }
+
+        public async Task<bool> ConfirmUpiPaymentAsync(int orderId, string transactionRef, int userId)
+        {
+            var order = await _uow.Orders.GetByIdAsync(orderId);
+            if (order == null || order.UserId != userId) return false;
+
+            // Guard: already paid
+            if (order.PaymentStatus == "paid") return true;
+
+            // Guard: duplicate transaction ref
+            var dupeTxn = await _uow.Payments.FirstOrDefaultAsync(
+                p => p.UpiTransactionRef == transactionRef && p.Status == "success");
+            if (dupeTxn != null) return false;
+
+            var payment = await _uow.Payments.Query()
+                .Where(p => p.OrderId == orderId && p.Provider == "upi" && p.Status == "pending")
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+            if (payment == null) return false;
+
+            // Expired QR
+            if (payment.ExpiresAt.HasValue && payment.ExpiresAt < DateTime.UtcNow) return false;
+
+            payment.Status = "success";
+            payment.UpiTransactionRef = transactionRef;
+            payment.ProviderPaymentId = transactionRef;
+            await _uow.Payments.UpdateAsync(payment);
+
+            order.PaymentStatus = "paid";
+            order.Status        = "confirmed";
+            await _uow.Orders.UpdateAsync(order);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
+
+        private static UpiQrResponse BuildUpiQrResponse(Domain.Entities.Payment payment, Domain.Entities.Order order)
+        {
+            using var qrGenerator = new QRCodeGenerator();
+            var qrData = qrGenerator.CreateQrCode(payment.UpiString!, QRCodeGenerator.ECCLevel.M);
+            using var pngQr = new PngByteQRCode(qrData);
+            var pngBytes = pngQr.GetGraphic(10);
+            var base64 = Convert.ToBase64String(pngBytes);
+            return new UpiQrResponse(
+                $"data:image/png;base64,{base64}",
+                payment.UpiString!,
+                payment.Amount,
+                order.OrderNumber,
+                payment.ExpiresAt ?? DateTime.UtcNow.AddMinutes(10));
+        }
 
         private string GenerateRazorpaySignature(string orderId, string paymentId)
         {

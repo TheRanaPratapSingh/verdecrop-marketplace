@@ -213,7 +213,7 @@ namespace VerdeCrop.Domain.Entities
     public class Payment : BaseEntity
     {
         public int OrderId { get; set; }
-        public string Provider { get; set; } = ""; // razorpay|stripe|cod
+        public string Provider { get; set; } = ""; // razorpay|stripe|cod|upi
         public string? ProviderOrderId { get; set; }
         public string? ProviderPaymentId { get; set; }
         public string? ProviderSignature { get; set; }
@@ -221,6 +221,10 @@ namespace VerdeCrop.Domain.Entities
         public string Currency { get; set; } = "INR";
         public string Status { get; set; } = "pending"; // pending|success|failed|refunded
         public string? FailureReason { get; set; }
+        // UPI QR fields
+        public string? UpiString { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+        public string? UpiTransactionRef { get; set; }
         public Order Order { get; set; } = null!;
     }
 

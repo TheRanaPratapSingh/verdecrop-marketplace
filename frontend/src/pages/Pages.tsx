@@ -24,7 +24,7 @@ export const CheckoutPage: React.FC = () => {
   const [step, setStep] = useState<'address' | 'payment' | 'confirm'>('address')
   const [addresses, setAddresses] = useState<Address[]>([])
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay')
+  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cod'>('upi')
   const [couponCode, setCouponCode] = useState('')
   const [couponApplied, setCouponApplied] = useState(false)
   const [discount, setDiscount] = useState(0)
@@ -32,12 +32,30 @@ export const CheckoutPage: React.FC = () => {
   const [placingOrder, setPlacingOrder] = useState(false)
   const [notes, setNotes] = useState('')
 
+  // UPI QR state
+  const [upiQr, setUpiQr] = useState<{ qrCodeImage: string; upiString: string; amount: number; orderNumber: string; expiresAt: string } | null>(null)
+  const [upiOrderId, setUpiOrderId] = useState<number | null>(null)
+  const [upiPolling, setUpiPolling] = useState(false)
+  const [upiPaid, setUpiPaid] = useState(false)
+  const [upiTxnRef, setUpiTxnRef] = useState('')
+  const [showTxnInput, setShowTxnInput] = useState(false)
+  const [confirmingUpi, setConfirmingUpi] = useState(false)
+  const [qrTimeLeft, setQrTimeLeft] = useState(0)
+  const pollingRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const timerRef  = React.useRef<ReturnType<typeof setInterval> | null>(null)
+
   useEffect(() => {
     userApi.getAddresses().then(addrs => {
       setAddresses(addrs)
       const def = addrs.find(a => a.isDefault)
       if (def) setSelectedAddress(def.id)
     })
+  }, [])
+
+  // Cleanup polling/timer on unmount
+  useEffect(() => () => {
+    if (pollingRef.current) clearInterval(pollingRef.current)
+    if (timerRef.current)  clearInterval(timerRef.current)
   }, [])
 
   if (!cart?.items?.length) {

@@ -247,6 +247,11 @@ namespace VerdeCrop.Application.DTOs
     public record CreateStripeIntentRequest([Required] int OrderId);
     public record StripeIntentResponse(string ClientSecret, string PaymentIntentId);
 
+    // UPI QR
+    public record UpiQrResponse(string QrCodeImage, string UpiString, decimal Amount, string OrderNumber, DateTime ExpiresAt);
+    public record UpiPaymentStatusResponse(string Status, string? TransactionRef);
+    public record VerifyUpiRequest([Required] int OrderId, [Required] string TransactionRef);
+
     // ── Review ────────────────────────────────────────────────────────────────
     public record ReviewDto(int Id, int UserId, string UserName, string? UserAvatar, int Rating, string? Comment, bool IsVerifiedPurchase, DateTime CreatedAt);
     public record CreateReviewRequest([Required] int ProductId, [Required] int OrderId, [Required][Range(1, 5)] int Rating, string? Comment);
