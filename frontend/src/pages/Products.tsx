@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useSearchParams, Link, useParams, useNavigate } from 'react-router-dom'
 import { Filter, SlidersHorizontal, X, Star, Heart, ShoppingCart, Leaf, ChevronLeft, ChevronRight, MapPin, ChevronDown, Sparkles, CheckCircle2, FlaskConical, BookOpen, Package, Info } from 'lucide-react'
-import { productApi, categoryApi, cartApi } from '../services/api'
+import { productApi, categoryApi, cartApi, reviewApi } from '../services/api'
 import { resolveAssetUrl, resolveLocalUrl, resolveProductImage } from '../lib/image'
 import { PageLayout } from '../components/layout'
 import { ProductGrid, CategoryIcon } from '../components/product'
@@ -254,6 +254,11 @@ export const ProductDetailPage: React.FC = () => {
   const [activeImg, setActiveImg] = useState(0)
   const [wishlisted, setWishlisted] = useState(false)
   const [openSection, setOpenSection] = useState<'overview' | 'features' | 'nutrition' | 'story' | 'additional'>('overview')
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [reviewRating, setReviewRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
   const { setCart, openCart } = useCartStore()
   const { isAuthenticated } = useAuthStore()
   const { addItem: addGuestItem } = useGuestCartStore()
@@ -389,6 +394,35 @@ export const ProductDetailPage: React.FC = () => {
   const saveAmount = finalOriginalPrice ? Math.max(0, finalOriginalPrice - finalPrice) : 0
   const hasReviews = (product.reviewCount || 0) > 0
   const farmInitial = product.farmerName?.[0]?.toUpperCase() || 'F'
+
+  const handleSubmitReview = async () => {
+    if (!reviewRating) { toast.error('Please select a star rating'); return }
+    setSubmittingReview(true)
+    try {
+      const newReview = await reviewApi.create({
+        productId: product.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      })
+      toast.success('Review submitted! Thank you for your feedback.', {
+        style: { borderRadius: '14px', background: '#175820', color: '#fff' },
+        icon: '⭐',
+      })
+      setShowReviewModal(false)
+      setReviewRating(0)
+      setReviewComment('')
+      setProduct(prev => prev ? {
+        ...prev,
+        reviews: [newReview, ...(prev.reviews || [])],
+        reviewCount: (prev.reviewCount || 0) + 1,
+      } : prev)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.message
+      toast.error(msg === 'Already reviewed this product' ? 'You have already reviewed this product.' : (msg ?? 'Failed to submit review'))
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
 
   return (
     <PageLayout>
@@ -797,7 +831,11 @@ export const ProductDetailPage: React.FC = () => {
               <h2 className="text-2xl font-display font-semibold text-stone-900">Customer Reviews</h2>
               <p className="text-sm text-stone-500">Real feedback from verified buyers</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => toast('Review submission will be available soon')}>Write Review</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => isAuthenticated ? setShowReviewModal(true) : navigate(`/auth?redirect=/products/${slug}`)}
+            >Write Review</Button>
           </div>
 
           <div className="bg-white border border-stone-200 rounded-3xl p-5 mb-5">
@@ -840,6 +878,94 @@ export const ProductDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      <div className="md:hidden fixed bottom-4 left-3 right-3 z-40 rounded-2xl bg-white/95 backdrop-blur border border-stone-200 shadow-modal p-3 flex items-center gap-3">
+
+      {/* ── Write Review Modal ──────────────────────────────────────────── */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !submittingReview && setShowReviewModal(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-modal p-6 animate-fade-up">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-display font-semibold text-stone-900">Write a Review</h3>
+                <p className="text-xs text-stone-500 mt-0.5 truncate max-w-[250px]">{product.name}</p>
+              </div>
+              <button
+                onClick={() => !submittingReview && setShowReviewModal(false)}
+                className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 flex items-center justify-center transition"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4 text-stone-500" />
+              </button>
+            </div>
+
+            {/* Star Rating */}
+            <div className="mb-5">
+              <p className="text-sm font-medium text-stone-700 mb-2">Your Rating <span className="text-red-400">*</span></p>
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    className="transition-transform hover:scale-110 focus:outline-none"
+                    aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                  >
+                    <Star
+                      className={`w-8 h-8 transition-colors ${
+                        star <= (hoverRating || reviewRating)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'fill-stone-200 text-stone-200'
+                      }`}
+                    />
+                  </button>
+                ))}
+                {(hoverRating || reviewRating) > 0 && (
+                  <span className="ml-2 text-sm font-medium text-stone-600">
+                    {(['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'])[hoverRating || reviewRating]}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Comment */}
+            <div className="mb-6">
+              <p className="text-sm font-medium text-stone-700 mb-2">Your Comment <span className="text-stone-400 font-normal">(optional)</span></p>
+              <textarea
+                value={reviewComment}
+                onChange={e => setReviewComment(e.target.value)}
+                placeholder="Share your experience with this product…"
+                rows={4}
+                maxLength={1000}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800 placeholder-stone-400 resize-none focus:outline-none focus:ring-2 focus:ring-forest-400 focus:border-transparent transition"
+              />
+              <p className="text-right text-[11px] text-stone-400 mt-1">{reviewComment.length}/1000</p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReviewModal(false)}
+                disabled={submittingReview}
+                className="flex-1 justify-center"
+              >Cancel</Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSubmitReview}
+                loading={submittingReview}
+                disabled={!reviewRating}
+                className="flex-1 justify-center bg-gradient-to-r from-forest-700 to-forest-500"
+              >Submit Review</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="md:hidden fixed bottom-4 left-3 right-3 z-40 rounded-2xl bg-white/95 backdrop-blur border border-stone-200 shadow-modal p-3 flex items-center gap-3">
         <div className="min-w-0">

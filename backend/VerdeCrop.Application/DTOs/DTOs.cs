@@ -264,7 +264,7 @@ namespace VerdeCrop.Application.DTOs
 
     // ── Review ────────────────────────────────────────────────────────────────
     public record ReviewDto(int Id, int UserId, string UserName, string? UserAvatar, int Rating, string? Comment, bool IsVerifiedPurchase, DateTime CreatedAt);
-    public record CreateReviewRequest([Required] int ProductId, [Required] int OrderId, [Required][Range(1, 5)] int Rating, string? Comment);
+    public record CreateReviewRequest([Required] int ProductId, int? OrderId, [Required][Range(1, 5)] int Rating, string? Comment);
 
     // ── Notification ──────────────────────────────────────────────────────────
     public record NotificationDto(int Id, string Title, string Body, string Type, string? ActionUrl, bool IsRead, DateTime CreatedAt);

@@ -229,7 +229,7 @@ export const paymentApi = {
 export const reviewApi = {
   getProductReviews: (productId: number, page = 1, pageSize = 10) =>
     unwrap<PagedResult<Review>>(api.get(`/reviews/product/${productId}`, { params: { page, pageSize } })),
-  create: (data: { productId: number; orderId: number; rating: number; comment?: string }) =>
+  create: (data: { productId: number; orderId?: number; rating: number; comment?: string }) =>
     unwrap<Review>(api.post('/reviews', data)),
   delete: (id: number) => unwrap<boolean>(api.delete(`/reviews/${id}`)),
 }
