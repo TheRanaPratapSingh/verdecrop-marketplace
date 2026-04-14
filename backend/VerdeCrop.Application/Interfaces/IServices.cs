@@ -158,10 +158,6 @@ namespace VerdeCrop.Application.Interfaces
         Task<bool> VerifyRazorpayPaymentAsync(VerifyRazorpayRequest req);
         Task<StripeIntentResponse?> CreateStripeIntentAsync(int orderId);
         Task<bool> HandleStripeWebhookAsync(string payload, string signature);
-        // UPI QR
-        Task<UpiQrResponse?> GenerateUpiQrAsync(int orderId, int userId);
-        Task<UpiPaymentStatusResponse> GetUpiPaymentStatusAsync(int orderId);
-        Task<bool> ConfirmUpiPaymentAsync(int orderId, string transactionRef, int userId);
     }
 
     public interface IReviewService

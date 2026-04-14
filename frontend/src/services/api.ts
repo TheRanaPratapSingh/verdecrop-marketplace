@@ -215,15 +215,6 @@ export const paymentApi = {
     unwrap<boolean>(api.post('/payments/razorpay/verify', data)),
   createStripeIntent: (orderId: number) =>
     unwrap<{ clientSecret: string; paymentIntentId: string }>(api.post('/payments/stripe/create-intent', { orderId })),
-  // UPI QR
-  generateUpiQr: (orderId: number) =>
-    unwrap<{ qrCodeImage: string; upiString: string; amount: number; orderNumber: string; expiresAt: string }>(
-      api.get('/payments/upi/generate-qr', { params: { orderId } })),
-  getUpiStatus: (orderId: number) =>
-    unwrap<{ status: string; transactionRef: string | null }>(
-      api.get('/payments/upi/status', { params: { orderId } })),
-  confirmUpiPayment: (orderId: number, transactionRef: string) =>
-    unwrap<boolean>(api.post('/payments/upi/confirm', { orderId, transactionRef })),
 }
 
 // ── Reviews ──────────────────────────────────────────────────────────────────

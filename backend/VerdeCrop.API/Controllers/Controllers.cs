@@ -898,33 +898,6 @@ namespace VerdeCrop.API.Controllers
             await _payments.HandleStripeWebhookAsync(payload, sig);
             return Ok();
         }
-
-        // ── UPI QR ────────────────────────────────────────────────────────────
-
-        [HttpGet("upi/generate-qr")]
-        public async Task<IActionResult> GenerateUpiQr([FromQuery] int orderId)
-        {
-            var result = await _payments.GenerateUpiQrAsync(orderId, CurrentUserId);
-            return result == null
-                ? NotFound(ApiResponse.Fail("Order not found"))
-                : Ok(ApiResponse.Ok(result));
-        }
-
-        [HttpGet("upi/status")]
-        public async Task<IActionResult> GetUpiStatus([FromQuery] int orderId)
-        {
-            var result = await _payments.GetUpiPaymentStatusAsync(orderId);
-            return Ok(ApiResponse.Ok(result));
-        }
-
-        [HttpPost("upi/confirm")]
-        public async Task<IActionResult> ConfirmUpiPayment([FromBody] VerifyUpiRequest req)
-        {
-            var result = await _payments.ConfirmUpiPaymentAsync(req.OrderId, req.TransactionRef, CurrentUserId);
-            return result
-                ? Ok(ApiResponse.Ok(true, "Payment confirmed"))
-                : BadRequest(ApiResponse.Fail("Could not confirm payment. Check the reference ID or try again."));
-        }
     }
 
     // ── Reviews ───────────────────────────────────────────────────────────────

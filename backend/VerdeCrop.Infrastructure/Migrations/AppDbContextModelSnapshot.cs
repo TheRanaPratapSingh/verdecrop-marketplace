@@ -212,7 +212,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 4, 14, 12, 20, 32, 565, DateTimeKind.Utc).AddTicks(6958),
+                            CreatedAt = new DateTime(2026, 4, 5, 14, 32, 5, 260, DateTimeKind.Utc).AddTicks(5788),
                             DisplayOrder = 1,
                             IconUrl = "🥦",
                             IsActive = true,
@@ -223,7 +223,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 4, 14, 12, 20, 32, 565, DateTimeKind.Utc).AddTicks(6961),
+                            CreatedAt = new DateTime(2026, 4, 5, 14, 32, 5, 260, DateTimeKind.Utc).AddTicks(5792),
                             DisplayOrder = 2,
                             IconUrl = "🍎",
                             IsActive = true,
@@ -234,7 +234,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 4, 14, 12, 20, 32, 565, DateTimeKind.Utc).AddTicks(6963),
+                            CreatedAt = new DateTime(2026, 4, 5, 14, 32, 5, 260, DateTimeKind.Utc).AddTicks(5794),
                             DisplayOrder = 3,
                             IconUrl = "🌾",
                             IsActive = true,
@@ -245,7 +245,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 4, 14, 12, 20, 32, 565, DateTimeKind.Utc).AddTicks(6965),
+                            CreatedAt = new DateTime(2026, 4, 5, 14, 32, 5, 260, DateTimeKind.Utc).AddTicks(5796),
                             DisplayOrder = 4,
                             IconUrl = "🥛",
                             IsActive = true,
@@ -256,7 +256,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 4, 14, 12, 20, 32, 565, DateTimeKind.Utc).AddTicks(6966),
+                            CreatedAt = new DateTime(2026, 4, 5, 14, 32, 5, 260, DateTimeKind.Utc).AddTicks(5797),
                             DisplayOrder = 5,
                             IconUrl = "🌿",
                             IsActive = true,
@@ -267,7 +267,7 @@ namespace VerdeCrop.Infrastructure.Migrations
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 4, 14, 12, 20, 32, 565, DateTimeKind.Utc).AddTicks(6968),
+                            CreatedAt = new DateTime(2026, 4, 5, 14, 32, 5, 260, DateTimeKind.Utc).AddTicks(5799),
                             DisplayOrder = 6,
                             IconUrl = "🍯",
                             IsActive = true,
@@ -685,9 +685,6 @@ namespace VerdeCrop.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("FailureReason")
                         .HasColumnType("nvarchar(max)");
 
@@ -713,12 +710,6 @@ namespace VerdeCrop.Infrastructure.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("UpiString")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UpiTransactionRef")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
