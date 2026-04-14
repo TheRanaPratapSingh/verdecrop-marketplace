@@ -33,6 +33,9 @@ export const resolveAssetUrl = (src?: string | null): string | undefined => {
   const trimmed = src.trim()
   if (!trimmed) return undefined
 
+  // Blob/data URLs are already fully qualified — use as-is
+  if (/^blob:/i.test(trimmed) || /^data:/i.test(trimmed)) return trimmed
+
   if (/^https?:\/\//i.test(trimmed)) return trimmed
   if (/^\/\//.test(trimmed)) return `https:${trimmed}`
 

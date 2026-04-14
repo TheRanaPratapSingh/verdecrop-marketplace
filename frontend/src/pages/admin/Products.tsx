@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { productApi, categoryApi, farmerApi } from '../../services/api'
 import { useAuthStore } from '../../store'
 import type { Product, Category, Farmer, SellerProduct, SellerProductDetail } from '../../types'
+import { resolveAssetUrl } from '../../lib/image'
 
 // ── ProductImageUploader ──────────────────────────────────────────────────────
 const MAX_IMAGES = 8
@@ -292,7 +293,7 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
                 {/* Thumbnail */}
                 <div className="aspect-square relative overflow-hidden">
                   <img
-                    src={img.url}
+                    src={resolveAssetUrl(img.url) ?? img.url}
                     alt={img.name}
                     className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                     draggable={false}
@@ -650,7 +651,7 @@ export const AdminProducts: React.FC = () => {
               <div key={p.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4">
                 <div className="w-14 h-14 rounded-xl bg-gray-700 overflow-hidden shrink-0">
                   {p.imageUrl
-                    ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                    ? <img src={resolveAssetUrl(p.imageUrl)} alt={p.name} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-gray-500 text-2xl">📦</div>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -765,9 +766,9 @@ export const AdminProducts: React.FC = () => {
                   {/* Image gallery */}
                   <div className="relative h-56 bg-gray-800 rounded-t-2xl overflow-hidden">
                     {previewProduct.imageUrls?.length > 0 ? (
-                      <img src={previewProduct.imageUrls[0]} alt={previewProduct.name} className="w-full h-full object-cover" />
+                      <img src={resolveAssetUrl(previewProduct.imageUrls[0])} alt={previewProduct.name} className="w-full h-full object-cover" />
                     ) : previewProduct.imageUrl ? (
-                      <img src={previewProduct.imageUrl} alt={previewProduct.name} className="w-full h-full object-cover" />
+                      <img src={resolveAssetUrl(previewProduct.imageUrl)} alt={previewProduct.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-5xl">📦</div>
                     )}
@@ -791,7 +792,7 @@ export const AdminProducts: React.FC = () => {
                   {previewProduct.imageUrls?.length > 1 && (
                     <div className="flex gap-2 px-5 pt-3 overflow-x-auto">
                       {previewProduct.imageUrls.map((url, i) => (
-                        <img key={i} src={url} alt={`img-${i}`} className="w-14 h-14 rounded-lg object-cover shrink-0 border-2 border-white/10" />
+                        <img key={i} src={resolveAssetUrl(url)} alt={`img-${i}`} className="w-14 h-14 rounded-lg object-cover shrink-0 border-2 border-white/10" />
                       ))}
                     </div>
                   )}

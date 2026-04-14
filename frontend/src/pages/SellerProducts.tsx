@@ -9,6 +9,7 @@ import {
   Plus, Edit2, Trash2, Eye, EyeOff, Package, Clock, CheckCircle2,
   XCircle, Search, RefreshCw, BarChart3, TrendingUp
 } from 'lucide-react'
+import { resolveAssetUrl } from '../lib/image'
 
 // ── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.FC<{ className?: string }> }> = {
@@ -222,7 +223,7 @@ const ProductRow: React.FC<{
         {/* Image */}
         <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0 border border-gray-200">
           {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.name}
+            <img src={resolveAssetUrl(product.imageUrl)} alt={product.name}
               className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
