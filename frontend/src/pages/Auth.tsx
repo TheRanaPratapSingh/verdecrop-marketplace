@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Leaf, Phone, Mail, ArrowRight, ChevronLeft, CheckCircle2, ShieldCheck, Truck, Sprout, User, Heart, Users } from 'lucide-react'
+import { Leaf, Phone, Mail, ArrowRight, ChevronLeft, CheckCircle2, ShieldCheck, Truck, Sprout, User, Users } from 'lucide-react'
 import { authApi, cartApi } from '../services/api'
 import { useAuthStore, useCartStore, useGuestCartStore } from '../store'
 import { SEO } from '../components/SEO'
-import { Button, Input } from '../components/ui'
 import toast from 'react-hot-toast'
 import { trackEvent } from '../lib/analytics'
 
@@ -71,50 +70,48 @@ const OtpInput: React.FC<{ length?: number; onChange: (val: string) => void; aut
 const GraamoBrandingPanel: React.FC = () => (
   <div
     className="flex-1 relative overflow-hidden flex-col justify-between py-9 px-9 hidden lg:flex"
-    style={{ background: 'linear-gradient(155deg, #040f06 0%, #071c0a 15%, #0c2c10 35%, #123d18 55%, #165222 72%, #1a6028 88%, #1f6d2e 100%)' }}
+    style={{ background: 'linear-gradient(155deg, #78350f 0%, #92400e 12%, #b45309 28%, #d97706 45%, #f59e0b 62%, #fbbf24 78%, #fcd34d 100%)' }}
   >
-    {/* ── Layered background: village fields glow ── */}
+    {/* ── Layered background: sunrise village fields ── */}
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {/* Sunrise glow top-left */}
+      {/* Warm sunrise glow top */}
       <div
-        className="absolute top-[-15%] left-[-8%] w-[68%] h-[68%] rounded-full animate-mesh-1"
-        style={{ background: 'radial-gradient(ellipse, rgba(255,210,100,0.12) 0%, rgba(22,163,74,0.40) 30%, rgba(20,83,45,0.18) 55%, transparent 75%)', filter: 'blur(72px)' }}
+        className="absolute top-[-12%] left-[-5%] w-[70%] h-[60%] rounded-full animate-mesh-1"
+        style={{ background: 'radial-gradient(ellipse, rgba(255,255,180,0.25) 0%, rgba(251,191,36,0.35) 30%, rgba(180,83,9,0.18) 55%, transparent 75%)', filter: 'blur(68px)' }}
       />
-      {/* Deep field glow bottom-right */}
+      {/* Deep earth glow bottom */}
       <div
-        className="absolute bottom-[-18%] right-[-8%] w-[62%] h-[62%] rounded-full animate-mesh-2"
-        style={{ background: 'radial-gradient(ellipse, rgba(34,197,94,0.35) 0%, rgba(20,83,45,0.18) 45%, transparent 70%)', filter: 'blur(80px)' }}
+        className="absolute bottom-[-15%] right-[-5%] w-[60%] h-[60%] rounded-full animate-mesh-2"
+        style={{ background: 'radial-gradient(ellipse, rgba(120,53,15,0.55) 0%, rgba(92,40,14,0.35) 45%, transparent 70%)', filter: 'blur(72px)' }}
       />
-      {/* Accent glow center */}
+      {/* Gold accent center */}
       <div
-        className="absolute top-[32%] right-[6%] w-[48%] h-[48%] rounded-full animate-mesh-3"
-        style={{ background: 'radial-gradient(ellipse, rgba(134,239,172,0.18) 0%, transparent 65%)', filter: 'blur(52px)' }}
+        className="absolute top-[30%] right-[4%] w-[45%] h-[45%] rounded-full animate-mesh-3"
+        style={{ background: 'radial-gradient(ellipse, rgba(255,236,153,0.18) 0%, transparent 65%)', filter: 'blur(48px)' }}
       />
-      {/* Subtle grain texture overlay */}
-      <div className="absolute inset-0 opacity-[0.035] bg-grain" />
-      {/* Subtle horizontal line grid (field rows feel) */}
+      {/* Subtle grain */}
+      <div className="absolute inset-0 opacity-[0.04] bg-grain" />
+      {/* Horizontal field-row lines */}
       <div
-        className="absolute inset-0 opacity-[0.04]"
-        style={{ backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0px, transparent 1px, transparent 28px)', backgroundSize: '100% 28px' }}
+        className="absolute inset-0 opacity-[0.05]"
+        style={{ backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.5) 0px, transparent 1px, transparent 28px)', backgroundSize: '100% 28px' }}
       />
     </div>
 
     {/* ── Logo — glassmorphism badge ── */}
     <Link
       to="/"
-      className="relative z-10 self-start flex items-center gap-2.5 bg-white/[0.09] hover:bg-white/[0.14] backdrop-blur-md border border-white/[0.18] rounded-2xl px-3 py-2 shadow-lg transition-all duration-300 hover:shadow-[0_0_18px_rgba(134,239,172,0.22)] group"
+      className="relative z-10 self-start flex items-center gap-2.5 bg-black/[0.12] hover:bg-black/[0.20] backdrop-blur-md border border-white/[0.22] rounded-2xl px-3 py-2 shadow-lg transition-all duration-300 group"
     >
-      {/* Leaf + woman silhouette combined icon */}
       <div className="relative w-8 h-8 flex-shrink-0">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400/80 to-forest-600/90 flex items-center justify-center shadow-inner border border-white/10">
-          <Leaf className="w-4 h-4 text-white drop-shadow" />
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-800/90 to-stone-900/90 flex items-center justify-center shadow-inner border border-white/10">
+          <Leaf className="w-4 h-4 text-amber-300 drop-shadow" />
         </div>
-        {/* Small empowerment dot */}
-        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-400/90 border border-forest-800 shadow-sm" />
+        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500/90 border border-amber-900 shadow-sm" />
       </div>
       <div>
-        <span className="font-display font-bold text-lg text-white/95 tracking-tight leading-none block">Graamo</span>
-        <span className="text-emerald-300/70 text-[9px] font-body font-semibold tracking-[0.18em] uppercase leading-none">Farm · Home</span>
+        <span className="font-display font-bold text-lg text-white leading-none block drop-shadow">Graamo</span>
+        <span className="text-amber-200/80 text-[9px] font-body font-semibold tracking-[0.18em] uppercase leading-none">Farm · Home</span>
       </div>
     </Link>
 
@@ -123,142 +120,58 @@ const GraamoBrandingPanel: React.FC = () => (
       {/* Text block (left) */}
       <div className="flex-1 space-y-4 pb-2">
         {/* Direct farm badge */}
-        <div className="inline-flex items-center gap-2 bg-white/10 border border-white/[0.16] rounded-full px-3.5 py-1.5">
+        <div className="inline-flex items-center gap-2 bg-black/[0.15] border border-white/[0.22] rounded-full px-3.5 py-1.5">
           <span className="text-base leading-none">🌿</span>
-          <span className="text-emerald-200/90 text-[10px] font-bold font-body tracking-[0.18em] uppercase">Direct Farm to Home</span>
+          <span className="text-amber-100/90 text-[10px] font-bold font-body tracking-[0.18em] uppercase">Direct Farm to Home</span>
         </div>
 
         {/* Hindi headline */}
         <h2
-          className="text-white font-display font-bold leading-[1.05] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]"
+          className="text-white font-display font-bold leading-[1.05] drop-shadow-[0_2px_14px_rgba(0,0,0,0.4)]"
           style={{ fontSize: 'clamp(2rem, 3.5vw, 2.9rem)' }}
         >
           गांव से सीधे<br />आपके घर तक
         </h2>
 
         {/* Subtext */}
-        <p className="text-emerald-200/55 font-body text-[13px] leading-relaxed max-w-[220px]">
+        <p className="text-amber-100/65 font-body text-[13px] leading-relaxed max-w-[220px]">
           Pure, organic groceries sourced directly from trusted farmers across India.
         </p>
       </div>
 
-      {/* Rural woman farmer illustration (right) */}
+      {/* Rural woman farmer illustration */}
       <div className="relative flex-shrink-0 w-[140px] self-end">
-        {/* Warm glow behind figure */}
         <div
           className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[130%] h-[85%] rounded-full"
-          style={{ background: 'radial-gradient(ellipse, rgba(255,200,80,0.18) 0%, rgba(34,197,94,0.12) 40%, transparent 70%)', filter: 'blur(20px)' }}
+          style={{ background: 'radial-gradient(ellipse, rgba(255,220,100,0.25) 0%, rgba(180,83,9,0.15) 40%, transparent 70%)', filter: 'blur(18px)' }}
         />
-        {/* SVG — rural woman in saree, natural pose */}
-        <svg viewBox="0 0 140 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative w-full h-auto drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
-          {/* ── Saree / body ── */}
-          {/* Saree drape — warm terracotta-saffron */}
-          <ellipse cx="70" cy="185" rx="36" ry="14" fill="rgba(30,80,40,0.35)" />{/* ground shadow */}
-          {/* Skirt/saree bottom — deep saffron */}
+        <svg viewBox="0 0 140 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative w-full h-auto drop-shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
+          <ellipse cx="70" cy="185" rx="36" ry="14" fill="rgba(80,30,5,0.3)" />
           <path d="M44 148 Q50 195 70 198 Q90 195 96 148 Q82 158 70 160 Q58 158 44 148Z" fill="#c2410c" opacity="0.92" />
-          {/* Saree pallu draping over left shoulder */}
           <path d="M54 90 Q40 108 36 128 Q34 142 44 148 Q52 140 58 130 Q58 110 62 98Z" fill="#ea580c" opacity="0.85" />
-          {/* Blouse */}
           <path d="M58 88 Q58 110 62 120 Q70 124 78 120 Q82 110 82 88 Q76 84 70 83 Q64 84 58 88Z" fill="#9a3412" opacity="0.9" />
-          {/* Saree over right shoulder */}
           <path d="M78 92 Q88 100 96 112 Q100 126 96 140 Q100 148 104 148 Q108 138 106 122 Q102 104 94 92Z" fill="#b45309" opacity="0.55" />
-          {/* ── Skin tones ── */}
-          {/* Neck */}
           <rect x="66" y="72" width="8" height="14" rx="4" fill="#c2714a" />
-          {/* Face */}
           <ellipse cx="70" cy="60" rx="16" ry="18" fill="#c2714a" />
-          {/* Warm highlight on face */}
           <ellipse cx="65" cy="55" rx="7" ry="8" fill="rgba(255,180,100,0.22)" />
-          {/* Eyes */}
           <ellipse cx="64" cy="58" rx="2.8" ry="2" fill="#2d1a0e" />
           <ellipse cx="76" cy="58" rx="2.8" ry="2" fill="#2d1a0e" />
-          {/* Eye shine */}
           <circle cx="65" cy="57" r="0.8" fill="white" opacity="0.8" />
           <circle cx="77" cy="57" r="0.8" fill="white" opacity="0.8" />
-          {/* Gentle smile */}
           <path d="M65 66 Q70 70 75 66" stroke="#9a4020" strokeWidth="1.2" strokeLinecap="round" fill="none" />
-          {/* Nose */}
           <ellipse cx="70" cy="62" rx="1.5" ry="1" fill="rgba(100,40,10,0.3)" />
-          {/* Bindi */}
           <circle cx="70" cy="50" r="2" fill="#dc2626" opacity="0.9" />
-          {/* ── Hair / dupatta ── */}
-          {/* Hair */}
           <ellipse cx="70" cy="46" rx="17" ry="12" fill="#1a0f0a" />
-          {/* Dupatta / head drape — saffron-gold */}
           <path d="M53 44 Q55 28 70 26 Q85 28 87 44 Q80 38 70 37 Q60 38 53 44Z" fill="#d97706" opacity="0.88" />
           <path d="M53 44 Q46 52 44 64 Q42 74 46 82 Q50 86 54 84 Q50 74 52 62 Q54 50 58 44Z" fill="#d97706" opacity="0.6" />
-          {/* ── Arms ── */}
-          {/* Left arm — slightly raised, natural */}
           <path d="M58 92 Q44 104 40 118 Q42 124 46 122 Q50 110 60 98Z" fill="#c2714a" />
-          {/* Right arm — resting down */}
           <path d="M82 92 Q94 100 96 114 Q94 120 90 118 Q88 106 80 96Z" fill="#c2714a" />
-          {/* Bangles left wrist */}
           <ellipse cx="43" cy="120" rx="4" ry="2" fill="none" stroke="#fcd34d" strokeWidth="1.5" opacity="0.8" />
           <ellipse cx="43" cy="123" rx="4" ry="2" fill="none" stroke="#f97316" strokeWidth="1" opacity="0.7" />
-          {/* ── Decorative leaf/plant she tends ── */}
           <path d="M100 140 Q108 120 116 110 Q120 106 118 116 Q114 126 108 136 Q106 140 100 140Z" fill="rgba(74,222,128,0.75)" />
           <path d="M100 140 Q112 130 122 126 Q126 124 122 130 Q116 136 108 140 Q104 142 100 140Z" fill="rgba(34,197,94,0.6)" />
           <line x1="100" y1="140" x2="118" y2="112" stroke="rgba(74,222,128,0.5)" strokeWidth="1" />
         </svg>
-      </div>
-    </div>
-
-    {/* ── Storytelling floating card (replaces basket) ── */}
-    <div className="relative z-10 animate-float-card">
-      <div
-        className="bg-white/[0.09] backdrop-blur-2xl border border-white/[0.14] rounded-[18px] p-4 shadow-2xl"
-        style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)' }}
-      >
-        {/* Card header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-amber-400/80 to-orange-500/80 flex items-center justify-center flex-shrink-0">
-              <span className="text-sm leading-none">🌾</span>
-            </div>
-            <div>
-              <p className="text-white/90 text-xs font-semibold font-body leading-tight">From Sunita Devi's Farm</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[9px] font-body text-emerald-300/80 flex items-center gap-0.5">
-                  <span className="w-1 h-1 rounded-full bg-emerald-400 inline-block" /> Bihar Village
-                </span>
-                <span className="text-white/20 text-[9px]">·</span>
-                <span className="text-[9px] font-body text-amber-300/80 font-semibold">Harvested Today</span>
-              </div>
-            </div>
-          </div>
-          {/* Women-empowered badge */}
-          <div className="flex items-center gap-1 bg-pink-500/15 border border-pink-400/20 rounded-full px-2 py-0.5">
-            <Heart className="w-2.5 h-2.5 text-pink-300 fill-pink-300" />
-            <span className="text-[9px] font-body font-semibold text-pink-200/90">Women Farmer</span>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-white/[0.08] mb-3" />
-
-        {/* Items */}
-        {[
-          { emoji: '🥦', name: 'Organic Vegetables', price: '₹340' },
-          { emoji: '🥛', name: 'A2 Cow Milk · 1L',   price: '₹180' },
-          { emoji: '🍅', name: 'Farm Tomatoes',        price: '₹89'  },
-        ].map(item => (
-          <div key={item.name} className="flex items-center justify-between py-1.5 border-b border-white/[0.05] last:border-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm leading-none">{item.emoji}</span>
-              <span className="text-white/75 text-[11px] font-body">{item.name}</span>
-            </div>
-            <span className="text-emerald-300 text-[11px] font-semibold font-body">{item.price}</span>
-          </div>
-        ))}
-
-        {/* Footer */}
-        <div className="mt-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
-            <span className="text-emerald-300/70 text-[10px] font-body">Delivered in 2 hours</span>
-          </div>
-          <span className="text-white/40 text-[10px] font-body">No middlemen</span>
-        </div>
       </div>
     </div>
 
@@ -272,11 +185,11 @@ const GraamoBrandingPanel: React.FC = () => (
         ].map(({ num, label, emoji }) => (
           <div
             key={label}
-            className="bg-white/[0.06] hover:bg-white/[0.11] backdrop-blur-sm rounded-xl p-3 text-center border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] hover:shadow-[0_0_12px_rgba(134,239,172,0.12)]"
+            className="bg-black/[0.12] hover:bg-black/[0.20] backdrop-blur-sm rounded-xl p-3 text-center border border-white/[0.18] transition-all duration-200 hover:border-white/[0.32]"
           >
             <span className="text-base leading-none block mb-0.5">{emoji}</span>
-            <p className="text-white font-display font-bold text-base leading-none">{num}</p>
-            <p className="text-emerald-200/55 text-[10px] font-body mt-0.5">{label}</p>
+            <p className="text-white font-display font-bold text-base leading-none drop-shadow">{num}</p>
+            <p className="text-amber-100/65 text-[10px] font-body mt-0.5">{label}</p>
           </div>
         ))}
       </div>
@@ -285,13 +198,12 @@ const GraamoBrandingPanel: React.FC = () => (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         {[
           { icon: ShieldCheck, text: '100% Organic' },
-          { icon: Users,       text: 'Women Empowered' },
-          { icon: Sprout,      text: 'Direct Villages' },
-          { icon: Truck,       text: 'No Middlemen' },
+          { icon: Users,       text: 'Women Empowered Farming' },
+          { icon: Sprout,      text: 'No Middlemen' },
         ].map(b => (
           <div key={b.text} className="flex items-center gap-1.5">
-            <b.icon className="w-3 h-3 text-emerald-300/75 flex-shrink-0" />
-            <span className="text-emerald-200/55 text-[10px] font-body whitespace-nowrap">{b.text}</span>
+            <b.icon className="w-3 h-3 text-amber-200/80 flex-shrink-0" />
+            <span className="text-amber-100/65 text-[10px] font-body whitespace-nowrap">{b.text}</span>
           </div>
         ))}
       </div>
@@ -300,31 +212,37 @@ const GraamoBrandingPanel: React.FC = () => (
 )
 
 // ── Auth Layout ───────────────────────────────────────────────────────────────
-const AuthLayout: React.FC<{ children: React.ReactNode; title: string; subtitle: string }> = ({ children, title, subtitle }) => (
-  <div className="min-h-screen bg-[#E3E3E3] flex items-center justify-center p-3 sm:p-6 lg:p-10">
+const AuthLayout: React.FC<{ children: React.ReactNode; title: string; subtitle: string; badge?: string }> = ({ children, title, subtitle, badge }) => (
+  <div className="min-h-screen bg-stone-200 flex items-center justify-center p-3 sm:p-6 lg:p-10">
     <div className="w-full max-w-[1060px] bg-white rounded-[24px] lg:rounded-[28px] shadow-auth overflow-hidden flex flex-col lg:flex-row lg:min-h-[600px]">
 
-      {/* ── LEFT: Form panel ── */}
+      {/* ── LEFT: Animated branding panel ── */}
+      <GraamoBrandingPanel />
+
+      {/* ── RIGHT: Form panel ── */}
       <div className="lg:w-[460px] flex-shrink-0 flex flex-col bg-white px-8 py-10 sm:px-12 lg:justify-center">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2.5 mb-10">
+        <Link to="/" className="flex items-center gap-2.5 mb-8">
           <div className="w-9 h-9 bg-forest-700 rounded-[10px] flex items-center justify-center shadow-sm">
             <Leaf className="w-5 h-5 text-white" />
           </div>
           <span className="font-display font-bold text-xl text-stone-800 tracking-tight">Graamo</span>
         </Link>
 
-        {/* Heading */}
-        <div className="mb-8">
-          <h1 className="font-display text-[2.15rem] font-bold text-stone-900 leading-tight mb-2">{title}</h1>
-          <p className="text-stone-500 font-body text-[15px]">{subtitle}</p>
+        {/* Badge + Heading */}
+        <div className="mb-7">
+          {badge && (
+            <div className="inline-flex items-center gap-1.5 mb-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-forest-500" />
+              <p className="text-[11px] font-bold font-body text-forest-600 uppercase tracking-[0.15em]">{badge}</p>
+            </div>
+          )}
+          <h1 className="font-display text-[1.9rem] font-bold text-stone-900 leading-tight mb-1.5">{title}</h1>
+          <p className="text-stone-500 font-body text-[14px]">{subtitle}</p>
         </div>
 
         {children}
       </div>
-
-      {/* ── RIGHT: Animated branding panel ── */}
-      <GraamoBrandingPanel />
     </div>
   </div>
 )
@@ -395,7 +313,7 @@ export const LoginPage: React.FC = () => {
   return (
     <>
       <SEO title="Log In" description="Sign in to your Graamo account to shop fresh organic produce." noIndex />
-      <AuthLayout title="Welcome back" subtitle="Log in with your phone or email">
+      <AuthLayout title="Welcome back" subtitle="Log in with your phone or email" badge="Sign In">
       {step === 'input' ? (
         <div className="space-y-4 animate-fade-up">
           <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
@@ -403,29 +321,69 @@ export const LoginPage: React.FC = () => {
               onClick={() => { setMethod('phone'); setIdentifier('') }}
               className={`flex-1 py-2 text-sm font-medium rounded-lg transition font-body flex items-center justify-center gap-1.5 ${method === 'phone' ? 'bg-white shadow text-forest-700' : 'text-stone-500'}`}
             >
-              <Phone className="w-4 h-4" /> Phone
+              <Phone className="w-4 h-4" /> Mobile Number
             </button>
             <button
               onClick={() => { setMethod('email'); setIdentifier('') }}
               className={`flex-1 py-2 text-sm font-medium rounded-lg transition font-body flex items-center justify-center gap-1.5 ${method === 'email' ? 'bg-white shadow text-forest-700' : 'text-stone-500'}`}
             >
-              <Mail className="w-4 h-4" /> Email
+              <Mail className="w-4 h-4" /> Email Address
             </button>
           </div>
 
-          <Input
-            label={method === 'phone' ? 'Phone Number' : 'Email Address'}
-            type={method === 'phone' ? 'tel' : 'email'}
-            placeholder={method === 'phone' ? '+91 98765 43210' : 'you@example.com'}
-            value={identifier}
-            onChange={e => setIdentifier(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
-            leftIcon={method === 'phone' ? <Phone className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
-          />
+          {method === 'phone' ? (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-stone-700 font-body">Mobile Number</label>
+              <div className="flex gap-2">
+                <div className="flex items-center gap-1.5 px-3 bg-stone-100 border border-stone-200 rounded-xl text-sm font-body text-stone-600 font-medium flex-shrink-0">
+                  🇮🇳 +91
+                </div>
+                <div className="relative flex-1">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <input
+                    type="tel"
+                    placeholder="98765 43210"
+                    value={identifier}
+                    onChange={e => setIdentifier(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
+                    maxLength={10}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-200 text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30 focus:border-forest-500"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-stone-700 font-body">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={identifier}
+                  onChange={e => setIdentifier(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-200 text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30 focus:border-forest-500"
+                />
+              </div>
+            </div>
+          )}
 
-          <Button className="w-full" size="lg" loading={loading} onClick={handleSendOtp}>
-            Send OTP <ArrowRight className="w-4 h-4" />
-          </Button>
+          <button
+            onClick={handleSendOtp}
+            disabled={loading}
+            className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
+          >
+            {loading
+              ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <><span>Send OTP {method === 'phone' ? 'to Mobile' : 'to Email'}</span><ArrowRight className="w-4 h-4" /></>}
+          </button>
+
+          <p className="text-center text-sm text-stone-500 font-body">
+            New user?{' '}
+            <Link to="/register" className="text-forest-700 font-semibold hover:underline">Sign up</Link>
+          </p>
         </div>
       ) : (
         <div className="space-y-6 animate-fade-up">
@@ -437,9 +395,16 @@ export const LoginPage: React.FC = () => {
             <p className="font-semibold text-gray-900 font-body">{identifier}</p>
           </div>
           <OtpInput onChange={setOtp} />
-          <Button className="w-full" size="lg" loading={loading} onClick={handleVerifyOtp}>
-            Verify & Login
-          </Button>
+          <button
+            onClick={handleVerifyOtp}
+            disabled={loading}
+            className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
+          >
+            {loading
+              ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <><CheckCircle2 className="w-4 h-4" /><span>Verify & Login</span></>}
+          </button>
           <p className="text-center text-sm font-body">
             {resendTimer > 0 ? (
               <span className="text-stone-500">Resend OTP in {resendTimer}s</span>
@@ -448,6 +413,10 @@ export const LoginPage: React.FC = () => {
                 Resend OTP
               </button>
             )}
+          </p>
+          <p className="text-center text-sm text-stone-500 font-body">
+            New user?{' '}
+            <Link to="/register" className="text-forest-700 font-semibold hover:underline">Sign up</Link>
           </p>
         </div>
       )}
@@ -585,254 +554,231 @@ export const RegisterPage: React.FC = () => {
   return (
     <>
       <SEO title="Create Account" description="Join Graamo to shop fresh certified organic produce directly from Indian farmers." noIndex />
-      <div className="min-h-screen bg-[#E3E3E3] flex items-center justify-center p-3 sm:p-5 lg:p-8">
-        <div className="w-full max-w-[1060px] bg-white rounded-[24px] lg:rounded-[28px] shadow-auth overflow-hidden flex flex-col lg:flex-row lg:min-h-[640px]">
+      <AuthLayout title="Create your Graamo account" subtitle="Join thousands of health-conscious families" badge="New Account">
 
-          {/* ── LEFT: Form panel ── */}
-          <div className="lg:w-[468px] flex-shrink-0 flex flex-col bg-white px-7 py-8 sm:px-10 overflow-y-auto">
-
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 mb-7 flex-shrink-0">
-              <div className="w-9 h-9 bg-forest-700 rounded-[10px] flex items-center justify-center shadow-sm">
-                <Leaf className="w-5 h-5 text-white" />
+        {/* Step indicator */}
+        <div className="flex items-center gap-1.5 mb-6">
+          {([{ idx: 0, label: 'Verify' }, { idx: 1, label: 'Done' }] as const).map((s, i, arr) => (
+            <React.Fragment key={s.idx}>
+              <div className="flex flex-col items-center gap-0.5">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-body transition-all duration-300
+                  ${step === 'done' || (step === 'otp' && s.idx === 0)
+                    ? 'bg-forest-600 text-white shadow-[0_0_0_3px_rgba(30,110,36,0.15)]'
+                    : s.idx === 0 && step === 'form'
+                    ? 'bg-forest-500 text-white ring-2 ring-forest-300/60 shadow-[0_2px_8px_rgba(22,163,74,0.35)]'
+                    : s.idx === 1 && step === 'otp'
+                    ? 'bg-forest-500 text-white ring-2 ring-forest-300/60 shadow-[0_2px_8px_rgba(22,163,74,0.35)]'
+                    : 'bg-stone-100 text-stone-400'}`}>
+                  {step === 'done' ? <CheckCircle2 className="w-4 h-4" /> : s.idx + 1}
+                </div>
+                <span className={`text-[10px] font-body font-medium hidden sm:block transition-colors duration-300
+                  ${(step === 'form' && s.idx === 0) || (step === 'otp' && s.idx <= 1) || step === 'done' ? 'text-forest-700' : 'text-stone-400'}`}>{s.label}</span>
               </div>
-              <span className="font-display font-bold text-xl text-stone-800 tracking-tight">Graamo</span>
-            </Link>
+              {i < arr.length - 1 && (
+                <div className="flex-1 relative h-0.5 rounded-full bg-stone-100 overflow-hidden">
+                  <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out ${step === 'otp' || step === 'done' ? 'w-full bg-forest-500' : 'w-0'}`} />
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
 
-            {/* Header */}
-            <div className="mb-6">
-              <div className="inline-flex items-center gap-1.5 mb-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-forest-500" />
-                <p className="text-[11px] font-bold font-body text-forest-600 uppercase tracking-[0.15em]">New Account</p>
+        {/* ── STEP: form ── */}
+        {step === 'form' && (
+          <div className="space-y-4 animate-fade-up">
+
+            {/* Name */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-stone-700 font-body">Full Name <span className="text-red-400">*</span></label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                <input
+                  type="text"
+                  placeholder="Priya Sharma"
+                  value={name}
+                  onChange={e => { setName(e.target.value); if (nameError) setNameError('') }}
+                  className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
+                    ${nameError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
+                />
               </div>
-              <h1 className="font-display text-[2rem] font-bold text-stone-900 leading-tight">Create your Graamo account</h1>
-              <p className="text-sm text-stone-500 font-body mt-1">Choose how you want to verify</p>
+              {nameError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {nameError}</p>}
             </div>
 
-            {/* Step indicator */}
-            <div className="flex items-center gap-1.5 mb-7">
-              {([{ idx: 0, label: 'Verify' }, { idx: 1, label: 'Done' }] as const).map((s, i, arr) => (
-                <React.Fragment key={s.idx}>
-                  <div className="flex flex-col items-center gap-0.5">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-body transition-all duration-300
-                      ${step === 'done' || (step === 'otp' && s.idx === 0)
-                        ? 'bg-forest-600 text-white shadow-[0_0_0_3px_rgba(30,110,36,0.15)]'
-                        : s.idx === 0 && step === 'form'
-                        ? 'bg-forest-500 text-white ring-2 ring-forest-300/60 shadow-[0_2px_8px_rgba(22,163,74,0.35)]'
-                        : s.idx === 1 && step === 'otp'
-                        ? 'bg-forest-500 text-white ring-2 ring-forest-300/60 shadow-[0_2px_8px_rgba(22,163,74,0.35)]'
-                        : 'bg-stone-100 text-stone-400'}`}>
-                      {step === 'done' ? <CheckCircle2 className="w-4 h-4" /> : s.idx + 1}
-                    </div>
-                    <span className={`text-[10px] font-body font-medium hidden sm:block transition-colors duration-300
-                      ${(step === 'form' && s.idx === 0) || (step === 'otp' && s.idx <= 1) || step === 'done' ? 'text-forest-700' : 'text-stone-400'}`}>{s.label}</span>
+            {/* Method toggle */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-stone-700 font-body">Verify with <span className="text-stone-400 font-normal">(choose one)</span></label>
+              <div className="relative flex p-1 bg-stone-100 rounded-xl overflow-hidden">
+                <div
+                  className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-[10px] bg-white shadow-sm transition-all duration-300 ease-out"
+                  style={{ left: method === 'phone' ? '4px' : 'calc(50%)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => switchMethod('phone')}
+                  className={`relative z-10 flex-1 py-2.5 text-sm font-semibold rounded-[10px] font-body flex items-center justify-center gap-2 transition-colors duration-200
+                    ${method === 'phone' ? 'text-forest-700' : 'text-stone-500 hover:text-stone-700'}`}
+                >
+                  <Phone className="w-4 h-4" /> Mobile Number
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMethod('email')}
+                  className={`relative z-10 flex-1 py-2.5 text-sm font-semibold rounded-[10px] font-body flex items-center justify-center gap-2 transition-colors duration-200
+                    ${method === 'email' ? 'text-forest-700' : 'text-stone-500 hover:text-stone-700'}`}
+                >
+                  <Mail className="w-4 h-4" /> Email Address
+                </button>
+              </div>
+            </div>
+
+            {/* Phone or Email input */}
+            {method === 'phone' ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-stone-700 font-body">Mobile Number <span className="text-red-400">*</span></label>
+                <div className="flex gap-2">
+                  <div className="flex items-center gap-1.5 px-3 bg-stone-100 border border-stone-200 rounded-xl text-sm font-body text-stone-600 font-medium flex-shrink-0">
+                    🇮🇳 +91
                   </div>
-                  {i < arr.length - 1 && (
-                    <div className="flex-1 relative h-0.5 rounded-full bg-stone-100 overflow-hidden">
-                      <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out ${step === 'otp' || step === 'done' ? 'w-full bg-forest-500' : 'w-0'}`} />
-                    </div>
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-
-            {/* ── STEP: form ── */}
-            {step === 'form' && (
-              <div className="space-y-4 animate-fade-up">
-
-                {/* Name */}
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-stone-700 font-body">Full Name <span className="text-red-400">*</span></label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <div className="relative flex-1">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                     <input
-                      type="text"
-                      placeholder="Priya Sharma"
-                      value={name}
-                      onChange={e => { setName(e.target.value); if (nameError) setNameError('') }}
+                      type="tel"
+                      placeholder="98765 43210"
+                      value={phone}
+                      onChange={e => { setPhone(e.target.value); if (identifierError) setIdentifierError(''); setAlreadyRegistered(false) }}
+                      onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
+                      maxLength={10}
                       className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
-                        ${nameError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
+                        ${identifierError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
                     />
                   </div>
-                  {nameError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {nameError}</p>}
                 </div>
-
-                {/* Method toggle (segmented control) */}
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-stone-700 font-body">Verify with <span className="text-stone-400 font-normal">(choose one)</span></label>
-                  <div className="relative flex p-1 bg-stone-100 rounded-xl overflow-hidden">
-                    {/* Animated sliding indicator */}
-                    <div
-                      className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-[10px] bg-white shadow-sm transition-all duration-300 ease-out"
-                      style={{ left: method === 'phone' ? '4px' : 'calc(50%)' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => switchMethod('phone')}
-                      className={`relative z-10 flex-1 py-2.5 text-sm font-semibold rounded-[10px] font-body flex items-center justify-center gap-2 transition-colors duration-200
-                        ${method === 'phone' ? 'text-forest-700' : 'text-stone-500 hover:text-stone-700'}`}
-                    >
-                      <Phone className="w-4 h-4" /> Mobile Number
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => switchMethod('email')}
-                      className={`relative z-10 flex-1 py-2.5 text-sm font-semibold rounded-[10px] font-body flex items-center justify-center gap-2 transition-colors duration-200
-                        ${method === 'email' ? 'text-forest-700' : 'text-stone-500 hover:text-stone-700'}`}
-                    >
-                      <Mail className="w-4 h-4" /> Email Address
-                    </button>
-                  </div>
+                {identifierError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {identifierError}</p>}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-stone-700 font-body">Email Address <span className="text-red-400">*</span></label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); if (identifierError) setIdentifierError(''); setAlreadyRegistered(false) }}
+                    onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
+                      ${identifierError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
+                  />
                 </div>
-
-                {/* Phone or Email input */}
-                {method === 'phone' ? (
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-stone-700 font-body">Mobile Number <span className="text-red-400">*</span></label>
-                    <div className="flex gap-2">
-                      <div className="flex items-center gap-1.5 px-3 bg-stone-100 border border-stone-200 rounded-xl text-sm font-body text-stone-600 font-medium flex-shrink-0">
-                        🇮🇳 +91
-                      </div>
-                      <div className="relative flex-1">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                        <input
-                          type="tel"
-                          placeholder="98765 43210"
-                          value={phone}
-                          onChange={e => { setPhone(e.target.value); if (identifierError) setIdentifierError(''); setAlreadyRegistered(false) }}
-                          onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
-                          maxLength={10}
-                          className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
-                            ${identifierError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
-                        />
-                      </div>
-                    </div>
-                    {identifierError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {identifierError}</p>}
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-stone-700 font-body">Email Address <span className="text-red-400">*</span></label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                      <input
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={e => { setEmail(e.target.value); if (identifierError) setIdentifierError(''); setAlreadyRegistered(false) }}
-                        onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
-                        className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-body bg-stone-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-forest-400/30
-                          ${identifierError ? 'border-red-400' : 'border-stone-200 focus:border-forest-500'}`}
-                      />
-                    </div>
-                    {identifierError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {identifierError}</p>}
-                  </div>
-                )}
-
-                {/* Already registered inline error */}
-                {alreadyRegistered && (
-                  <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-1.5 animate-fade-up">
-                    <p className="text-sm font-body text-amber-800 font-medium flex items-start gap-2">
-                      <span className="text-base leading-none mt-0.5">⚠️</span>
-                      <span>
-                        {method === 'phone'
-                          ? 'This mobile number is already registered. Please log in instead.'
-                          : 'This email is already associated with an account. Try logging in.'}
-                      </span>
-                    </p>
-                    <Link
-                      to="/login"
-                      className="inline-flex items-center gap-1.5 text-sm font-semibold font-body text-forest-700 hover:text-forest-900 hover:underline transition-colors"
-                    >
-                      Go to Login <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                )}
-
-                {/* Send OTP button */}
-                <button
-                  onClick={handleSendOtp}
-                  disabled={sending}
-                  className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
-                >
-                  {sending
-                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    : <><span>Send OTP {method === 'phone' ? 'to Mobile' : 'to Email'}</span><ArrowRight className="w-4 h-4" /></>}
-                </button>
-
-                <p className="text-center text-sm text-stone-500 font-body">
-                  Already have an account?{' '}
-                  <Link to="/login" className="text-forest-700 font-semibold hover:underline">Log in</Link>
-                </p>
+                {identifierError && <p className="text-xs text-red-500 font-body flex items-center gap-1">⚠ {identifierError}</p>}
               </div>
             )}
 
-            {/* ── STEP: otp ── */}
-            {step === 'otp' && (
-              <div className="space-y-5 animate-fade-up">
-                <button onClick={() => { setStep('form'); setOtp('') }} className="flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 transition font-body">
-                  <ChevronLeft className="w-4 h-4" /> Back
-                </button>
-
-                <div className="text-center space-y-1.5">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 ${method === 'phone' ? 'bg-forest-50 border border-forest-200' : 'bg-blue-50 border border-blue-200'}`}>
+            {/* Already registered inline error */}
+            {alreadyRegistered && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-1.5 animate-fade-up">
+                <p className="text-sm font-body text-amber-800 font-medium flex items-start gap-2">
+                  <span className="text-base leading-none mt-0.5">⚠️</span>
+                  <span>
                     {method === 'phone'
-                      ? <Phone className="w-5 h-5 text-forest-600" />
-                      : <Mail className="w-5 h-5 text-blue-600" />}
-                  </div>
-                  <p className="font-semibold text-stone-800 font-body">
-                    Verify your {method === 'phone' ? 'mobile' : 'email'}
-                  </p>
-                  <p className="text-sm text-stone-500 font-body">
-                    OTP sent to{' '}
-                    <strong className="text-stone-700">
-                      {method === 'phone' ? `+91 ${phone}` : email}
-                    </strong>
-                  </p>
-                </div>
-
-                <OtpInput onChange={setOtp} />
-
-                <button
-                  onClick={handleVerifyOtp}
-                  disabled={verifying || otp.length < 6}
-                  className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
-                >
-                  {verifying
-                    ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    : <><CheckCircle2 className="w-4 h-4" /><span>Verify & Create Account</span></>}
-                </button>
-
-                <p className="text-center text-sm font-body">
-                  {resendTimer > 0
-                    ? <span className="text-stone-500">Resend OTP in <strong>{resendTimer}s</strong></span>
-                    : <button onClick={handleResendOtp} disabled={sending} className="text-forest-700 font-semibold hover:underline disabled:opacity-60">
-                        {sending ? 'Sending…' : 'Resend OTP'}
-                      </button>}
+                      ? 'This mobile number is already registered. Please log in instead.'
+                      : 'This email is already associated with an account. Try logging in.'}
+                  </span>
                 </p>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold font-body text-forest-700 hover:text-forest-900 hover:underline transition-colors"
+                >
+                  Go to Login <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             )}
 
-            {/* Trust badges */}
-            <div className="flex items-center justify-center gap-4 mt-6 pt-5 border-t border-stone-100">
-              {[
-                { icon: <ShieldCheck className="w-3.5 h-3.5 text-forest-600" />, label: 'Direct Farmers' },
-                { icon: <Sprout className="w-3.5 h-3.5 text-forest-600" />, label: '100% Organic' },
-                { icon: <Truck className="w-3.5 h-3.5 text-forest-600" />, label: 'Same Day' },
-              ].map(b => (
-                <div key={b.label} className="flex items-center gap-1 text-xs font-body text-stone-400">
-                  {b.icon}<span>{b.label}</span>
-                </div>
-              ))}
+            {/* Send OTP button */}
+            <button
+              onClick={handleSendOtp}
+              disabled={sending}
+              className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
+            >
+              {sending
+                ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : <><span>Send OTP {method === 'phone' ? 'to Mobile' : 'to Email'}</span><ArrowRight className="w-4 h-4" /></>}
+            </button>
+
+            <p className="text-center text-sm text-stone-500 font-body">
+              Already have an account?{' '}
+              <Link to="/login" className="text-forest-700 font-semibold hover:underline">Log in</Link>
+            </p>
+          </div>
+        )}
+
+        {/* ── STEP: otp ── */}
+        {step === 'otp' && (
+          <div className="space-y-5 animate-fade-up">
+            <button onClick={() => { setStep('form'); setOtp('') }} className="flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 transition font-body">
+              <ChevronLeft className="w-4 h-4" /> Back
+            </button>
+
+            <div className="text-center space-y-1.5">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 ${method === 'phone' ? 'bg-forest-50 border border-forest-200' : 'bg-blue-50 border border-blue-200'}`}>
+                {method === 'phone'
+                  ? <Phone className="w-5 h-5 text-forest-600" />
+                  : <Mail className="w-5 h-5 text-blue-600" />}
+              </div>
+              <p className="font-semibold text-stone-800 font-body">
+                Verify your {method === 'phone' ? 'mobile' : 'email'}
+              </p>
+              <p className="text-sm text-stone-500 font-body">
+                OTP sent to{' '}
+                <strong className="text-stone-700">
+                  {method === 'phone' ? `+91 ${phone}` : email}
+                </strong>
+              </p>
             </div>
-          </div>{/* closes LEFT form panel */}
 
-          {/* ── RIGHT: Animated branding panel ── */}
-          <GraamoBrandingPanel />
+            <OtpInput onChange={setOtp} />
 
-        </div>{/* closes rounded container */}
-      </div>{/* closes min-h-screen */}
+            <button
+              onClick={handleVerifyOtp}
+              disabled={verifying || otp.length < 6}
+              className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 4px 16px rgba(22,163,74,0.40)' }}
+            >
+              {verifying
+                ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : <><CheckCircle2 className="w-4 h-4" /><span>Verify & Create Account</span></>}
+            </button>
+
+            <p className="text-center text-sm font-body">
+              {resendTimer > 0
+                ? <span className="text-stone-500">Resend OTP in <strong>{resendTimer}s</strong></span>
+                : <button onClick={handleResendOtp} disabled={sending} className="text-forest-700 font-semibold hover:underline disabled:opacity-60">
+                    {sending ? 'Sending…' : 'Resend OTP'}
+                  </button>}
+            </p>
+
+            <p className="text-center text-sm text-stone-500 font-body">
+              Already have an account?{' '}
+              <Link to="/login" className="text-forest-700 font-semibold hover:underline">Log in</Link>
+            </p>
+          </div>
+        )}
+
+        {/* Trust badges */}
+        <div className="flex items-center justify-center gap-4 mt-6 pt-5 border-t border-stone-100">
+          {[
+            { icon: <ShieldCheck className="w-3.5 h-3.5 text-forest-600" />, label: 'Direct Farmers' },
+            { icon: <Sprout className="w-3.5 h-3.5 text-forest-600" />, label: '100% Organic' },
+            { icon: <Truck className="w-3.5 h-3.5 text-forest-600" />, label: 'Same Day' },
+          ].map(b => (
+            <div key={b.label} className="flex items-center gap-1 text-xs font-body text-stone-400">
+              {b.icon}<span>{b.label}</span>
+            </div>
+          ))}
+        </div>
+
+      </AuthLayout>
     </>
   )
 }
