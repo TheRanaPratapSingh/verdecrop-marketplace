@@ -67,63 +67,136 @@ const OtpInput: React.FC<{ length?: number; onChange: (val: string) => void; aut
   )
 }
 
-// ── Auth Layout ───────────────────────────────────────────────────────────────
-const AuthLayout: React.FC<{ children: React.ReactNode; title: string; subtitle: string }> = ({ children, title, subtitle }) => (
-  <div className="min-h-screen bg-cream flex relative overflow-hidden">
-    <div className="absolute inset-0 bg-hero-mesh pointer-events-none" />
-    <div className="absolute -top-24 right-10 h-80 w-80 rounded-full bg-forest-200/35 blur-3xl pointer-events-none" />
-    <div className="absolute -bottom-20 left-20 h-72 w-72 rounded-full bg-stone-200/50 blur-3xl pointer-events-none" />
-    {/* Left panel */}
-    <div className="hidden lg:flex w-[440px] flex-shrink-0 bg-gradient-to-br from-forest-900 via-forest-800 to-sage-800 flex-col justify-between p-10 relative overflow-hidden border-r border-white/10">
-      <div className="absolute -top-20 -right-20 w-80 h-80 bg-forest-400/30 rounded-full blur-3xl" />
-      <div className="absolute -bottom-20 -left-10 w-80 h-80 bg-stone-200/20 rounded-full blur-3xl" />
-      <Link to="/" className="flex items-center gap-2 relative z-10">
-        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center border border-white/30">
-          <Leaf className="w-5 h-5 text-white" />
+// ── Shared Animated Branding Panel ───────────────────────────────────────────
+const GraamoBrandingPanel: React.FC = () => (
+  <div
+    className="flex-1 relative overflow-hidden flex-col justify-between py-10 px-10 hidden lg:flex"
+    style={{ background: 'linear-gradient(150deg, #071c0a 0%, #0d3012 18%, #14532d 48%, #165d2a 75%, #186e30 100%)' }}
+  >
+    {/* ── Animated mesh blobs ── */}
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div
+        className="absolute top-[-20%] left-[-10%] w-[72%] h-[72%] rounded-full animate-mesh-1"
+        style={{ background: 'radial-gradient(circle, rgba(22,163,74,0.55) 0%, rgba(20,128,61,0.18) 45%, transparent 70%)', filter: 'blur(88px)' }}
+      />
+      <div
+        className="absolute bottom-[-22%] right-[-10%] w-[65%] h-[65%] rounded-full animate-mesh-2"
+        style={{ background: 'radial-gradient(circle, rgba(46,160,67,0.48) 0%, rgba(22,101,52,0.18) 45%, transparent 70%)', filter: 'blur(76px)' }}
+      />
+      <div
+        className="absolute top-[38%] right-[12%] w-[42%] h-[42%] rounded-full animate-mesh-3"
+        style={{ background: 'radial-gradient(circle, rgba(134,239,172,0.22) 0%, transparent 70%)', filter: 'blur(56px)' }}
+      />
+    </div>
+
+    {/* ── Logo ── */}
+    <Link to="/" className="relative z-10 flex items-center gap-2.5 self-start">
+      <div className="w-10 h-10 bg-white/15 rounded-[12px] flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-lg">
+        <Leaf className="w-5 h-5 text-white" />
+      </div>
+      <span className="font-display font-bold text-xl text-white/90 tracking-tight">Graamo</span>
+    </Link>
+
+    {/* ── Center content ── */}
+    <div className="relative z-10 space-y-7">
+      <div>
+        <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3.5 py-1.5 mb-5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+          <span className="text-emerald-200/90 text-[11px] font-bold font-body tracking-widest uppercase">Direct Farm-to-Home</span>
         </div>
-        <span className="font-display font-bold text-xl text-white">Graamo</span>
-      </Link>
-      <div className="relative z-10">
-        <p className="text-emerald-50/90 text-sm font-body mb-3">Trusted by families across India</p>
-        <blockquote className="text-white font-display text-2xl font-semibold leading-relaxed mb-6 drop-shadow-sm">
-          "Finally, organic food that's actually organic — and delivered the same day!"
-        </blockquote>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-white font-body">P</div>
-          <div>
-            <p className="text-white text-sm font-semibold font-body">Priya Menon</p>
-            <p className="text-emerald-50/75 text-xs font-body">Bangalore · Customer since 2022</p>
+        <h2 className="text-white font-display text-[3rem] font-bold leading-[1.1] mb-3 drop-shadow-sm">
+          गांव से सीधे<br />आपके घर तक
+        </h2>
+        <p className="text-emerald-200/65 font-body text-sm leading-relaxed max-w-[260px]">
+          Pure, organic groceries sourced directly from trusted farmers across India.
+        </p>
+      </div>
+
+      {/* Floating Graamo order preview card */}
+      <div className="bg-white/[0.08] backdrop-blur-xl border border-white/12 rounded-[20px] p-5 shadow-2xl max-w-[268px] ml-auto">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 bg-forest-500/70 rounded-xl flex items-center justify-center border border-white/10">
+            <Leaf className="w-4 h-4 text-white" />
           </div>
+          <span className="text-white/90 text-sm font-semibold font-body">Graamo</span>
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-emerald-300 font-body font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" /> Live
+          </span>
+        </div>
+        <p className="text-white/50 text-[11px] font-body mb-0.5">Today's basket</p>
+        <p className="text-white font-display font-bold text-[1.6rem] leading-tight mb-4">₹847.50</p>
+        {[
+          { emoji: '🥦', name: 'Organic Vegetables', price: '₹340' },
+          { emoji: '🥛', name: 'A2 Cow Milk · 1L',  price: '₹180' },
+          { emoji: '🍅', name: 'Farm Tomatoes',       price: '₹89' },
+        ].map(item => (
+          <div key={item.name} className="flex items-center justify-between bg-white/[0.07] rounded-xl px-3 py-2 mb-1.5 last:mb-0">
+            <div className="flex items-center gap-2">
+              <span className="text-base leading-none">{item.emoji}</span>
+              <span className="text-white/80 text-xs font-body">{item.name}</span>
+            </div>
+            <span className="text-emerald-300 text-xs font-semibold font-body">{item.price}</span>
+          </div>
+        ))}
+        <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+          <span className="text-emerald-300/75 text-xs font-body">Delivered in 2 hours</span>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3 relative z-10">
+    </div>
+
+    {/* ── Stats + badges ── */}
+    <div className="relative z-10">
+      <div className="grid grid-cols-3 gap-2 mb-4">
         {[['50+', 'Farmers'], ['2000+', 'Products'], ['500+', 'Families']].map(([n, l]) => (
-          <div key={l} className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/20">
-            <p className="text-white font-display font-bold text-lg">{n}</p>
-            <p className="text-emerald-50/80 text-xs font-body">{l}</p>
+          <div key={l} className="bg-white/[0.07] backdrop-blur-sm rounded-xl p-3 text-center border border-white/10 hover:bg-white/[0.12] transition-colors duration-200">
+            <p className="text-white font-display font-bold text-lg leading-none">{n}</p>
+            <p className="text-emerald-200/60 text-[11px] font-body mt-0.5">{l}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-5">
+        {[
+          { icon: ShieldCheck, text: '100% Organic' },
+          { icon: Sprout,      text: 'From Farmers' },
+          { icon: Truck,       text: 'Same Day' },
+        ].map(b => (
+          <div key={b.text} className="flex items-center gap-1.5">
+            <b.icon className="w-3.5 h-3.5 text-emerald-300/80" />
+            <span className="text-emerald-200/60 text-xs font-body">{b.text}</span>
           </div>
         ))}
       </div>
     </div>
+  </div>
+)
 
-    {/* Right panel */}
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 relative z-10">
-      <div className="w-full max-w-md lg:max-w-lg">
-        <Link to="/" className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-forest-700 rounded-xl flex items-center justify-center shadow-md">
+// ── Auth Layout ───────────────────────────────────────────────────────────────
+const AuthLayout: React.FC<{ children: React.ReactNode; title: string; subtitle: string }> = ({ children, title, subtitle }) => (
+  <div className="min-h-screen bg-[#E3E3E3] flex items-center justify-center p-3 sm:p-6 lg:p-10">
+    <div className="w-full max-w-[1060px] bg-white rounded-[24px] lg:rounded-[28px] shadow-auth overflow-hidden flex flex-col lg:flex-row lg:min-h-[600px]">
+
+      {/* ── LEFT: Form panel ── */}
+      <div className="lg:w-[460px] flex-shrink-0 flex flex-col bg-white px-8 py-10 sm:px-12 lg:justify-center">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2.5 mb-10">
+          <div className="w-9 h-9 bg-forest-700 rounded-[10px] flex items-center justify-center shadow-sm">
             <Leaf className="w-5 h-5 text-white" />
           </div>
-          <span className="font-display font-bold text-xl text-stone-900">Graamo</span>
+          <span className="font-display font-bold text-xl text-stone-800 tracking-tight">Graamo</span>
         </Link>
-        <div className="relative rounded-3xl border border-white/70 bg-white/85 shadow-modal p-6 sm:p-8 backdrop-blur-xl grain">
-          <div className="mb-8">
-            <p className="section-label mb-2">Secure Access</p>
-            <h1 className="font-display text-4xl font-semibold text-stone-900 mb-2 leading-tight">{title}</h1>
-            <p className="text-base font-medium text-stone-700 leading-relaxed">{subtitle}</p>
-          </div>
-          {children}
+
+        {/* Heading */}
+        <div className="mb-8">
+          <h1 className="font-display text-[2.15rem] font-bold text-stone-900 leading-tight mb-2">{title}</h1>
+          <p className="text-stone-500 font-body text-[15px]">{subtitle}</p>
         </div>
+
+        {children}
       </div>
+
+      {/* ── RIGHT: Animated branding panel ── */}
+      <GraamoBrandingPanel />
     </div>
   </div>
 )
@@ -388,106 +461,19 @@ export const RegisterPage: React.FC = () => {
   return (
     <>
       <SEO title="Create Account" description="Join Graamo to shop fresh certified organic produce directly from Indian farmers." noIndex />
-      <div className="min-h-screen flex relative overflow-hidden bg-[#f8faf6]">
-        {/* Decorative blobs */}
-        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-emerald-100/60 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full bg-sage-100/60 blur-3xl pointer-events-none" />
+      <div className="min-h-screen bg-[#E3E3E3] flex items-center justify-center p-3 sm:p-5 lg:p-8">
+        <div className="w-full max-w-[1060px] bg-white rounded-[24px] lg:rounded-[28px] shadow-auth overflow-hidden flex flex-col lg:flex-row lg:min-h-[680px]">
 
-        {/* ── LEFT BRANDING PANEL ─────────────────────────────── */}
-        <div className="hidden lg:flex w-[460px] flex-shrink-0 flex-col justify-between p-10 relative overflow-hidden"
-        style={{ background: 'linear-gradient(160deg, #0e3615 0%, #14532d 35%, #166534 65%, #1a7a3c 100%)' }}>
-        {/* Decorative circles */}
-        <div className="absolute -top-24 -right-16 w-96 h-96 rounded-full bg-white/[0.03] border border-white/5" />
-        <div className="absolute top-1/2 -left-20 w-72 h-72 rounded-full bg-emerald-300/[0.07]" />
-        <div className="absolute -bottom-20 right-8 w-80 h-80 rounded-full bg-white/[0.03] border border-white/5" />
-        <div className="absolute top-1/4 right-1/4 w-32 h-32 rounded-full bg-emerald-400/[0.08] blur-2xl" />
+          {/* ── LEFT: Form panel ────────────────────────────────── */}
+          <div className="lg:w-[468px] flex-shrink-0 flex flex-col bg-white px-7 py-8 sm:px-10 overflow-y-auto">
 
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 relative z-10">
-          <div className="w-11 h-11 bg-white/15 rounded-2xl flex items-center justify-center border border-white/25 shadow-lg backdrop-blur-sm">
-            <Leaf className="w-6 h-6 text-white" />
-          </div>
-          <span className="font-display font-bold text-2xl text-white tracking-tight">Graamo</span>
-        </Link>
-
-        {/* Main copy */}
-        <div className="relative z-10 space-y-5">
-          <div>
-            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3.5 py-1.5 mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-              <span className="text-emerald-200 text-xs font-semibold font-body tracking-wide">Direct Farm-to-Home</span>
-            </div>
-            <h2 className="text-white font-display text-4xl font-bold leading-tight mb-2">
-              गांव से सीधा<br />आपके घर तक
-            </h2>
-            <p className="text-emerald-200/80 text-sm font-body mb-3">Farm-fresh organic goodness, delivered.</p>
-            <div className="flex items-center gap-2">
-              {['PURE', 'ORGANIC', 'TRUSTED'].map(tag => (
-                <span key={tag} className="text-[10px] font-bold font-body text-emerald-300 border border-emerald-400/50 rounded-full px-2.5 py-0.5 bg-white/5 tracking-widest">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-
-            {/* Testimonial card */}
-            <div className="bg-white/[0.08] backdrop-blur-md border border-white/15 rounded-2xl p-4 shadow-2xl">
-              <div className="flex gap-1 mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} className="w-3.5 h-3.5 text-amber-300 fill-amber-300" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                ))}
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 mb-7 flex-shrink-0">
+              <div className="w-9 h-9 bg-forest-700 rounded-[10px] flex items-center justify-center shadow-sm">
+                <Leaf className="w-5 h-5 text-white" />
               </div>
-              <p className="text-white/90 text-sm font-body leading-relaxed italic">
-                "Finally, organic food that's actually organic — and delivered the same day!"
-              </p>
-              <div className="flex items-center gap-2.5 mt-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-400/30 flex items-center justify-center text-white font-bold text-sm font-body border border-white/20">P</div>
-                <div>
-                  <p className="text-white text-xs font-semibold font-body">Priya Menon</p>
-                  <p className="text-emerald-200/70 text-xs font-body">Bangalore · Customer since 2022</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-2">
-              {[['50+', 'Farmers'], ['2000+', 'Products'], ['500+', 'Families']].map(([n, l]) => (
-                <div key={l} className="bg-white/[0.08] backdrop-blur-sm rounded-xl p-3 text-center border border-white/10 hover:bg-white/15 transition-colors duration-200">
-                  <p className="text-white font-display font-bold text-xl leading-none">{n}</p>
-                  <p className="text-emerald-200/75 text-[11px] font-body mt-1">{l}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Trust badges */}
-            <div className="space-y-2">
-              {[
-                { icon: <ShieldCheck className="w-4 h-4 text-emerald-300" />, text: 'Direct from Farmers' },
-                { icon: <Sprout className="w-4 h-4 text-emerald-300" />, text: '100% Organic Certified' },
-                { icon: <Truck className="w-4 h-4 text-emerald-300" />, text: 'Same Day Delivery' },
-              ].map(b => (
-                <div key={b.text} className="flex items-center gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">{b.icon}</div>
-                  <span className="text-emerald-100/90 text-sm font-body">{b.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── RIGHT FORM PANEL ────────────────────────────────── */}
-        <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-10 relative z-10">
-          <div className="w-full max-w-[480px]">
-            {/* Mobile logo */}
-            <Link to="/" className="lg:hidden flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-forest-700 rounded-xl flex items-center justify-center shadow">
-                <Leaf className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-display font-bold text-xl text-stone-900">Graamo</span>
+              <span className="font-display font-bold text-xl text-stone-800 tracking-tight">Graamo</span>
             </Link>
-
-            {/* Glass card */}
-            <div className="rounded-3xl border border-white/70 bg-white/92 shadow-[0_8px_48px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] p-6 sm:p-8 backdrop-blur-2xl">
 
               {/* Header */}
               <div className="mb-6">
@@ -760,10 +746,13 @@ export const RegisterPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
+            </div>{/* closes LEFT form panel */}
+
+          {/* ── RIGHT: Animated branding panel ── */}
+          <GraamoBrandingPanel />
+
+        </div>{/* closes rounded container */}
+      </div>{/* closes min-h-screen */}
     </>
   )
 }

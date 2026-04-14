@@ -23,6 +23,9 @@ export default {
         'slide-left': 'slideLeft 0.35s cubic-bezier(0.16,1,0.3,1) forwards',
         'shimmer':    'shimmer 2s infinite',
         'float':      'float 6s ease-in-out infinite',
+        'mesh-1':     'mesh1 18s ease-in-out infinite',
+        'mesh-2':     'mesh2 22s ease-in-out infinite',
+        'mesh-3':     'mesh3 14s ease-in-out infinite',
       },
       keyframes: {
         fadeUp:     { from: { opacity:'0', transform:'translateY(24px)' }, to: { opacity:'1', transform:'translateY(0)' } },
@@ -32,8 +35,12 @@ export default {
         slideLeft:  { from: { opacity:'0', transform:'translateX(-100%)' }, to: { opacity:'1', transform:'translateX(0)' } },
         shimmer:    { '0%': { backgroundPosition:'-200% 0' }, '100%': { backgroundPosition:'200% 0' } },
         float:      { '0%,100%': { transform:'translateY(0)' }, '50%': { transform:'translateY(-8px)' } },
+        mesh1:      { '0%,100%': { transform:'translate(0%,0%)' }, '33%': { transform:'translate(12%,15%)' }, '66%': { transform:'translate(20%,5%)' } },
+        mesh2:      { '0%,100%': { transform:'translate(0%,0%)' }, '33%': { transform:'translate(-14%,-10%)' }, '66%': { transform:'translate(-8%,12%)' } },
+        mesh3:      { '0%,100%': { transform:'translate(0%,0%) scale(1)' }, '50%': { transform:'translate(10%,-14%) scale(1.25)' } },
       },
       boxShadow: {
+        'auth':       '0 28px 100px rgba(0,0,0,0.24), 0 6px 20px rgba(0,0,0,0.10)',
         'card':       '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
         'card-hover': '0 4px 8px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.12)',
         'nav':        '0 1px 0 rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.04)',
