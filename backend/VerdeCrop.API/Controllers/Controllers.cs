@@ -695,6 +695,24 @@ namespace VerdeCrop.API.Controllers
             return Ok(ApiResponse.Ok(new { url }));
         }
 
+        [HttpPost("admin/images")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> AdminUploadImage(IFormFile file)
+        {
+            if (file == null)
+                return BadRequest(ApiResponse.Fail("No file provided."));
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(ApiResponse.Fail("File size must not exceed 5 MB."));
+
+            var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+            if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
+                return BadRequest(ApiResponse.Fail("Only JPEG, PNG, and WebP images are allowed."));
+
+            // Upload using product id 0 — the blob key will be a GUID, product association happens on save
+            var url = await _products.UploadImageAsync(0, file.OpenReadStream(), file.FileName);
+            return Ok(ApiResponse.Ok(new { url }));
+        }
+
         [HttpGet("{id:int}/pricing")]
         public async Task<IActionResult> GetPricing(int id)
         {

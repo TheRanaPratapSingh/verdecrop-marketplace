@@ -1,11 +1,369 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { AdminLayout } from '../../components/admin/AdminLayout'
 import { Card, Button, Badge, Modal, Input, Spinner } from '../../components/ui'
-import { Plus, Edit2, Trash2, Clock, CheckCircle2, XCircle, Eye, X, MapPin, Leaf, Star, Package, Truck, Calendar, ShieldCheck } from 'lucide-react'
+import { Plus, Edit2, Trash2, Clock, CheckCircle2, XCircle, Eye, X, MapPin, Leaf, Star, Package, Truck, Calendar, ShieldCheck, Upload, GripVertical, ImagePlus, Trash } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { productApi, categoryApi, farmerApi } from '../../services/api'
 import { useAuthStore } from '../../store'
 import type { Product, Category, Farmer, SellerProduct, SellerProductDetail } from '../../types'
+
+// ── ProductImageUploader ──────────────────────────────────────────────────────
+const MAX_IMAGES = 8
+const MAX_SIZE_MB = 5
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
+interface ImageEntry {
+  id: string
+  url: string
+  name: string
+  sizeKb: number
+  status: 'uploading' | 'done' | 'error'
+  progress: number
+  isPrimary: boolean
+}
+
+interface ProductImageUploaderProps {
+  urls: string[]
+  onChange: (urls: string[]) => void
+}
+
+const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onChange }) => {
+  const [images, setImages] = useState<ImageEntry[]>(() =>
+    urls.map((url, i) => ({
+      id: `init-${i}-${url.slice(-8)}`,
+      url,
+      name: url.split('/').pop() || `image-${i + 1}`,
+      sizeKb: 0,
+      status: 'done' as const,
+      progress: 100,
+      isPrimary: i === 0,
+    }))
+  )
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Sync to parent whenever done images change
+  const syncToParent = useCallback((imgs: ImageEntry[]) => {
+    const doneUrls = imgs.filter(i => i.status === 'done').map(i => i.url)
+    onChange(doneUrls)
+  }, [onChange])
+
+  const uploadFile = async (file: File): Promise<string> => {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await productApi.uploadAdminImage(form)
+    return res.url
+  }
+
+  const processFiles = async (files: FileList | File[]) => {
+    const fileArr = Array.from(files)
+    const doneCount = images.filter(i => i.status === 'done').length
+    const remaining = MAX_IMAGES - doneCount
+
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_IMAGES} images allowed`)
+      return
+    }
+
+    const toProcess = fileArr.slice(0, remaining)
+
+    for (const file of toProcess) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast.error(`"${file.name}" — Unsupported format. Use JPG, PNG or WEBP.`)
+        continue
+      }
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        toast.error(`"${file.name}" — File size exceeds ${MAX_SIZE_MB}MB.`)
+        continue
+      }
+
+      const entryId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const localUrl = URL.createObjectURL(file)
+
+      // Add uploading placeholder
+      setImages(prev => {
+        const isPrimary = prev.every(i => !i.isPrimary)
+        const next = [
+          ...prev,
+          {
+            id: entryId,
+            url: localUrl,
+            name: file.name,
+            sizeKb: Math.round(file.size / 1024),
+            status: 'uploading' as const,
+            progress: 0,
+            isPrimary,
+          },
+        ]
+        return next
+      })
+
+      // Animate progress
+      let prog = 0
+      const interval = setInterval(() => {
+        prog = Math.min(prog + 15, 85)
+        setImages(prev => prev.map(img => img.id === entryId ? { ...img, progress: prog } : img))
+      }, 120)
+
+      try {
+        const remoteUrl = await uploadFile(file)
+        clearInterval(interval)
+        URL.revokeObjectURL(localUrl)
+        setImages(prev => {
+          const next = prev.map(img =>
+            img.id === entryId
+              ? { ...img, url: remoteUrl, status: 'done' as const, progress: 100 }
+              : img
+          )
+          syncToParent(next)
+          return next
+        })
+      } catch {
+        clearInterval(interval)
+        URL.revokeObjectURL(localUrl)
+        setImages(prev => {
+          const next = prev.map(img =>
+            img.id === entryId ? { ...img, status: 'error' as const, progress: 0 } : img
+          )
+          return next
+        })
+        toast.error(`Upload failed for "${file.name}". Try again.`)
+      }
+    }
+
+    if (fileArr.length > remaining) {
+      toast.error(`Maximum ${MAX_IMAGES} images allowed. ${fileArr.length - remaining} file(s) skipped.`)
+    }
+  }
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) { processFiles(e.target.files); e.target.value = '' }
+  }
+
+  const handleDropZoneDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingOver(false)
+    if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files)
+  }
+
+  const removeImage = (id: string) => {
+    setImages(prev => {
+      let next = prev.filter(img => img.id !== id)
+      // Ensure exactly one primary
+      if (next.length > 0 && !next.some(i => i.isPrimary)) {
+        next = next.map((img, idx) => ({ ...img, isPrimary: idx === 0 }))
+      }
+      syncToParent(next)
+      return next
+    })
+  }
+
+  const removeAll = () => {
+    setImages([])
+    onChange([])
+  }
+
+  const setPrimary = (id: string) => {
+    setImages(prev => {
+      const next = prev.map(img => ({ ...img, isPrimary: img.id === id }))
+      syncToParent(next)
+      return next
+    })
+  }
+
+  // Card drag-to-reorder (mouse-based, no external lib needed)
+  const handleCardDragStart = (e: React.DragEvent, idx: number) => {
+    setDragIndex(idx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  const handleCardDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault()
+    setDragOverIndex(idx)
+  }
+  const handleCardDrop = (e: React.DragEvent, dropIdx: number) => {
+    e.preventDefault()
+    if (dragIndex === null || dragIndex === dropIdx) { setDragIndex(null); setDragOverIndex(null); return }
+    setImages(prev => {
+      const next = [...prev]
+      const [moved] = next.splice(dragIndex, 1)
+      next.splice(dropIdx, 0, moved)
+      syncToParent(next)
+      return next
+    })
+    setDragIndex(null)
+    setDragOverIndex(null)
+  }
+  const handleCardDragEnd = () => { setDragIndex(null); setDragOverIndex(null) }
+
+  const doneImages = images.filter(i => i.status !== 'error')
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <label className="block text-sm font-label font-medium text-gray-700">
+          Product Images
+          <span className="ml-1.5 text-xs text-gray-400 font-normal">({doneImages.length}/{MAX_IMAGES})</span>
+        </label>
+        {doneImages.length > 0 && (
+          <button
+            type="button"
+            onClick={removeAll}
+            className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors"
+          >
+            <Trash className="w-3 h-3" /> Remove All
+          </button>
+        )}
+      </div>
+
+      {/* Drop zone */}
+      {doneImages.length < MAX_IMAGES && (
+        <div
+          onDragOver={e => { e.preventDefault(); setIsDraggingOver(true) }}
+          onDragLeave={() => setIsDraggingOver(false)}
+          onDrop={handleDropZoneDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer py-6 px-4 transition-all duration-200
+            ${isDraggingOver
+              ? 'border-forest-400 bg-forest-50 scale-[1.01]'
+              : 'border-gray-200 bg-gray-50 hover:border-forest-300 hover:bg-forest-50/40'}`}
+        >
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isDraggingOver ? 'bg-forest-100' : 'bg-white shadow-sm border border-gray-100'}`}>
+            <Upload className={`w-5 h-5 ${isDraggingOver ? 'text-forest-600' : 'text-gray-400'}`} />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-gray-700">
+              {isDraggingOver ? 'Drop images here' : 'Drag & drop images or click to upload'}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP · Max {MAX_SIZE_MB}MB each · Up to {MAX_IMAGES} images</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={handleFiles}
+          />
+        </div>
+      )}
+
+      {/* Image grid */}
+      {doneImages.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {images.map((img, idx) => (
+            img.status === 'error' ? null : (
+              <div
+                key={img.id}
+                draggable={img.status === 'done'}
+                onDragStart={e => handleCardDragStart(e, idx)}
+                onDragOver={e => handleCardDragOver(e, idx)}
+                onDrop={e => handleCardDrop(e, idx)}
+                onDragEnd={handleCardDragEnd}
+                title={img.status === 'done' ? 'Drag to reorder · Click ★ to set as primary' : undefined}
+                className={`relative group rounded-xl border-2 overflow-hidden bg-gray-50 transition-all duration-150 cursor-grab active:cursor-grabbing
+                  ${img.isPrimary && img.status === 'done' ? 'border-forest-400 shadow-[0_0_0_3px_rgba(34,197,94,0.18)]' : 'border-gray-200 hover:border-forest-300'}
+                  ${dragOverIndex === idx && dragIndex !== idx ? 'border-forest-400 scale-105' : ''}
+                  ${img.status === 'uploading' ? 'cursor-default' : ''}`}
+              >
+                {/* Thumbnail */}
+                <div className="aspect-square relative overflow-hidden">
+                  <img
+                    src={img.url}
+                    alt={img.name}
+                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    draggable={false}
+                  />
+
+                  {/* Uploading overlay */}
+                  {img.status === 'uploading' && (
+                    <div className="absolute inset-0 bg-white/75 flex flex-col items-center justify-center gap-1.5 backdrop-blur-[2px]">
+                      <div className="w-5 h-5 border-2 border-forest-400/30 border-t-forest-500 rounded-full animate-spin" />
+                      <div className="w-3/4 h-1 rounded-full bg-gray-200 overflow-hidden">
+                        <div
+                          className="h-full bg-forest-500 rounded-full transition-all duration-300"
+                          style={{ width: `${img.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Done checkmark */}
+                  {img.status === 'done' && (
+                    <div className="absolute bottom-1.5 left-1.5 w-4 h-4 bg-forest-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <CheckCircle2 className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+
+                  {/* Drag handle */}
+                  {img.status === 'done' && (
+                    <div className="absolute top-1.5 left-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="bg-white/80 rounded-md p-0.5">
+                        <GripVertical className="w-3.5 h-3.5 text-gray-500" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remove button */}
+                  {img.status === 'done' && (
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); removeImage(img.id) }}
+                      aria-label={`Remove ${img.name}`}
+                      className="absolute top-1.5 right-1.5 w-5 h-5 bg-white/90 hover:bg-red-50 border border-gray-200 hover:border-red-300 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                    >
+                      <X className="w-3 h-3 text-gray-500 hover:text-red-500" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Card footer */}
+                <div className="px-1.5 py-1 bg-white flex items-center justify-between gap-1">
+                  {/* Primary badge / star button */}
+                  {img.status === 'done' ? (
+                    <button
+                      type="button"
+                      onClick={() => setPrimary(img.id)}
+                      title="Set as primary image"
+                      className={`flex items-center gap-0.5 text-[10px] font-semibold rounded-md px-1 py-0.5 transition-colors ${img.isPrimary ? 'text-forest-700 bg-forest-50' : 'text-gray-400 hover:text-yellow-500'}`}
+                    >
+                      <Star className={`w-3 h-3 ${img.isPrimary ? 'fill-forest-500 text-forest-500' : ''}`} />
+                      {img.isPrimary ? 'Main' : ''}
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-gray-400">Uploading…</span>
+                  )}
+                  {img.sizeKb > 0 && (
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">
+                      {img.sizeKb >= 1024 ? `${(img.sizeKb / 1024).toFixed(1)}MB` : `${img.sizeKb}KB`}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          ))}
+
+          {/* "Upload More" mini tile */}
+          {doneImages.length < MAX_IMAGES && doneImages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="aspect-square rounded-xl border-2 border-dashed border-gray-200 hover:border-forest-300 hover:bg-forest-50/40 flex flex-col items-center justify-center gap-1 transition-all duration-200 group"
+            >
+              <ImagePlus className="w-5 h-5 text-gray-400 group-hover:text-forest-500 transition-colors" />
+              <span className="text-[10px] text-gray-400 group-hover:text-forest-600 font-medium transition-colors">Add more</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {images.length === 0 && (
+        <p className="text-xs text-gray-400 text-center py-1">No images added yet</p>
+      )}
+    </div>
+  )
+}
 
 const emptyFormState = {
   name: '',
@@ -38,7 +396,6 @@ export const AdminProducts: React.FC = () => {
   const [currentProductId, setCurrentProductId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState({ ...emptyFormState })
-  const [newImageUrl, setNewImageUrl] = useState('')
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -130,7 +487,6 @@ export const AdminProducts: React.FC = () => {
     setFormData({ ...emptyFormState })
     setCurrentProductId(null)
     setIsEditing(false)
-    setNewImageUrl('')
     if (sellers.length > 0) setSellerId(sellers[0].id)
   }
 
@@ -211,7 +567,6 @@ export const AdminProducts: React.FC = () => {
       isFeatured: product.isFeatured ?? false,
     })
     setSellerId(product.farmerId ?? sellerId)
-    setNewImageUrl('')
     setShowModal(true)
   }
 
@@ -589,67 +944,10 @@ export const AdminProducts: React.FC = () => {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-label font-medium text-gray-700 mb-1">Image URLs</label>
-                  <div className="flex gap-2 mb-2">
-                    <Input
-                      value={newImageUrl}
-                      onChange={e => setNewImageUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="ghost"
-                      className="px-3"
-                      onClick={() => {
-                        const trimmed = newImageUrl.trim()
-                        if (!trimmed) {
-                          toast.error('Enter a valid image URL')
-                          return
-                        }
-                        if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-                          toast.error('Image URL must start with http:// or https://')
-                          return
-                        }
-                        if ((formData.imageUrls || []).includes(trimmed)) {
-                          toast.error('Image already added')
-                          return
-                        }
-                        const updatedUrls = [...(formData.imageUrls || []), trimmed]
-                        setFormData({
-                          ...formData,
-                          imageUrls: updatedUrls,
-                          imageUrl: formData.imageUrl || trimmed,
-                        })
-                        console.log('Images added:', updatedUrls)
-                        setNewImageUrl('')
-                      }}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(formData.imageUrls || []).map((url, idx) => (
-                      <div key={`${url}-${idx}`} className="relative border border-gray-200 rounded-lg overflow-hidden">
-                        <img src={url} alt={`Product ${idx + 1}`} className="w-full h-20 object-cover" />
-                        <button
-                          aria-label={`Remove image ${idx + 1}`}
-                          onClick={() => {
-                            const updated = (formData.imageUrls || []).filter((_, i) => i !== idx)
-                            setFormData({
-                              ...formData,
-                              imageUrls: updated,
-                              imageUrl: updated[0] || '',
-                            })
-                          }}
-                          className="absolute top-1 right-1 text-red-500 bg-white/80 rounded-full p-1"
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <ProductImageUploader
+                  urls={formData.imageUrls || []}
+                  onChange={urls => setFormData(f => ({ ...f, imageUrls: urls, imageUrl: urls[0] || '' }))}
+                />
                 <Input
                   label="Price (₹)"
                   type="number"

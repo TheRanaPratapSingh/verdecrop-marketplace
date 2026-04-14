@@ -164,6 +164,8 @@ export const productApi = {
   delete: (id: number) => unwrap<boolean>(api.delete(`/products/${id}`)),
   uploadImage: (id: number, form: FormData) =>
     unwrap<{ url: string }>(api.post(`/products/${id}/images`, form, { headers: { 'Content-Type': 'multipart/form-data' } })),
+  uploadAdminImage: (form: FormData) =>
+    unwrap<{ url: string }>(api.post('/products/admin/images', form, { headers: { 'Content-Type': 'multipart/form-data' } })),
   // Seller endpoints
   getMyProducts: (params?: { page?: number; pageSize?: number }) =>
     unwrap<PagedResult<SellerProduct>>(api.get('/products/seller/my', { params })),
