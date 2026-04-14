@@ -43,6 +43,26 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Track the last urls string we initialized from, to detect external prop changes
+  const initializedUrlsRef = useRef<string>(urls.join('|'))
+
+  // Re-sync internal images when the urls prop changes from outside (e.g. opening edit modal)
+  useEffect(() => {
+    const urlsKey = urls.join('|')
+    if (urlsKey === initializedUrlsRef.current) return
+    initializedUrlsRef.current = urlsKey
+    setImages(
+      urls.map((url, i) => ({
+        id: `init-${i}-${url.slice(-8)}`,
+        url,
+        name: url.split('/').pop() || `image-${i + 1}`,
+        sizeKb: 0,
+        status: 'done' as const,
+        progress: 100,
+        isPrimary: i === 0,
+      }))
+    )
+  }, [urls])
 
   // Sync to parent whenever done images change
   const syncToParent = useCallback((imgs: ImageEntry[]) => {
@@ -110,7 +130,7 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
       try {
         const remoteUrl = await uploadFile(file)
         clearInterval(interval)
-        URL.revokeObjectURL(localUrl)
+        if (!remoteUrl) throw new Error('No URL returned from server')
         setImages(prev => {
           const next = prev.map(img =>
             img.id === entryId
@@ -120,6 +140,8 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
           syncToParent(next)
           return next
         })
+        // Revoke blob URL AFTER React has rendered the remote URL
+        setTimeout(() => URL.revokeObjectURL(localUrl), 200)
       } catch {
         clearInterval(interval)
         URL.revokeObjectURL(localUrl)
@@ -497,7 +519,7 @@ export const AdminProducts: React.FC = () => {
     }
 
     if (!(formData.imageUrl || (formData.imageUrls && formData.imageUrls.length > 0))) {
-      toast.error('Please add at least one product image URL')
+      toast.error('Please add at least one product image')
       return
     }
 
@@ -903,7 +925,7 @@ export const AdminProducts: React.FC = () => {
 
         {showModal && (
           <Modal isOpen={showModal} onClose={() => { setShowModal(false); resetForm() }}>
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-lg">
               <h3 className="text-lg font-display font-bold text-gray-900 mb-4">
                 {isEditing ? 'Edit Product' : 'Add New Product'}
               </h3>

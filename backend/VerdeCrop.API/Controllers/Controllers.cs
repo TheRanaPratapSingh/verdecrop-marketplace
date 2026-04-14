@@ -710,6 +710,8 @@ namespace VerdeCrop.API.Controllers
 
             // Upload using product id 0 — the blob key will be a GUID, product association happens on save
             var url = await _products.UploadImageAsync(0, file.OpenReadStream(), file.FileName);
+            if (string.IsNullOrEmpty(url))
+                return StatusCode(500, ApiResponse.Fail("Image upload failed. Please try again."));
             return Ok(ApiResponse.Ok(new { url }));
         }
 

@@ -554,20 +554,29 @@ namespace VerdeCrop.Application.Services
 
         public async Task<string?> UploadImageAsync(int productId, Stream fileStream, string fileName)
         {
-            var product = await _uow.Products.GetByIdAsync(productId);
-            if (product == null) return null;
-
+            // productId == 0 means a pre-upload (admin creating a new product).
+            // In that case we just upload the file and return the URL without
+            // touching any product record — the URL is stored when the product is saved.
             var url = await _storage.UploadAsync(fileStream, fileName, "products");
+            if (string.IsNullOrEmpty(url)) return null;
 
-            if (string.IsNullOrEmpty(product.ImageUrl))
-                product.ImageUrl = url;
+            if (productId > 0)
+            {
+                var product = await _uow.Products.GetByIdAsync(productId);
+                if (product != null)
+                {
+                    if (string.IsNullOrEmpty(product.ImageUrl))
+                        product.ImageUrl = url;
 
-            if (!product.ImageUrls.Contains(url))
-                product.ImageUrls.Add(url);
+                    if (!product.ImageUrls.Contains(url))
+                        product.ImageUrls.Add(url);
 
-            product.UpdatedAt = DateTime.UtcNow;
-            await _uow.Products.UpdateAsync(product);
-            await _uow.SaveChangesAsync();
+                    product.UpdatedAt = DateTime.UtcNow;
+                    await _uow.Products.UpdateAsync(product);
+                    await _uow.SaveChangesAsync();
+                }
+            }
+
             return url;
         }
 
