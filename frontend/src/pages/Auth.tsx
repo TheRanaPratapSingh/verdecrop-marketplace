@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Leaf, Phone, Mail, ArrowRight, ChevronLeft, CheckCircle2, ShieldCheck, Truck, Sprout, User } from 'lucide-react'
+import { Leaf, Phone, Mail, ArrowRight, ChevronLeft, CheckCircle2, ShieldCheck, Truck, Sprout, User, Heart, Users } from 'lucide-react'
 import { authApi, cartApi } from '../services/api'
 import { useAuthStore, useCartStore, useGuestCartStore } from '../store'
 import { SEO } from '../components/SEO'
@@ -70,100 +70,228 @@ const OtpInput: React.FC<{ length?: number; onChange: (val: string) => void; aut
 // ── Shared Animated Branding Panel ───────────────────────────────────────────
 const GraamoBrandingPanel: React.FC = () => (
   <div
-    className="flex-1 relative overflow-hidden flex-col justify-between py-10 px-10 hidden lg:flex"
-    style={{ background: 'linear-gradient(150deg, #071c0a 0%, #0d3012 18%, #14532d 48%, #165d2a 75%, #186e30 100%)' }}
+    className="flex-1 relative overflow-hidden flex-col justify-between py-9 px-9 hidden lg:flex"
+    style={{ background: 'linear-gradient(155deg, #040f06 0%, #071c0a 15%, #0c2c10 35%, #123d18 55%, #165222 72%, #1a6028 88%, #1f6d2e 100%)' }}
   >
-    {/* ── Animated mesh blobs ── */}
+    {/* ── Layered background: village fields glow ── */}
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {/* Sunrise glow top-left */}
       <div
-        className="absolute top-[-20%] left-[-10%] w-[72%] h-[72%] rounded-full animate-mesh-1"
-        style={{ background: 'radial-gradient(circle, rgba(22,163,74,0.55) 0%, rgba(20,128,61,0.18) 45%, transparent 70%)', filter: 'blur(88px)' }}
+        className="absolute top-[-15%] left-[-8%] w-[68%] h-[68%] rounded-full animate-mesh-1"
+        style={{ background: 'radial-gradient(ellipse, rgba(255,210,100,0.12) 0%, rgba(22,163,74,0.40) 30%, rgba(20,83,45,0.18) 55%, transparent 75%)', filter: 'blur(72px)' }}
       />
+      {/* Deep field glow bottom-right */}
       <div
-        className="absolute bottom-[-22%] right-[-10%] w-[65%] h-[65%] rounded-full animate-mesh-2"
-        style={{ background: 'radial-gradient(circle, rgba(46,160,67,0.48) 0%, rgba(22,101,52,0.18) 45%, transparent 70%)', filter: 'blur(76px)' }}
+        className="absolute bottom-[-18%] right-[-8%] w-[62%] h-[62%] rounded-full animate-mesh-2"
+        style={{ background: 'radial-gradient(ellipse, rgba(34,197,94,0.35) 0%, rgba(20,83,45,0.18) 45%, transparent 70%)', filter: 'blur(80px)' }}
       />
+      {/* Accent glow center */}
       <div
-        className="absolute top-[38%] right-[12%] w-[42%] h-[42%] rounded-full animate-mesh-3"
-        style={{ background: 'radial-gradient(circle, rgba(134,239,172,0.22) 0%, transparent 70%)', filter: 'blur(56px)' }}
+        className="absolute top-[32%] right-[6%] w-[48%] h-[48%] rounded-full animate-mesh-3"
+        style={{ background: 'radial-gradient(ellipse, rgba(134,239,172,0.18) 0%, transparent 65%)', filter: 'blur(52px)' }}
+      />
+      {/* Subtle grain texture overlay */}
+      <div className="absolute inset-0 opacity-[0.035] bg-grain" />
+      {/* Subtle horizontal line grid (field rows feel) */}
+      <div
+        className="absolute inset-0 opacity-[0.04]"
+        style={{ backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0px, transparent 1px, transparent 28px)', backgroundSize: '100% 28px' }}
       />
     </div>
 
-    {/* ── Logo ── */}
-    <Link to="/" className="relative z-10 flex items-center gap-2.5 self-start">
-      <div className="w-10 h-10 bg-white/15 rounded-[12px] flex items-center justify-center border border-white/20 backdrop-blur-sm shadow-lg">
-        <Leaf className="w-5 h-5 text-white" />
+    {/* ── Logo — glassmorphism badge ── */}
+    <Link
+      to="/"
+      className="relative z-10 self-start flex items-center gap-2.5 bg-white/[0.09] hover:bg-white/[0.14] backdrop-blur-md border border-white/[0.18] rounded-2xl px-3 py-2 shadow-lg transition-all duration-300 hover:shadow-[0_0_18px_rgba(134,239,172,0.22)] group"
+    >
+      {/* Leaf + woman silhouette combined icon */}
+      <div className="relative w-8 h-8 flex-shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400/80 to-forest-600/90 flex items-center justify-center shadow-inner border border-white/10">
+          <Leaf className="w-4 h-4 text-white drop-shadow" />
+        </div>
+        {/* Small empowerment dot */}
+        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-400/90 border border-forest-800 shadow-sm" />
       </div>
-      <span className="font-display font-bold text-xl text-white/90 tracking-tight">Graamo</span>
+      <div>
+        <span className="font-display font-bold text-lg text-white/95 tracking-tight leading-none block">Graamo</span>
+        <span className="text-emerald-300/70 text-[9px] font-body font-semibold tracking-[0.18em] uppercase leading-none">Farm · Home</span>
+      </div>
     </Link>
 
-    {/* ── Center content ── */}
-    <div className="relative z-10 space-y-7">
-      <div>
-        <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3.5 py-1.5 mb-5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-          <span className="text-emerald-200/90 text-[11px] font-bold font-body tracking-widest uppercase">Direct Farm-to-Home</span>
+    {/* ── Hero section: woman farmer + headline ── */}
+    <div className="relative z-10 flex items-end gap-0">
+      {/* Text block (left) */}
+      <div className="flex-1 space-y-4 pb-2">
+        {/* Direct farm badge */}
+        <div className="inline-flex items-center gap-2 bg-white/10 border border-white/[0.16] rounded-full px-3.5 py-1.5">
+          <span className="text-base leading-none">🌿</span>
+          <span className="text-emerald-200/90 text-[10px] font-bold font-body tracking-[0.18em] uppercase">Direct Farm to Home</span>
         </div>
-        <h2 className="text-white font-display text-[3rem] font-bold leading-[1.1] mb-3 drop-shadow-sm">
+
+        {/* Hindi headline */}
+        <h2
+          className="text-white font-display font-bold leading-[1.05] drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]"
+          style={{ fontSize: 'clamp(2rem, 3.5vw, 2.9rem)' }}
+        >
           गांव से सीधे<br />आपके घर तक
         </h2>
-        <p className="text-emerald-200/65 font-body text-sm leading-relaxed max-w-[260px]">
+
+        {/* Subtext */}
+        <p className="text-emerald-200/55 font-body text-[13px] leading-relaxed max-w-[220px]">
           Pure, organic groceries sourced directly from trusted farmers across India.
         </p>
       </div>
 
-      {/* Floating Graamo order preview card */}
-      <div className="bg-white/[0.08] backdrop-blur-xl border border-white/12 rounded-[20px] p-5 shadow-2xl max-w-[268px] ml-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-forest-500/70 rounded-xl flex items-center justify-center border border-white/10">
-            <Leaf className="w-4 h-4 text-white" />
+      {/* Rural woman farmer illustration (right) */}
+      <div className="relative flex-shrink-0 w-[140px] self-end">
+        {/* Warm glow behind figure */}
+        <div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[130%] h-[85%] rounded-full"
+          style={{ background: 'radial-gradient(ellipse, rgba(255,200,80,0.18) 0%, rgba(34,197,94,0.12) 40%, transparent 70%)', filter: 'blur(20px)' }}
+        />
+        {/* SVG — rural woman in saree, natural pose */}
+        <svg viewBox="0 0 140 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative w-full h-auto drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+          {/* ── Saree / body ── */}
+          {/* Saree drape — warm terracotta-saffron */}
+          <ellipse cx="70" cy="185" rx="36" ry="14" fill="rgba(30,80,40,0.35)" />{/* ground shadow */}
+          {/* Skirt/saree bottom — deep saffron */}
+          <path d="M44 148 Q50 195 70 198 Q90 195 96 148 Q82 158 70 160 Q58 158 44 148Z" fill="#c2410c" opacity="0.92" />
+          {/* Saree pallu draping over left shoulder */}
+          <path d="M54 90 Q40 108 36 128 Q34 142 44 148 Q52 140 58 130 Q58 110 62 98Z" fill="#ea580c" opacity="0.85" />
+          {/* Blouse */}
+          <path d="M58 88 Q58 110 62 120 Q70 124 78 120 Q82 110 82 88 Q76 84 70 83 Q64 84 58 88Z" fill="#9a3412" opacity="0.9" />
+          {/* Saree over right shoulder */}
+          <path d="M78 92 Q88 100 96 112 Q100 126 96 140 Q100 148 104 148 Q108 138 106 122 Q102 104 94 92Z" fill="#b45309" opacity="0.55" />
+          {/* ── Skin tones ── */}
+          {/* Neck */}
+          <rect x="66" y="72" width="8" height="14" rx="4" fill="#c2714a" />
+          {/* Face */}
+          <ellipse cx="70" cy="60" rx="16" ry="18" fill="#c2714a" />
+          {/* Warm highlight on face */}
+          <ellipse cx="65" cy="55" rx="7" ry="8" fill="rgba(255,180,100,0.22)" />
+          {/* Eyes */}
+          <ellipse cx="64" cy="58" rx="2.8" ry="2" fill="#2d1a0e" />
+          <ellipse cx="76" cy="58" rx="2.8" ry="2" fill="#2d1a0e" />
+          {/* Eye shine */}
+          <circle cx="65" cy="57" r="0.8" fill="white" opacity="0.8" />
+          <circle cx="77" cy="57" r="0.8" fill="white" opacity="0.8" />
+          {/* Gentle smile */}
+          <path d="M65 66 Q70 70 75 66" stroke="#9a4020" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+          {/* Nose */}
+          <ellipse cx="70" cy="62" rx="1.5" ry="1" fill="rgba(100,40,10,0.3)" />
+          {/* Bindi */}
+          <circle cx="70" cy="50" r="2" fill="#dc2626" opacity="0.9" />
+          {/* ── Hair / dupatta ── */}
+          {/* Hair */}
+          <ellipse cx="70" cy="46" rx="17" ry="12" fill="#1a0f0a" />
+          {/* Dupatta / head drape — saffron-gold */}
+          <path d="M53 44 Q55 28 70 26 Q85 28 87 44 Q80 38 70 37 Q60 38 53 44Z" fill="#d97706" opacity="0.88" />
+          <path d="M53 44 Q46 52 44 64 Q42 74 46 82 Q50 86 54 84 Q50 74 52 62 Q54 50 58 44Z" fill="#d97706" opacity="0.6" />
+          {/* ── Arms ── */}
+          {/* Left arm — slightly raised, natural */}
+          <path d="M58 92 Q44 104 40 118 Q42 124 46 122 Q50 110 60 98Z" fill="#c2714a" />
+          {/* Right arm — resting down */}
+          <path d="M82 92 Q94 100 96 114 Q94 120 90 118 Q88 106 80 96Z" fill="#c2714a" />
+          {/* Bangles left wrist */}
+          <ellipse cx="43" cy="120" rx="4" ry="2" fill="none" stroke="#fcd34d" strokeWidth="1.5" opacity="0.8" />
+          <ellipse cx="43" cy="123" rx="4" ry="2" fill="none" stroke="#f97316" strokeWidth="1" opacity="0.7" />
+          {/* ── Decorative leaf/plant she tends ── */}
+          <path d="M100 140 Q108 120 116 110 Q120 106 118 116 Q114 126 108 136 Q106 140 100 140Z" fill="rgba(74,222,128,0.75)" />
+          <path d="M100 140 Q112 130 122 126 Q126 124 122 130 Q116 136 108 140 Q104 142 100 140Z" fill="rgba(34,197,94,0.6)" />
+          <line x1="100" y1="140" x2="118" y2="112" stroke="rgba(74,222,128,0.5)" strokeWidth="1" />
+        </svg>
+      </div>
+    </div>
+
+    {/* ── Storytelling floating card (replaces basket) ── */}
+    <div className="relative z-10 animate-float-card">
+      <div
+        className="bg-white/[0.09] backdrop-blur-2xl border border-white/[0.14] rounded-[18px] p-4 shadow-2xl"
+        style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)' }}
+      >
+        {/* Card header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-amber-400/80 to-orange-500/80 flex items-center justify-center flex-shrink-0">
+              <span className="text-sm leading-none">🌾</span>
+            </div>
+            <div>
+              <p className="text-white/90 text-xs font-semibold font-body leading-tight">From Sunita Devi's Farm</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[9px] font-body text-emerald-300/80 flex items-center gap-0.5">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 inline-block" /> Bihar Village
+                </span>
+                <span className="text-white/20 text-[9px]">·</span>
+                <span className="text-[9px] font-body text-amber-300/80 font-semibold">Harvested Today</span>
+              </div>
+            </div>
           </div>
-          <span className="text-white/90 text-sm font-semibold font-body">Graamo</span>
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-emerald-300 font-body font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" /> Live
-          </span>
+          {/* Women-empowered badge */}
+          <div className="flex items-center gap-1 bg-pink-500/15 border border-pink-400/20 rounded-full px-2 py-0.5">
+            <Heart className="w-2.5 h-2.5 text-pink-300 fill-pink-300" />
+            <span className="text-[9px] font-body font-semibold text-pink-200/90">Women Farmer</span>
+          </div>
         </div>
-        <p className="text-white/50 text-[11px] font-body mb-0.5">Today's basket</p>
-        <p className="text-white font-display font-bold text-[1.6rem] leading-tight mb-4">₹847.50</p>
+
+        {/* Divider */}
+        <div className="h-px bg-white/[0.08] mb-3" />
+
+        {/* Items */}
         {[
           { emoji: '🥦', name: 'Organic Vegetables', price: '₹340' },
-          { emoji: '🥛', name: 'A2 Cow Milk · 1L',  price: '₹180' },
-          { emoji: '🍅', name: 'Farm Tomatoes',       price: '₹89' },
+          { emoji: '🥛', name: 'A2 Cow Milk · 1L',   price: '₹180' },
+          { emoji: '🍅', name: 'Farm Tomatoes',        price: '₹89'  },
         ].map(item => (
-          <div key={item.name} className="flex items-center justify-between bg-white/[0.07] rounded-xl px-3 py-2 mb-1.5 last:mb-0">
+          <div key={item.name} className="flex items-center justify-between py-1.5 border-b border-white/[0.05] last:border-0">
             <div className="flex items-center gap-2">
-              <span className="text-base leading-none">{item.emoji}</span>
-              <span className="text-white/80 text-xs font-body">{item.name}</span>
+              <span className="text-sm leading-none">{item.emoji}</span>
+              <span className="text-white/75 text-[11px] font-body">{item.name}</span>
             </div>
-            <span className="text-emerald-300 text-xs font-semibold font-body">{item.price}</span>
+            <span className="text-emerald-300 text-[11px] font-semibold font-body">{item.price}</span>
           </div>
         ))}
-        <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
-          <span className="text-emerald-300/75 text-xs font-body">Delivered in 2 hours</span>
+
+        {/* Footer */}
+        <div className="mt-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+            <span className="text-emerald-300/70 text-[10px] font-body">Delivered in 2 hours</span>
+          </div>
+          <span className="text-white/40 text-[10px] font-body">No middlemen</span>
         </div>
       </div>
     </div>
 
-    {/* ── Stats + badges ── */}
+    {/* ── Stats grid ── */}
     <div className="relative z-10">
       <div className="grid grid-cols-3 gap-2 mb-4">
-        {[['50+', 'Farmers'], ['2000+', 'Products'], ['500+', 'Families']].map(([n, l]) => (
-          <div key={l} className="bg-white/[0.07] backdrop-blur-sm rounded-xl p-3 text-center border border-white/10 hover:bg-white/[0.12] transition-colors duration-200">
-            <p className="text-white font-display font-bold text-lg leading-none">{n}</p>
-            <p className="text-emerald-200/60 text-[11px] font-body mt-0.5">{l}</p>
+        {[
+          { num: '50+',   label: 'Farmers',  emoji: '👩‍🌾' },
+          { num: '2000+', label: 'Products', emoji: '🌿' },
+          { num: '500+',  label: 'Families', emoji: '❤️' },
+        ].map(({ num, label, emoji }) => (
+          <div
+            key={label}
+            className="bg-white/[0.06] hover:bg-white/[0.11] backdrop-blur-sm rounded-xl p-3 text-center border border-white/[0.09] transition-all duration-200 hover:border-white/[0.18] hover:shadow-[0_0_12px_rgba(134,239,172,0.12)]"
+          >
+            <span className="text-base leading-none block mb-0.5">{emoji}</span>
+            <p className="text-white font-display font-bold text-base leading-none">{num}</p>
+            <p className="text-emerald-200/55 text-[10px] font-body mt-0.5">{label}</p>
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-5">
+
+      {/* Trust badges row */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         {[
           { icon: ShieldCheck, text: '100% Organic' },
-          { icon: Sprout,      text: 'From Farmers' },
-          { icon: Truck,       text: 'Same Day' },
+          { icon: Users,       text: 'Women Empowered' },
+          { icon: Sprout,      text: 'Direct Villages' },
+          { icon: Truck,       text: 'No Middlemen' },
         ].map(b => (
           <div key={b.text} className="flex items-center gap-1.5">
-            <b.icon className="w-3.5 h-3.5 text-emerald-300/80" />
-            <span className="text-emerald-200/60 text-xs font-body">{b.text}</span>
+            <b.icon className="w-3 h-3 text-emerald-300/75 flex-shrink-0" />
+            <span className="text-emerald-200/55 text-[10px] font-body whitespace-nowrap">{b.text}</span>
           </div>
         ))}
       </div>

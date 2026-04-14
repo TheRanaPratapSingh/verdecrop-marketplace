@@ -26,6 +26,8 @@ export default {
         'mesh-1':     'mesh1 18s ease-in-out infinite',
         'mesh-2':     'mesh2 22s ease-in-out infinite',
         'mesh-3':     'mesh3 14s ease-in-out infinite',
+        'float-card': 'floatCard 7s ease-in-out infinite',
+        'grad-shift': 'gradShift 20s ease-in-out infinite',
       },
       keyframes: {
         fadeUp:     { from: { opacity:'0', transform:'translateY(24px)' }, to: { opacity:'1', transform:'translateY(0)' } },
@@ -38,6 +40,8 @@ export default {
         mesh1:      { '0%,100%': { transform:'translate(0%,0%)' }, '33%': { transform:'translate(12%,15%)' }, '66%': { transform:'translate(20%,5%)' } },
         mesh2:      { '0%,100%': { transform:'translate(0%,0%)' }, '33%': { transform:'translate(-14%,-10%)' }, '66%': { transform:'translate(-8%,12%)' } },
         mesh3:      { '0%,100%': { transform:'translate(0%,0%) scale(1)' }, '50%': { transform:'translate(10%,-14%) scale(1.25)' } },
+        floatCard:  { '0%,100%': { transform:'translateY(0px)' }, '45%': { transform:'translateY(-7px)' } },
+        gradShift:  { '0%,100%': { backgroundPosition:'0% 50%' }, '50%': { backgroundPosition:'100% 50%' } },
       },
       boxShadow: {
         'auth':       '0 28px 100px rgba(0,0,0,0.24), 0 6px 20px rgba(0,0,0,0.10)',
