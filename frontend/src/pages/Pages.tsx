@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Package, MapPin, CreditCard, CheckCircle, Clock, Truck, Home, Bell,
   Heart, Trash2, ShoppingCart, Plus, Edit2, Save, X, ChevronRight,
-  User, Phone, Mail, Camera, Star, BellOff
+  User, Phone, Mail, Camera, Star, BellOff, ShieldCheck, Leaf, Tag,
+  Banknote, BadgeCheck
 } from 'lucide-react'
 import { orderApi, paymentApi, userApi, cartApi, notificationApi } from '../services/api'
 import { useAuthStore, useCartStore, useNotifStore } from '../store'
@@ -25,6 +26,7 @@ export const CheckoutPage: React.FC = () => {
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay')
   const [couponCode, setCouponCode] = useState('')
+  const [couponApplied, setCouponApplied] = useState(false)
   const [discount, setDiscount] = useState(0)
   const [couponLoading, setCouponLoading] = useState(false)
   const [placingOrder, setPlacingOrder] = useState(false)
@@ -39,11 +41,18 @@ export const CheckoutPage: React.FC = () => {
   }, [])
 
   if (!cart?.items?.length) {
-    return <PageLayout><div className="max-w-2xl mx-auto px-6 py-20 text-center">
-      <ShoppingCart className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-      <h2 className="text-xl font-display font-bold text-gray-700 mb-2">Your cart is empty</h2>
-      <Link to="/products"><Button>Browse Products</Button></Link>
-    </div></PageLayout>
+    return (
+      <PageLayout>
+        <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+          <div className="w-20 h-20 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-5">
+            <ShoppingCart className="w-9 h-9 text-stone-300" />
+          </div>
+          <h2 className="text-xl font-display font-bold text-stone-800 mb-2">Your cart is empty</h2>
+          <p className="text-stone-500 font-body text-sm mb-6">Add some fresh organic products to get started</p>
+          <Link to="/products"><Button>Browse Products</Button></Link>
+        </div>
+      </PageLayout>
+    )
   }
 
   const subtotal = cart.subtotal
@@ -57,14 +66,17 @@ export const CheckoutPage: React.FC = () => {
     try {
       const res = await orderApi.applyCoupon(couponCode, subtotal)
       setDiscount(res.discountAmount)
-      trackEvent('coupon_applied', {
-        coupon_code: couponCode.trim(),
-        discount_amount: res.discountAmount,
-        subtotal,
-      })
+      setCouponApplied(true)
+      trackEvent('coupon_applied', { coupon_code: couponCode.trim(), discount_amount: res.discountAmount, subtotal })
       toast.success(`Coupon applied! You save ₹${res.discountAmount.toFixed(0)}`)
     } catch { toast.error('Invalid or expired coupon') }
     finally { setCouponLoading(false) }
+  }
+
+  const removeCoupon = () => {
+    setCouponCode('')
+    setDiscount(0)
+    setCouponApplied(false)
   }
 
   const handlePlaceOrder = async () => {
@@ -77,47 +89,28 @@ export const CheckoutPage: React.FC = () => {
         couponCode: couponCode || undefined,
         notes: notes || undefined
       })
-
       trackEvent('place_order', {
-        order_id: order.id,
-        order_number: order.orderNumber,
-        payment_method: paymentMethod,
-        total_amount: order.totalAmount,
-        item_count: order.items.length,
+        order_id: order.id, order_number: order.orderNumber,
+        payment_method: paymentMethod, total_amount: order.totalAmount, item_count: order.items.length,
       })
-
       if (paymentMethod === 'razorpay') {
         const rpOrder = await paymentApi.createRazorpayOrder(order!.id)
         const razorpay = new (window as any).Razorpay({
-          key: rpOrder.keyId,
-          amount: rpOrder.amount * 100,
-          currency: rpOrder.currency,
-          order_id: rpOrder.razorpayOrderId,
-          name: 'Graamo',
-          description: `Order #${order!.orderNumber}`,
+          key: rpOrder.keyId, amount: rpOrder.amount * 100, currency: rpOrder.currency,
+          order_id: rpOrder.razorpayOrderId, name: 'Graamo', description: `Order #${order!.orderNumber}`,
           handler: async (response: any) => {
             await paymentApi.verifyRazorpay({
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-              orderId: order!.id
+              razorpayOrderId: response.razorpay_order_id, razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature, orderId: order!.id
             })
-            trackEvent('payment_success', {
-              order_id: order.id,
-              payment_method: 'razorpay',
-              total_amount: order.totalAmount,
-            })
+            trackEvent('payment_success', { order_id: order.id, payment_method: 'razorpay', total_amount: order.totalAmount })
             navigate(`/orders/${order!.id}?success=1`)
           },
-          theme: { color: '#267d39' }
+          theme: { color: '#2d8a32' }
         })
         razorpay.open()
       } else {
-        trackEvent('payment_success', {
-          order_id: order.id,
-          payment_method: paymentMethod,
-          total_amount: order.totalAmount,
-        })
+        trackEvent('payment_success', { order_id: order.id, payment_method: paymentMethod, total_amount: order.totalAmount })
         navigate(`/orders/${order!.id}?success=1`)
       }
     } catch (err: unknown) {
@@ -127,158 +120,456 @@ export const CheckoutPage: React.FC = () => {
   }
 
   const steps = [
-    { id: 'address', icon: MapPin, label: 'Address' },
-    { id: 'payment', icon: CreditCard, label: 'Payment' },
-    { id: 'confirm', icon: CheckCircle, label: 'Review' },
-  ]
+    { id: 'address', icon: MapPin,      label: 'Address', emoji: '📍' },
+    { id: 'payment', icon: CreditCard,  label: 'Payment', emoji: '💳' },
+    { id: 'confirm', icon: BadgeCheck,  label: 'Review',  emoji: '✅' },
+  ] as const
   const stepIdx = steps.findIndex(s => s.id === step)
+  const selectedAddr = addresses.find(a => a.id === selectedAddress)
+
+  // Items to show in mini preview (up to 3)
+  const previewItems = cart.items.slice(0, 3)
 
   return (
     <PageLayout>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-2xl font-display font-bold text-gray-900 mb-6">Checkout</h1>
+      {/* Page background */}
+      <div className="min-h-screen bg-stone-50/80">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-28 lg:pb-12">
 
-        {/* Progress */}
-        <div className="flex items-center gap-0 mb-8">
-          {steps.map((s, i) => (
-            <React.Fragment key={s.id}>
-              <div
-                onClick={() => i <= stepIdx && setStep(s.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium font-body transition cursor-pointer ${
-                  step === s.id ? 'bg-leaf-600 text-white shadow-sm' :
-                  i < stepIdx ? 'text-leaf-600 hover:bg-leaf-50' : 'text-gray-400 cursor-default'
-                }`}
-              >
-                <s.icon className="w-4 h-4" />{s.label}
-              </div>
-              {i < steps.length - 1 && <ChevronRight className="w-4 h-4 text-gray-300 mx-1" />}
-            </React.Fragment>
-          ))}
-        </div>
+          {/* ── Page header ── */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-display font-bold text-stone-900 tracking-tight">Checkout</h1>
+            <p className="text-stone-500 font-body text-sm mt-1">{cart.items.length} item{cart.items.length !== 1 ? 's' : ''} · ₹{total.toFixed(0)}</p>
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left panel */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Address Step */}
-            {step === 'address' && (
-              <Card className="p-6">
-                <h2 className="font-display font-semibold text-gray-900 mb-4 flex items-center gap-2"><MapPin className="w-5 h-5 text-leaf-600" /> Delivery Address</h2>
-                {addresses.length === 0 ? (
-                  <div className="text-center py-8">
-                    <MapPin className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                    <p className="text-gray-500 font-body text-sm mb-3">No saved addresses</p>
-                    <Link to="/profile"><Button size="sm" variant="outline">Add Address</Button></Link>
+          {/* ── Step progress bar ── */}
+          <div className="relative flex items-center justify-between mb-10 max-w-md">
+            {/* connector line */}
+            <div className="absolute left-0 right-0 top-5 h-0.5 bg-stone-200 z-0" />
+            <div
+              className="absolute left-0 top-5 h-0.5 bg-forest-500 z-0 transition-all duration-500"
+              style={{ width: stepIdx === 0 ? '0%' : stepIdx === 1 ? '50%' : '100%' }}
+            />
+            {steps.map((s, i) => {
+              const done = i < stepIdx
+              const active = i === stepIdx
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => i <= stepIdx && setStep(s.id)}
+                  disabled={i > stepIdx}
+                  className="relative z-10 flex flex-col items-center gap-1.5 group disabled:cursor-default"
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 shadow-sm
+                    ${done  ? 'bg-forest-500 text-white shadow-[0_0_0_3px_rgba(45,138,50,0.18)]'  : ''}
+                    ${active ? 'bg-forest-500 text-white shadow-[0_0_0_4px_rgba(45,138,50,0.22)] scale-110' : ''}
+                    ${!done && !active ? 'bg-white text-stone-400 border-2 border-stone-200' : ''}`}
+                  >
+                    {done ? <CheckCircle className="w-5 h-5" /> : <s.icon className="w-4.5 h-4.5" />}
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {addresses.map(addr => (
-                      <label key={addr.id} className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${selectedAddress === addr.id ? 'border-leaf-500 bg-leaf-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                        <input type="radio" className="mt-1 accent-leaf-600" checked={selectedAddress === addr.id} onChange={() => setSelectedAddress(addr.id)} />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-gray-800 font-body">{addr.label}</span>
-                            {addr.isDefault && <Badge variant="green" size="sm">Default</Badge>}
-                          </div>
-                          <p className="text-sm text-gray-600 font-body mt-0.5">{addr.fullName} · {addr.phone}</p>
-                          <p className="text-sm text-gray-500 font-body">{addr.street}, {addr.city}, {addr.state} – {addr.pinCode}</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                <Button className="mt-4" onClick={() => setStep('payment')} disabled={!selectedAddress}>
-                  Continue to Payment <ChevronRight className="w-4 h-4" />
-                </Button>
-              </Card>
-            )}
+                  <span className={`text-xs font-body font-semibold whitespace-nowrap transition-colors
+                    ${active ? 'text-forest-700' : done ? 'text-forest-600' : 'text-stone-400'}`}>
+                    {s.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
 
-            {/* Payment Step */}
-            {step === 'payment' && (
-              <Card className="p-6">
-                <h2 className="font-display font-semibold text-gray-900 mb-4 flex items-center gap-2"><CreditCard className="w-5 h-5 text-leaf-600" /> Payment Method</h2>
-                <div className="space-y-3 mb-5">
-                  {[
-                    { id: 'razorpay', label: 'Razorpay', desc: 'Cards, UPI, Net Banking, Wallets', icon: '💳' },
-                    { id: 'cod', label: 'Cash on Delivery', desc: 'Pay when your order arrives', icon: '💵' },
-                  ].map(opt => (
-                    <label key={opt.id} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${paymentMethod === opt.id ? 'border-leaf-500 bg-leaf-50' : 'border-gray-200'}`}>
-                      <input type="radio" className="accent-leaf-600" checked={paymentMethod === opt.id} onChange={() => setPaymentMethod(opt.id as any)} />
-                      <span className="text-xl">{opt.icon}</span>
+          {/* ── 2-column grid ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
+
+            {/* ════════════════════ LEFT PANEL ════════════════════ */}
+            <div className="space-y-4 animate-fade-up">
+
+              {/* ── ADDRESS STEP ── */}
+              {step === 'address' && (
+                <div className="bg-white rounded-2xl shadow-card border border-stone-100 overflow-hidden">
+                  {/* Card header */}
+                  <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-forest-50 flex items-center justify-center">
+                        <MapPin className="w-4.5 h-4.5 text-forest-600" />
+                      </div>
                       <div>
-                        <p className="text-sm font-semibold text-gray-800 font-body">{opt.label}</p>
-                        <p className="text-xs text-gray-500 font-body">{opt.desc}</p>
+                        <h2 className="font-display font-bold text-stone-900 text-base">Delivery Address</h2>
+                        <p className="text-xs text-stone-500 font-body">Choose where to deliver</p>
                       </div>
-                    </label>
-                  ))}
-                </div>
-                <div className="mb-4">
-                  <label className="text-sm font-medium text-gray-700 font-body">Order Notes (optional)</label>
-                  <textarea
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    placeholder="Any special instructions for delivery…"
-                    className="w-full mt-1.5 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-body focus:outline-none focus:border-leaf-400 resize-none"
-                    rows={2}
-                  />
-                </div>
-                <Button onClick={() => setStep('confirm')}>
-                  Review Order <ChevronRight className="w-4 h-4" />
-                </Button>
-              </Card>
-            )}
+                    </div>
+                    <Link to="/profile" className="text-xs font-semibold text-forest-600 font-body hover:text-forest-700 flex items-center gap-1 transition-colors">
+                      <Plus className="w-3.5 h-3.5" /> Add New
+                    </Link>
+                  </div>
 
-            {/* Confirm Step */}
-            {step === 'confirm' && (
-              <Card className="p-6">
-                <h2 className="font-display font-semibold text-gray-900 mb-4 flex items-center gap-2"><CheckCircle className="w-5 h-5 text-leaf-600" /> Review Order</h2>
-                <div className="space-y-3 mb-4">
-                  {cart.items.map(item => (
+                  <div className="px-6 py-5">
+                    {addresses.length === 0 ? (
+                      <div className="text-center py-10">
+                        <div className="w-14 h-14 rounded-2xl bg-stone-100 flex items-center justify-center mx-auto mb-3">
+                          <MapPin className="w-6 h-6 text-stone-300" />
+                        </div>
+                        <p className="text-stone-600 font-body font-medium text-sm mb-1">No saved addresses</p>
+                        <p className="text-stone-400 font-body text-xs mb-4">Add a delivery address to continue</p>
+                        <Link to="/profile">
+                          <button className="px-5 py-2 rounded-xl border-2 border-forest-400 text-forest-600 text-sm font-semibold font-body hover:bg-forest-50 transition-colors">
+                            + Add Address
+                          </button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {addresses.map(addr => (
+                          <div
+                            key={addr.id}
+                            onClick={() => setSelectedAddress(addr.id)}
+                            className={`relative flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
+                              ${selectedAddress === addr.id
+                                ? 'border-forest-400 bg-forest-50/70 shadow-[0_0_0_1px_rgba(45,138,50,0.12),0_2px_12px_rgba(45,138,50,0.10)]'
+                                : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm'}`}
+                          >
+                            {/* Radio indicator */}
+                            <div className={`mt-0.5 w-4.5 h-4.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all
+                              ${selectedAddress === addr.id ? 'border-forest-500 bg-forest-500' : 'border-stone-300'}`}>
+                              {selectedAddress === addr.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="font-semibold text-stone-900 font-body text-sm">{addr.fullName}</span>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-body
+                                  ${addr.label?.toLowerCase() === 'home' ? 'bg-blue-100 text-blue-700' :
+                                    addr.label?.toLowerCase() === 'office' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-stone-100 text-stone-600'}`}>
+                                  {addr.label || 'Address'}
+                                </span>
+                                {addr.isDefault && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-forest-100 text-forest-700 font-body">Default</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-stone-600 font-body leading-snug">
+                                {addr.street}, {addr.city}, {addr.state} – {addr.pinCode}
+                              </p>
+                              {addr.phone && (
+                                <p className="text-xs text-stone-400 font-body mt-1 flex items-center gap-1">
+                                  <Phone className="w-3 h-3" /> {addr.phone}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Selected checkmark */}
+                            {selectedAddress === addr.id && (
+                              <div className="flex-shrink-0">
+                                <BadgeCheck className="w-5 h-5 text-forest-500" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* CTA */}
+                    <button
+                      onClick={() => selectedAddress && setStep('payment')}
+                      disabled={!selectedAddress}
+                      className={`mt-5 w-full py-3.5 rounded-xl font-body font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200
+                        ${selectedAddress
+                          ? 'text-white hover:opacity-90 active:scale-[0.98] shadow-btn hover:shadow-btn-hover'
+                          : 'bg-stone-100 text-stone-400 cursor-not-allowed'}`}
+                      style={selectedAddress ? { background: 'linear-gradient(135deg, #2d8a32 0%, #1e6e24 100%)' } : {}}
+                    >
+                      Continue to Payment <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PAYMENT STEP ── */}
+              {step === 'payment' && (
+                <div className="bg-white rounded-2xl shadow-card border border-stone-100 overflow-hidden">
+                  <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-stone-100">
+                    <div className="w-9 h-9 rounded-xl bg-forest-50 flex items-center justify-center">
+                      <CreditCard className="w-4.5 h-4.5 text-forest-600" />
+                    </div>
+                    <div>
+                      <h2 className="font-display font-bold text-stone-900 text-base">Payment Method</h2>
+                      <p className="text-xs text-stone-500 font-body">Choose how to pay</p>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-5 space-y-5">
+                    {/* Delivering to summary chip */}
+                    {selectedAddr && (
+                      <div className="flex items-center gap-2 bg-forest-50 border border-forest-200/60 rounded-xl px-4 py-2.5">
+                        <MapPin className="w-4 h-4 text-forest-600 flex-shrink-0" />
+                        <p className="text-sm font-body text-forest-800 truncate">
+                          Delivering to <strong>{selectedAddr.fullName}</strong> · {selectedAddr.city}
+                        </p>
+                        <button onClick={() => setStep('address')} className="ml-auto text-xs text-forest-600 font-semibold font-body hover:underline flex-shrink-0">Change</button>
+                      </div>
+                    )}
+
+                    {/* Payment options */}
+                    <div className="space-y-3">
+                      {[
+                        { id: 'razorpay', label: 'Razorpay', desc: 'Cards, UPI, Net Banking, Wallets', icon: '💳', badge: 'Recommended' },
+                        { id: 'cod',      label: 'Cash on Delivery', desc: 'Pay when your order arrives', icon: '💵', badge: null },
+                      ].map(opt => (
+                        <div
+                          key={opt.id}
+                          onClick={() => setPaymentMethod(opt.id as any)}
+                          className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
+                            ${paymentMethod === opt.id
+                              ? 'border-forest-400 bg-forest-50/70 shadow-[0_0_0_1px_rgba(45,138,50,0.12)]'
+                              : 'border-stone-200 hover:border-stone-300 hover:shadow-sm'}`}
+                        >
+                          <div className={`w-4.5 h-4.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all
+                            ${paymentMethod === opt.id ? 'border-forest-500 bg-forest-500' : 'border-stone-300'}`}>
+                            {paymentMethod === opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                          </div>
+                          <span className="text-2xl leading-none">{opt.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-stone-800 font-body">{opt.label}</p>
+                              {opt.badge && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-forest-100 text-forest-700 font-body">{opt.badge}</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-stone-500 font-body mt-0.5">{opt.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Order notes */}
+                    <div>
+                      <label className="text-sm font-semibold text-stone-700 font-body block mb-1.5">Order Notes <span className="font-normal text-stone-400">(optional)</span></label>
+                      <textarea
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        placeholder="Any special instructions for delivery…"
+                        className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-sm font-body bg-stone-50 focus:outline-none focus:border-forest-400 focus:bg-white focus:ring-2 focus:ring-forest-400/20 resize-none transition"
+                        rows={2}
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => setStep('confirm')}
+                      className="w-full py-3.5 rounded-xl font-body font-semibold text-sm text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] shadow-btn hover:shadow-btn-hover"
+                      style={{ background: 'linear-gradient(135deg, #2d8a32 0%, #1e6e24 100%)' }}
+                    >
+                      Review Order <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── REVIEW STEP ── */}
+              {step === 'confirm' && (
+                <div className="bg-white rounded-2xl shadow-card border border-stone-100 overflow-hidden">
+                  <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-stone-100">
+                    <div className="w-9 h-9 rounded-xl bg-forest-50 flex items-center justify-center">
+                      <BadgeCheck className="w-4.5 h-4.5 text-forest-600" />
+                    </div>
+                    <div>
+                      <h2 className="font-display font-bold text-stone-900 text-base">Review Order</h2>
+                      <p className="text-xs text-stone-500 font-body">Confirm everything looks right</p>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-5 space-y-5">
+                    {/* Delivery + payment summary chips */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {selectedAddr && (
+                        <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
+                          <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider font-body mb-1">Delivering to</p>
+                          <p className="text-sm font-semibold text-stone-800 font-body">{selectedAddr.fullName}</p>
+                          <p className="text-xs text-stone-500 font-body leading-snug">{selectedAddr.city}, {selectedAddr.state}</p>
+                        </div>
+                      )}
+                      <div className="bg-stone-50 border border-stone-100 rounded-xl p-3">
+                        <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider font-body mb-1">Payment</p>
+                        <p className="text-sm font-semibold text-stone-800 font-body">{paymentMethod === 'razorpay' ? 'Razorpay' : 'Cash on Delivery'}</p>
+                        <p className="text-xs text-stone-500 font-body">{paymentMethod === 'razorpay' ? 'Card / UPI / Wallet' : 'Pay on delivery'}</p>
+                      </div>
+                    </div>
+
+                    {/* Items list */}
+                    <div className="divide-y divide-stone-100">
+                      {cart.items.map(item => (
+                        <div key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                          <div className="w-12 h-12 rounded-xl bg-stone-100 overflow-hidden flex-shrink-0 border border-stone-100">
+                            {item.imageUrl
+                              ? <img src={resolveAssetUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-lg">🌿</div>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-stone-800 font-body truncate">{item.productName}</p>
+                            <p className="text-xs text-stone-400 font-body">Qty: {item.quantity} {item.unit}</p>
+                          </div>
+                          <p className="text-sm font-bold text-stone-900 font-body flex-shrink-0">₹{item.total.toFixed(0)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Place order CTA */}
+                    <button
+                      onClick={handlePlaceOrder}
+                      disabled={placingOrder}
+                      className="w-full py-4 rounded-xl font-body font-bold text-base text-white flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60 shadow-btn hover:shadow-btn-hover"
+                      style={{ background: 'linear-gradient(135deg, #2d8a32 0%, #1e6e24 100%)' }}
+                    >
+                      {placingOrder
+                        ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Placing Order…</>
+                        : <>Place Order · ₹{total.toFixed(0)}</>}
+                    </button>
+
+                    {/* Back link */}
+                    <button onClick={() => setStep('payment')} className="w-full text-center text-sm text-stone-400 font-body hover:text-stone-600 transition-colors flex items-center justify-center gap-1">
+                      ← Back to Payment
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ════════════════════ RIGHT PANEL — ORDER SUMMARY ════════════════════ */}
+            <div className="lg:sticky lg:top-6 space-y-4 animate-fade-up" style={{ animationDelay: '0.08s' }}>
+
+              {/* Summary card */}
+              <div className="bg-white rounded-2xl shadow-card border border-stone-100 overflow-hidden">
+                <div className="px-5 pt-5 pb-4 border-b border-stone-100">
+                  <h3 className="font-display font-bold text-stone-900 text-base">Order Summary</h3>
+                  <p className="text-xs text-stone-500 font-body mt-0.5">{cart.items.length} item{cart.items.length !== 1 ? 's' : ''}</p>
+                </div>
+
+                {/* Mini product preview */}
+                <div className="px-5 py-4 space-y-3 border-b border-stone-100">
+                  {previewItems.map(item => (
                     <div key={item.id} className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
-                        {item.imageUrl ? <img src={resolveAssetUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-lg">🌿</div>}
+                      <div className="w-10 h-10 rounded-xl bg-stone-100 overflow-hidden flex-shrink-0 border border-stone-100">
+                        {item.imageUrl
+                          ? <img src={resolveAssetUrl(item.imageUrl)} alt="" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center text-sm">🌿</div>}
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-800 font-body">{item.productName}</p>
-                        <p className="text-xs text-gray-500 font-body">{item.quantity} {item.unit}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-stone-800 font-body truncate">{item.productName}</p>
+                        <p className="text-[10px] text-stone-400 font-body">×{item.quantity}</p>
                       </div>
-                      <p className="text-sm font-semibold font-body">₹{item.total.toFixed(0)}</p>
+                      <p className="text-xs font-bold text-stone-900 font-body flex-shrink-0">₹{item.total.toFixed(0)}</p>
+                    </div>
+                  ))}
+                  {cart.items.length > 3 && (
+                    <p className="text-xs text-stone-400 font-body text-center">+{cart.items.length - 3} more item{cart.items.length - 3 > 1 ? 's' : ''}</p>
+                  )}
+                </div>
+
+                {/* Coupon section */}
+                <div className="px-5 py-4 border-b border-stone-100">
+                  {couponApplied ? (
+                    <div className="flex items-center justify-between bg-forest-50 border border-forest-200 rounded-xl px-3.5 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-forest-600" />
+                        <span className="text-sm font-semibold text-forest-700 font-body">{couponCode}</span>
+                        <span className="text-xs text-forest-600 font-body">- ₹{discount.toFixed(0)} saved</span>
+                      </div>
+                      <button onClick={removeCoupon} className="w-5 h-5 rounded-full bg-forest-200/60 flex items-center justify-center hover:bg-red-100 group transition-colors">
+                        <X className="w-3 h-3 text-forest-700 group-hover:text-red-500 transition-colors" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
+                        <input
+                          placeholder="Coupon code"
+                          value={couponCode}
+                          onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                          onKeyDown={e => e.key === 'Enter' && applyCoupon()}
+                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-200 text-sm font-body bg-stone-50 focus:outline-none focus:border-forest-400 focus:bg-white focus:ring-2 focus:ring-forest-400/20 transition"
+                        />
+                      </div>
+                      <button
+                        onClick={applyCoupon}
+                        disabled={couponLoading || !couponCode.trim()}
+                        className="px-4 py-2.5 rounded-xl border-2 border-forest-400 text-forest-600 text-sm font-semibold font-body hover:bg-forest-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                      >
+                        {couponLoading ? <span className="w-3.5 h-3.5 border-2 border-forest-400/30 border-t-forest-500 rounded-full animate-spin inline-block" /> : 'Apply'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Price breakdown */}
+                <div className="px-5 py-4 space-y-2.5">
+                  {[
+                    { label: 'Subtotal', value: `₹${subtotal.toFixed(0)}`, style: 'text-stone-600' },
+                    { label: 'Delivery', value: delivery === 0 ? 'Free' : `₹${delivery}`, style: delivery === 0 ? 'text-forest-600 font-semibold' : 'text-stone-600' },
+                    ...(discount > 0 ? [{ label: 'Discount', value: `-₹${discount.toFixed(0)}`, style: 'text-forest-600 font-semibold' }] : []),
+                    { label: 'Tax (5%)', value: `₹${tax.toFixed(0)}`, style: 'text-stone-600' },
+                  ].map(row => (
+                    <div key={row.label} className="flex items-center justify-between text-sm font-body">
+                      <span className="text-stone-500">{row.label}</span>
+                      <span className={row.style}>{row.value}</span>
+                    </div>
+                  ))}
+
+                  <div className="h-px bg-stone-100 my-1" />
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-stone-900 font-body">Total</span>
+                    <span className="text-xl font-bold text-stone-900 font-display">₹{total.toFixed(0)}</span>
+                  </div>
+
+                  {delivery > 0 && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/60 rounded-xl px-3 py-2 mt-1">
+                      <Truck className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                      <p className="text-xs text-amber-700 font-body">Add ₹{(500 - subtotal).toFixed(0)} more for free delivery!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Trust badges */}
+              <div className="bg-white rounded-2xl border border-stone-100 shadow-card px-5 py-4">
+                <div className="space-y-2.5">
+                  {[
+                    { icon: ShieldCheck, text: 'Secure Checkout',      sub: '256-bit SSL encrypted',    color: 'text-forest-600', bg: 'bg-forest-50' },
+                    { icon: Truck,       text: 'Same Day Delivery',     sub: 'Order before 2PM',         color: 'text-blue-600',   bg: 'bg-blue-50'   },
+                    { icon: Leaf,        text: '100% Organic',          sub: 'Certified fresh produce',  color: 'text-amber-600',  bg: 'bg-amber-50'  },
+                  ].map(t => (
+                    <div key={t.text} className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-xl ${t.bg} flex items-center justify-center flex-shrink-0`}>
+                        <t.icon className={`w-4 h-4 ${t.color}`} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-stone-800 font-body leading-tight">{t.text}</p>
+                        <p className="text-[10px] text-stone-400 font-body">{t.sub}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <Button className="w-full" size="lg" loading={placingOrder} onClick={handlePlaceOrder}>
-                  Place Order · ₹{total.toFixed(0)}
-                </Button>
-              </Card>
-            )}
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* Order Summary */}
-          <div>
-            <Card className="p-5 sticky top-20">
-              <h3 className="font-display font-semibold text-gray-900 mb-4">Order Summary</h3>
-              {/* Coupon */}
-              <div className="flex gap-2 mb-4">
-                <Input placeholder="VERDE10" value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} className="text-sm" />
-                <Button size="sm" variant="outline" loading={couponLoading} onClick={applyCoupon}>Apply</Button>
-              </div>
-              <div className="space-y-2 text-sm font-body">
-                {[
-                  ['Subtotal', `₹${subtotal.toFixed(0)}`],
-                  ['Delivery', delivery === 0 ? 'Free' : `₹${delivery}`],
-                  ...(discount > 0 ? [['Discount', `-₹${discount.toFixed(0)}`]] : []),
-                  ['Tax (5%)', `₹${tax.toFixed(0)}`],
-                ].map(([label, value]) => (
-                  <div key={label} className={`flex justify-between ${label === 'Discount' ? 'text-leaf-600 font-medium' : 'text-gray-600'}`}>
-                    <span>{label}</span><span>{value}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-100 text-base">
-                  <span>Total</span><span>₹{total.toFixed(0)}</span>
-                </div>
-              </div>
-              {delivery > 0 && <p className="mt-2 text-xs text-leaf-600 bg-leaf-50 px-3 py-1.5 rounded-lg font-body">Add ₹{(500 - subtotal).toFixed(0)} more for free delivery!</p>}
-            </Card>
-          </div>
+        {/* ── Mobile sticky bottom CTA ── */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-3 shadow-[0_-4px_24px_rgba(0,0,0,0.10)]">
+          <button
+            onClick={() => {
+              if (step === 'address' && selectedAddress) setStep('payment')
+              else if (step === 'payment') setStep('confirm')
+              else if (step === 'confirm') handlePlaceOrder()
+            }}
+            disabled={step === 'address' && !selectedAddress || placingOrder}
+            className="w-full py-3.5 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-btn"
+            style={{ background: 'linear-gradient(135deg, #2d8a32 0%, #1e6e24 100%)' }}
+          >
+            {placingOrder
+              ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Placing…</>
+              : step === 'confirm'
+              ? <>Place Order · ₹{total.toFixed(0)}</>
+              : <>Continue · ₹{total.toFixed(0)} <ChevronRight className="w-4 h-4" /></>}
+          </button>
         </div>
       </div>
     </PageLayout>
