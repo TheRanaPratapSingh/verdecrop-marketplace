@@ -20,6 +20,15 @@ namespace VerdeCrop.Application.DTOs
     public record RefreshTokenRequest([Required][StringLength(500)] string Token);
     public record LogoutRequest([Required][StringLength(500)] string RefreshToken);
 
+    public record VerifyOtpOnlyRequest(
+        [Required][StringLength(200, MinimumLength = 5)] string Identifier,
+        [Required][StringLength(6, MinimumLength = 6)] string Code);
+
+    public record DualOtpRegisterRequest(
+        [Required][StringLength(100, MinimumLength = 2)] string Name,
+        [Required][StringLength(20, MinimumLength = 10)] string Phone,
+        [Required][EmailAddress][StringLength(200)] string Email);
+
     // ── User ──────────────────────────────────────────────────────────────────
     public record UserDto(int Id, string Name, string? Email, string? Phone, string Role, string? AvatarUrl, bool IsActive);
     public record UpdateProfileRequest(

@@ -18,14 +18,15 @@ namespace VerdeCrop.Application.Services
         private readonly IOtpService _otpSvc;
         private readonly IEmailService _email;
         private readonly ISmsService _sms;
+        private readonly ICacheService _cache;
         private readonly Microsoft.Extensions.Configuration.IConfiguration _config;
 
         public AuthService(IUnitOfWork uow, IJwtService jwt, IOtpService otpSvc,
-            IEmailService email, ISmsService sms,
+            IEmailService email, ISmsService sms, ICacheService cache,
             Microsoft.Extensions.Configuration.IConfiguration config)
         {
             _uow = uow; _jwt = jwt; _otpSvc = otpSvc;
-            _email = email; _sms = sms; _config = config;
+            _email = email; _sms = sms; _cache = cache; _config = config;
         }
 
         public async Task<bool> SendOtpAsync(SendOtpRequest req)
@@ -161,6 +162,69 @@ namespace VerdeCrop.Application.Services
             await _uow.RefreshTokens.UpdateAsync(token);
             await _uow.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<bool> VerifyOtpOnlyAsync(VerifyOtpOnlyRequest req)
+        {
+            var valid = await ValidateLoginOrRegisterOtpAsync(req.Identifier, req.Code);
+            if (!valid) return false;
+            await _cache.SetAsync($"preverified:{req.Identifier}", true, TimeSpan.FromMinutes(15));
+            return true;
+        }
+
+        public async Task<AuthResponse?> RegisterWithDualVerificationAsync(DualOtpRegisterRequest req)
+        {
+            var phoneVerified = await _cache.GetAsync<bool?>($"preverified:{req.Phone}");
+            var emailVerified = await _cache.GetAsync<bool?>($"preverified:{req.Email}");
+            if (phoneVerified != true || emailVerified != true) return null;
+
+            await _cache.DeleteAsync($"preverified:{req.Phone}");
+            await _cache.DeleteAsync($"preverified:{req.Email}");
+
+            User? user = await _uow.Users.FirstOrDefaultAsync(u => u.Phone == req.Phone);
+            if (user == null)
+                user = await _uow.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
+
+            if (user == null)
+            {
+                user = new User
+                {
+                    Name = req.Name,
+                    Phone = req.Phone,
+                    Email = req.Email,
+                    IsPhoneVerified = true,
+                    IsEmailVerified = true,
+                    Role = "user"
+                };
+                await _uow.Users.AddAsync(user);
+                var cart = new Cart { User = user };
+                await _uow.Carts.AddAsync(cart);
+                await _uow.SaveChangesAsync();
+                await SendRegistrationSuccessEmailAsync(user, true);
+            }
+            else
+            {
+                var updated = false;
+                if (!string.Equals(user.Phone, req.Phone))
+                {
+                    user.Phone = req.Phone;
+                    user.IsPhoneVerified = true;
+                    updated = true;
+                }
+                if (!string.Equals(user.Email, req.Email, StringComparison.OrdinalIgnoreCase))
+                {
+                    user.Email = req.Email;
+                    user.IsEmailVerified = true;
+                    updated = true;
+                }
+                if (updated)
+                {
+                    await _uow.Users.UpdateAsync(user);
+                    await _uow.SaveChangesAsync();
+                }
+            }
+
+            return await BuildAuthResponseAsync(user);
         }
 
         private async Task<AuthResponse> BuildAuthResponseAsync(User user)

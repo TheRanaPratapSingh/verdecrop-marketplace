@@ -81,6 +81,30 @@ namespace VerdeCrop.API.Controllers
             await _auth.LogoutAsync(req.RefreshToken);
             return Ok(ApiResponse.Ok(true));
         }
+
+        [HttpPost("verify-otp-only")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerifyOtpOnly([FromBody] VerifyOtpOnlyRequest req)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail("Invalid request parameters."));
+            var result = await _auth.VerifyOtpOnlyAsync(req);
+            return result
+                ? Ok(ApiResponse.Ok(true, "OTP verified successfully"))
+                : Unauthorized(ApiResponse.Fail("Invalid or expired OTP"));
+        }
+
+        [HttpPost("register")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Register([FromBody] DualOtpRegisterRequest req)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse.Fail("Invalid request parameters."));
+            var result = await _auth.RegisterWithDualVerificationAsync(req);
+            if (result == null)
+                return BadRequest(ApiResponse.Fail("Both mobile and email must be verified before registration."));
+            return Ok(ApiResponse.Ok(result));
+        }
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────

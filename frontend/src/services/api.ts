@@ -85,6 +85,10 @@ export const authApi = {
     unwrap<boolean>(api.post('/auth/send-otp', { identifier, purpose })),
   verifyOtp: (identifier: string, code: string, name?: string, email?: string, phone?: string) =>
     unwrap<AuthResponse>(api.post('/auth/verify-otp', { identifier, code, name, email, phone })),
+  verifyOtpOnly: (identifier: string, code: string) =>
+    unwrap<boolean>(api.post('/auth/verify-otp-only', { identifier, code })),
+  registerDual: (name: string, phone: string, email: string) =>
+    unwrap<AuthResponse>(api.post('/auth/register', { name, phone, email })),
   refresh: (token: string) =>
     unwrap<AuthResponse>(api.post('/auth/refresh', { token })),
   logout: (refreshToken: string) =>
