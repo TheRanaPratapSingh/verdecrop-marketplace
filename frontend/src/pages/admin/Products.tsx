@@ -7,10 +7,11 @@ import { productApi, categoryApi, farmerApi } from '../../services/api'
 import { useAuthStore } from '../../store'
 import type { Product, Category, Farmer, SellerProduct, SellerProductDetail } from '../../types'
 import { resolveAssetUrl } from '../../lib/image'
+import { compressImage } from '../../lib/imageCompressor'
 
 // ── ProductImageUploader ──────────────────────────────────────────────────────
 const MAX_IMAGES = 8
-const MAX_SIZE_MB = 5
+const MAX_SIZE_MB = 2
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 interface ImageEntry {
@@ -90,13 +91,30 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
 
     const toProcess = fileArr.slice(0, remaining)
 
-    for (const file of toProcess) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast.error(`"${file.name}" — Unsupported format. Use JPG, PNG or WEBP.`)
+    for (const rawFile of toProcess) {
+      if (!ALLOWED_TYPES.includes(rawFile.type)) {
+        toast.error(`"${rawFile.name}" — Unsupported format. Use JPG, PNG or WEBP.`)
         continue
       }
+
+      // ── Compress before upload ────────────────────────────────────────────
+      let file = rawFile
+      try {
+        file = await compressImage(rawFile)
+        if (rawFile.size !== file.size) {
+          const before = (rawFile.size / 1024 / 1024).toFixed(1)
+          const after  = (file.size  / 1024 / 1024).toFixed(1)
+          if (parseFloat(before) > parseFloat(after))
+            toast.success(`"${rawFile.name}" compressed ${before}MB → ${after}MB`, { duration: 2500 })
+        }
+      } catch {
+        toast.error(`"${rawFile.name}" — Compression failed. Try a different file.`)
+        continue
+      }
+
+      // Hard cap after compression (should never trigger, but safety net)
       if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-        toast.error(`"${file.name}" — File size exceeds ${MAX_SIZE_MB}MB.`)
+        toast.error(`"${rawFile.name}" — Could not compress below ${MAX_SIZE_MB}MB.`)
         continue
       }
 

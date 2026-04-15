@@ -6,6 +6,7 @@ import { categoryApi, farmerApi, productApi } from '../services/api'
 import { useAuthStore } from '../store'
 import type { Category, Farmer, SellerProductDetail } from '../types'
 import toast from 'react-hot-toast'
+import { compressImage } from '../lib/imageCompressor'
 import {
   Package, Leaf, ImageIcon, Truck, Star, ChevronRight,
   X, Plus, Upload, Check, AlertCircle, Save, ArrowLeft,
@@ -171,14 +172,32 @@ export const SellerAddProductPage: React.FC = () => {
   }
 
   // ── Image Handling ─────────────────────────────────────────────────────────
-  const addImageFiles = (files: FileList | File[]) => {
+  const addImageFiles = async (files: FileList | File[]) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
-    Array.from(files).slice(0, 8 - images.length).forEach(file => {
-      if (!allowed.includes(file.type)) { toast.error(`${file.name}: only JPEG/PNG/WebP allowed`); return }
-      if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name}: max 5MB`); return }
+    const MAX_MB = 2
+    for (const rawFile of Array.from(files).slice(0, 8 - images.length)) {
+      if (!allowed.includes(rawFile.type)) {
+        toast.error(`${rawFile.name}: only JPEG/PNG/WebP allowed`)
+        continue
+      }
+      let file = rawFile
+      try {
+        file = await compressImage(rawFile)
+        const before = (rawFile.size / 1024 / 1024).toFixed(1)
+        const after  = (file.size  / 1024 / 1024).toFixed(1)
+        if (parseFloat(before) > parseFloat(after))
+          toast.success(`"${rawFile.name}" compressed ${before}MB → ${after}MB`, { duration: 2500 })
+      } catch {
+        toast.error(`${rawFile.name}: compression failed`)
+        continue
+      }
+      if (file.size > MAX_MB * 1024 * 1024) {
+        toast.error(`${rawFile.name}: could not compress below ${MAX_MB}MB`)
+        continue
+      }
       const preview = URL.createObjectURL(file)
       setImages(prev => [...prev, { file, preview }])
-    })
+    }
   }
 
   const removeImage = (i: number) => setImages(prev => {
@@ -516,7 +535,7 @@ export const SellerAddProductPage: React.FC = () => {
                     <Upload className="w-6 h-6 text-green-600" />
                   </div>
                   <p className="text-gray-700 font-medium text-sm">Drag & drop images here</p>
-                  <p className="text-gray-400 text-xs mt-1">or click to browse • JPEG, PNG, WebP • max 5MB each</p>
+                  <p className="text-gray-400 text-xs mt-1">or click to browse • JPEG, PNG, WebP • auto-compressed to 2MB</p>
                   <p className="text-gray-400 text-xs mt-0.5">{images.length}/8 images</p>
                   <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
                     onChange={e => e.target.files && addImageFiles(e.target.files)} />
