@@ -324,7 +324,7 @@ namespace VerdeCrop.Application.Services
             try
             {
                 var result = await _uow.Products.Query()
-                    .Where(x => x.Id == id && x.IsActive)
+                    .Where(x => x.Id == id)
                     .Select(p => new ProductDetailDto(
                         p.Id, p.Name, p.Slug, p.Description,
                         p.CategoryId, p.Category != null ? p.Category.Name : "",
