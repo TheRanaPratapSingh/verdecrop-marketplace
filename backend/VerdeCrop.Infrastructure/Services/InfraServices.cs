@@ -345,41 +345,89 @@ namespace VerdeCrop.Infrastructure.Services
     }
 
     // ── Azure Blob Storage ────────────────────────────────────────────────────
+    /// <summary>
+    /// Production-ready Azure Blob Storage implementation of IStorageService.
+    /// - Uploads to "graamo-images" container (configurable via Azure:BlobStorage:ContainerName).
+    /// - Generates GUID-based blob names to avoid collisions and PII leakage.
+    /// - Sets correct Content-Type so browsers render images directly.
+    /// - Returns the full public blob URL stored in the database.
+    /// </summary>
     public class AzureBlobStorageService : IStorageService
     {
-        private readonly BlobServiceClient? _client;
-        private readonly string? _containerName;
+        private static readonly HashSet<string> _allowedExtensions =
+            new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
+
+        private readonly BlobServiceClient _client;
+        private readonly string _containerName;
 
         public AzureBlobStorageService(IConfiguration config)
         {
             var connStr = config["Azure:BlobStorage:ConnectionString"];
-            if (!string.IsNullOrWhiteSpace(connStr))
-            {
-                _client = new BlobServiceClient(connStr);
-                _containerName = config["Azure:BlobStorage:ContainerName"] ?? "verdecrop";
-            }
+            if (string.IsNullOrWhiteSpace(connStr))
+                throw new InvalidOperationException(
+                    "Azure:BlobStorage:ConnectionString is not configured. " +
+                    "Set it in Azure App Service → Configuration → Application settings.");
+
+            _client = new BlobServiceClient(connStr);
+            _containerName = config["Azure:BlobStorage:ContainerName"]
+                             ?? "graamo-images";
         }
 
-        public async Task<string> UploadAsync(Stream fileStream, string fileName, string folder)
+        public async Task<string> UploadAsync(
+            Stream fileStream,
+            string fileName,
+            string folder,
+            string? contentType = null)
         {
-            if (_client == null || _containerName == null)
-                throw new InvalidOperationException("Azure Blob Storage is not configured.");
+            if (fileStream is null || fileStream.Length == 0)
+                throw new ArgumentException("File stream is empty.", nameof(fileStream));
+
+            var ext = Path.GetExtension(fileName);
+            if (!_allowedExtensions.Contains(ext))
+                throw new ArgumentException(
+                    $"File extension '{ext}' is not allowed. Accepted: {string.Join(", ", _allowedExtensions)}");
+
+            // e.g. products/3f1a2b4c5d6e7f8a9b0c1d2e3f4a5b6c.jpg
+            var blobName = $"{folder.Trim('/')}/{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
+            var mimeType = contentType ?? "application/octet-stream";
+
             var container = _client.GetBlobContainerClient(_containerName);
-            await container.CreateIfNotExistsAsync();
-            var blobName = $"{folder}/{Guid.NewGuid()}-{fileName}";
+
+            // Ensure container exists with public blob access (anonymous read for images)
+            await container.CreateIfNotExistsAsync(Azure.Storage.Blobs.Models.PublicAccessType.Blob);
+
             var blob = container.GetBlobClient(blobName);
-            await blob.UploadAsync(fileStream, overwrite: true);
+
+            var uploadOptions = new Azure.Storage.Blobs.Models.BlobUploadOptions
+            {
+                HttpHeaders = new Azure.Storage.Blobs.Models.BlobHttpHeaders
+                {
+                    ContentType = mimeType,
+                    CacheControl = "public, max-age=31536000"   // 1-year browser cache
+                }
+            };
+
+            await blob.UploadAsync(fileStream, uploadOptions);
             return blob.Uri.ToString();
         }
 
         public async Task DeleteAsync(string url)
         {
-            if (_client == null || _containerName == null)
-                throw new InvalidOperationException("Azure Blob Storage is not configured.");
-            var uri = new Uri(url);
-            var blobName = uri.AbsolutePath.TrimStart('/').Replace($"{_containerName}/", "");
-            var container = _client.GetBlobContainerClient(_containerName);
-            await container.GetBlobClient(blobName).DeleteIfExistsAsync();
+            if (string.IsNullOrWhiteSpace(url)) return;
+            try
+            {
+                var uri = new Uri(url);
+                // AbsolutePath: /{containerName}/{folder}/{blobName}
+                // Strip the leading "/{containerName}/" prefix to get the blob name
+                var blobPath = uri.AbsolutePath
+                    .TrimStart('/')
+                    .Substring(_containerName.Length)
+                    .TrimStart('/');
+
+                var container = _client.GetBlobContainerClient(_containerName);
+                await container.GetBlobClient(blobPath).DeleteIfExistsAsync();
+            }
+            catch { /* best-effort — log externally if needed */ }
         }
     }
 

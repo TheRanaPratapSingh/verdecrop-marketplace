@@ -63,7 +63,7 @@ namespace VerdeCrop.Application.Interfaces
     {
         Task<UserDto?> GetByIdAsync(int id);
         Task<UserDto?> UpdateProfileAsync(int userId, UpdateProfileRequest req);
-        Task<string?> UploadAvatarAsync(int userId, Stream fileStream, string fileName);
+        Task<string?> UploadAvatarAsync(int userId, Stream fileStream, string fileName, string? contentType = null);
         Task<bool> UpdateFcmTokenAsync(int userId, string token);
         Task<PagedResult<UserDto>> GetAllAsync(int page, int pageSize, string? search);
         Task<bool> SetActiveAsync(int userId, bool isActive);
@@ -267,7 +267,17 @@ namespace VerdeCrop.Application.Interfaces
 
     public interface IStorageService
     {
-        Task<string> UploadAsync(Stream fileStream, string fileName, string folder);
+        /// <summary>
+        /// Uploads a file stream to the configured storage backend.
+        /// Returns the public URL of the stored file.
+        /// </summary>
+        /// <param name="fileStream">Readable stream of the file content.</param>
+        /// <param name="fileName">Original file name — used only to derive the extension.</param>
+        /// <param name="folder">Logical sub-folder / prefix (e.g. "products", "avatars").</param>
+        /// <param name="contentType">MIME type (e.g. "image/jpeg"). Null uses "application/octet-stream".</param>
+        Task<string> UploadAsync(Stream fileStream, string fileName, string folder, string? contentType = null);
+
+        /// <summary>Deletes the file at the given URL from storage. Best-effort — never throws.</summary>
         Task DeleteAsync(string url);
     }
 

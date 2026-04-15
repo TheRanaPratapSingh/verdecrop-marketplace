@@ -191,11 +191,11 @@ namespace VerdeCrop.Infrastructure.Services
             return ToDto(u);
         }
 
-        public async Task<string?> UploadAvatarAsync(int userId, Stream fileStream, string fileName)
+        public async Task<string?> UploadAvatarAsync(int userId, Stream fileStream, string fileName, string? contentType = null)
         {
             var u = await _uow.Users.GetByIdAsync(userId);
             if (u == null) return null;
-            var url = await _storage.UploadAsync(fileStream, fileName, "avatars");
+            var url = await _storage.UploadAsync(fileStream, fileName, "avatars", contentType);
             u.AvatarUrl = url;
             await _uow.Users.UpdateAsync(u);
             await _uow.SaveChangesAsync();

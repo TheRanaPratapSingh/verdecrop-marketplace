@@ -150,7 +150,7 @@ namespace VerdeCrop.API.Controllers
             if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
                 return BadRequest(ApiResponse.Fail("Only JPEG, PNG, and WebP images are allowed."));
 
-            var url = await _users.UploadAvatarAsync(CurrentUserId, file.OpenReadStream(), file.FileName);
+            var url = await _users.UploadAvatarAsync(CurrentUserId, file.OpenReadStream(), file.FileName, file.ContentType);
             return Ok(ApiResponse.Ok(new { url }));
         }
 
@@ -518,7 +518,7 @@ namespace VerdeCrop.API.Controllers
             if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
                 return BadRequest(ApiResponse.Fail("Only JPEG, PNG, and WebP images are allowed."));
 
-            var url = await _users.UploadAvatarAsync(farmer.UserId, file.OpenReadStream(), file.FileName);
+            var url = await _users.UploadAvatarAsync(farmer.UserId, file.OpenReadStream(), file.FileName, file.ContentType);
             return Ok(ApiResponse.Ok(new { url }));
         }
     }

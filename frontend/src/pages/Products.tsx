@@ -879,8 +879,6 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="md:hidden fixed bottom-4 left-3 right-3 z-40 rounded-2xl bg-white/95 backdrop-blur border border-stone-200 shadow-modal p-3 flex items-center gap-3">
-
       {/* ── Write Review Modal ──────────────────────────────────────────── */}
       {showReviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

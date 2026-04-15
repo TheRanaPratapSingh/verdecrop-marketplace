@@ -172,14 +172,32 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISmsService, SmsService>();
-// Use LocalFileStorageService when Azure Blob is not configured; swap to
-// AzureBlobStorageService by setting Azure:BlobStorage:ConnectionString in config.
+builder.Services.AddScoped<IFirebaseService, FirebaseService>();
+
+// ── Storage Service (Azure Blob Storage) ─────────────────────────────────────
+// In production Azure Blob Storage is REQUIRED — set Azure:BlobStorage:ConnectionString
+// in Azure App Service → Settings → Configuration → Application settings.
+// In local Development only, falls back to wwwroot/uploads/ so you can run without Azure.
 var azureConnStr = builder.Configuration["Azure:BlobStorage:ConnectionString"];
 if (!string.IsNullOrWhiteSpace(azureConnStr))
+{
     builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
-else
+    Log.Information("Storage: Azure Blob Storage (container: {Container})",
+        builder.Configuration["Azure:BlobStorage:ContainerName"] ?? "graamo-images");
+}
+else if (builder.Environment.IsDevelopment())
+{
     builder.Services.AddScoped<IStorageService, LocalFileStorageService>();
-builder.Services.AddScoped<IFirebaseService, FirebaseService>();
+    Log.Warning("Storage: LocalFileStorageService (dev fallback). " +
+                "Set Azure:BlobStorage:ConnectionString for production.");
+}
+else
+{
+    throw new InvalidOperationException(
+        "FATAL: Azure:BlobStorage:ConnectionString is not configured. " +
+        "This is required in non-Development environments. " +
+        "Set it in Azure App Service → Configuration → Application settings.");
+}
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -310,12 +328,15 @@ app.UseSwaggerUI(c =>
 });
 app.UseHttpsRedirection();
 
-// ── Static files (serves wwwroot/uploads/ for locally-stored images) ──────────
-var wwwRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
-if (!Directory.Exists(wwwRoot)) Directory.CreateDirectory(wwwRoot);
-var uploadsDir = Path.Combine(wwwRoot, "uploads");
-if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
-app.UseStaticFiles();
+// ── Static files (dev-only: serves wwwroot/uploads/ for locally-stored images) ─
+if (app.Environment.IsDevelopment())
+{
+    var wwwRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+    if (!Directory.Exists(wwwRoot)) Directory.CreateDirectory(wwwRoot);
+    var uploadsDir = Path.Combine(wwwRoot, "uploads");
+    if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+    app.UseStaticFiles();
+}
 
 app.UseCors("AllowFrontend");  // ← Must be before UseAuthentication
 app.UseAuthentication();

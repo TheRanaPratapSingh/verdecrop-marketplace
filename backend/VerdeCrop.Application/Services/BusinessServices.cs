@@ -569,10 +569,20 @@ namespace VerdeCrop.Application.Services
 
         public async Task<string?> UploadImageAsync(int productId, Stream fileStream, string fileName)
         {
+            // Derive MIME type from the file extension for correct Content-Type on the blob
+            var ext = Path.GetExtension(fileName).ToLowerInvariant();
+            var contentType = ext switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png"            => "image/png",
+                ".webp"           => "image/webp",
+                _                 => "application/octet-stream"
+            };
+
             // productId == 0 means a pre-upload (admin creating a new product).
             // In that case we just upload the file and return the URL without
             // touching any product record — the URL is stored when the product is saved.
-            var url = await _storage.UploadAsync(fileStream, fileName, "products");
+            var url = await _storage.UploadAsync(fileStream, fileName, "products", contentType);
             if (string.IsNullOrEmpty(url)) return null;
 
             if (productId > 0)
