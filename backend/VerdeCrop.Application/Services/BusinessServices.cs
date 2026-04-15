@@ -340,7 +340,7 @@ namespace VerdeCrop.Application.Services
                             r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
                         )).ToList(),
                         p.KeyFeatures, p.NutritionInfo, p.FarmStory,
-                        p.StorageInstructions, p.PackagingDetails, p.QuantityOptions))
+                        p.StorageInstructions, p.PackagingDetails, p.QuantityOptions, p.VariantPrices))
                     .FirstOrDefaultAsync();
                 return result;
             }
@@ -370,18 +370,18 @@ namespace VerdeCrop.Application.Services
                             r.User != null ? r.User.AvatarUrl : null,
                             r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
                         )).ToList(),
-                                         p.KeyFeatures, p.NutritionInfo, p.FarmStory,
-                                         p.StorageInstructions, p.PackagingDetails, p.QuantityOptions))
-                                    .FirstOrDefaultAsync();
-                                return result;
-                            }
-                            catch
-                            {
-                                return null;
-                            }
-                        }
+                                                          p.KeyFeatures, p.NutritionInfo, p.FarmStory,
+                                                          p.StorageInstructions, p.PackagingDetails, p.QuantityOptions, p.VariantPrices))
+                                                     .FirstOrDefaultAsync();
+                                                 return result;
+                                             }
+                                             catch
+                                             {
+                                                 return null;
+                                             }
+                                         }
 
-                        public async Task<List<ProductListDto>> GetFeaturedAsync(int count = 8)
+                                         public async Task<List<ProductListDto>> GetFeaturedAsync(int count = 8)
         {
             try
             {
@@ -482,6 +482,7 @@ namespace VerdeCrop.Application.Services
                 FarmStory = req.FarmStory,
                 StorageInstructions = req.StorageInstructions,
                 PackagingDetails = req.PackagingDetails,
+                VariantPrices = req.VariantPrices,
                 // Approval: admin-created products are immediately active; seller-created go to pending
                 Status = isAdminCreated ? "approved" : "pending",
                 IsActive = isAdminCreated,
@@ -548,6 +549,7 @@ namespace VerdeCrop.Application.Services
             if (req.FarmStory != null) product.FarmStory = req.FarmStory;
             if (req.StorageInstructions != null) product.StorageInstructions = req.StorageInstructions;
             if (req.PackagingDetails != null) product.PackagingDetails = req.PackagingDetails;
+            if (req.VariantPrices != null) product.VariantPrices = req.VariantPrices;
 
             product.UpdatedAt = DateTime.UtcNow;
             await _uow.Products.UpdateAsync(product);
@@ -633,7 +635,7 @@ namespace VerdeCrop.Application.Services
                         p.Rating, p.ReviewCount, p.IsActive,
                         new List<ReviewDto>(),
                         p.KeyFeatures, p.NutritionInfo, p.FarmStory,
-                        p.StorageInstructions, p.PackagingDetails, p.QuantityOptions))
+                        p.StorageInstructions, p.PackagingDetails, p.QuantityOptions, p.VariantPrices))
                     .FirstOrDefaultAsync();
             }
             catch { return null; }

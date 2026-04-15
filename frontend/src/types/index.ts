@@ -85,6 +85,7 @@ export interface Product {
   storageInstructions?: string
   packagingDetails?: string
   quantityOptions?: string[]
+  variantPrices?: string  // JSON: {"100g":50,"200g":90}
 }
 
 export type WishlistItem = Product

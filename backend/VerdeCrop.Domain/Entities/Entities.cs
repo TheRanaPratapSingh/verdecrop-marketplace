@@ -145,6 +145,7 @@ namespace VerdeCrop.Domain.Entities
         public string? FarmStory { get; set; }
         public string? StorageInstructions { get; set; }
         public string? PackagingDetails { get; set; }
+        public string? VariantPrices { get; set; }  // JSON: {"100g":50,"200g":90}
         public Category Category { get; set; } = null!;
         public FarmerProfile Farmer { get; set; } = null!;
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

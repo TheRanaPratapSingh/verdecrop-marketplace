@@ -408,6 +408,7 @@ const emptyFormState = {
   stock: '',
   unit: 'kg',
   quantityOptions: [] as string[],
+  variantPrices: {} as Record<string, string>,
   status: 'active',
   description: '',
   imageUrl: '',
@@ -534,7 +535,7 @@ export const AdminProducts: React.FC = () => {
   }
 
   const handleSaveProduct = async () => {
-    if (!formData.name.trim() || !formData.price.trim() || !formData.stock.trim() || !formData.categoryId) {
+    if (!formData.name.trim() || !formData.stock.trim() || !formData.categoryId) {
       toast.error('Please fill all required fields and select a category')
       return
     }
@@ -554,15 +555,30 @@ export const AdminProducts: React.FC = () => {
       return
     }
 
+    // Validate every selected variant has a price
+    for (const label of formData.quantityOptions) {
+      const p = formData.variantPrices[label]
+      if (!p || isNaN(Number(p)) || Number(p) <= 0) {
+        toast.error(`Please enter a valid price for "${label}"`)
+        return
+      }
+    }
+
     const targetFarmerId = sellerId || (user?.role === 'farmer' ? user.id : undefined)
+
+    // Use the first variant price as the product's base price
+    const firstVariantPrice = Number(formData.variantPrices[formData.quantityOptions[0]])
+    const variantPricesJson = JSON.stringify(
+      Object.fromEntries(formData.quantityOptions.map(label => [label, Number(formData.variantPrices[label])]))
+    )
 
     const payload = {
       name: formData.name,
       description: formData.description,
       categoryId: formData.categoryId,
       categoryName: formData.categoryName,
-      price: Number(formData.price),
-      originalPrice: Number(formData.price),
+      price: firstVariantPrice,
+      originalPrice: firstVariantPrice,
       unit: formData.unit,
       minOrderQty: 1,
       stockQuantity: Number(formData.stock),
@@ -573,6 +589,7 @@ export const AdminProducts: React.FC = () => {
       isOrganic: !!formData.isOrganic,
       isFeatured: !!formData.isFeatured,
       quantityOptions: formData.quantityOptions,
+      variantPrices: variantPricesJson,
       keyFeatures: formData.keyFeatures?.length ? formData.keyFeatures : undefined,
       nutritionInfo: formData.nutritionInfo || undefined,
       farmStory: formData.farmStory || undefined,
@@ -615,6 +632,13 @@ export const AdminProducts: React.FC = () => {
     setIsEditing(true)
     try {
       const detail = await productApi.getById(product.id)
+      const savedVariantPrices: Record<string, string> = {}
+      if (detail.variantPrices) {
+        try {
+          const parsed = JSON.parse(detail.variantPrices) as Record<string, number>
+          Object.entries(parsed).forEach(([k, v]) => { savedVariantPrices[k] = String(v) })
+        } catch { /* ignore malformed */ }
+      }
       setFormData({
         name: detail.name,
         categoryId: detail.categoryId,
@@ -623,6 +647,7 @@ export const AdminProducts: React.FC = () => {
         stock: String(detail.stockQuantity),
         unit: detail.unit || 'kg',
         quantityOptions: detail.quantityOptions ?? [],
+        variantPrices: savedVariantPrices,
         status: detail.isActive ? 'active' : 'inactive',
         description: detail.description ?? '',
         imageUrl: detail.imageUrl ?? '',
@@ -1095,7 +1120,7 @@ export const AdminProducts: React.FC = () => {
                     <select
                       aria-label="Unit"
                       value={formData.unit}
-                      onChange={e => setFormData({ ...formData, unit: e.target.value, quantityOptions: [] })}
+                      onChange={e => setFormData({ ...formData, unit: e.target.value, quantityOptions: [], variantPrices: {} })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-500"
                     >
                       {UNIT_OPTIONS.map(u => (
@@ -1117,12 +1142,12 @@ export const AdminProducts: React.FC = () => {
                             type="button"
                             onClick={() => {
                               const current = formData.quantityOptions ?? []
-                              setFormData({
-                                ...formData,
-                                quantityOptions: selected
-                                  ? current.filter(q => q !== opt.label)
-                                  : [...current, opt.label],
-                              })
+                              const newOptions = selected
+                                ? current.filter(q => q !== opt.label)
+                                : [...current, opt.label]
+                              const newPrices = { ...formData.variantPrices }
+                              if (selected) delete newPrices[opt.label]
+                              setFormData({ ...formData, quantityOptions: newOptions, variantPrices: newPrices })
                             }}
                             className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
                               selected
@@ -1142,16 +1167,41 @@ export const AdminProducts: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {/* ── Per-variant Price Inputs ── */}
+                {formData.quantityOptions && formData.quantityOptions.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-label font-medium text-gray-700 mb-2">
+                      Price per Variant <span className="text-red-500">*</span>
+                      <span className="ml-1 text-xs text-gray-400 font-normal">(set price for each pack size)</span>
+                    </label>
+                    <div className="space-y-2">
+                      {formData.quantityOptions.map(label => (
+                        <div key={label} className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-forest-700 w-16 flex-shrink-0">{label}</span>
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={formData.variantPrices[label] ?? ''}
+                              onChange={e => setFormData({
+                                ...formData,
+                                variantPrices: { ...formData.variantPrices, [label]: e.target.value },
+                              })}
+                              className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-forest-500"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <ProductImageUploader
                   urls={formData.imageUrls || []}
                   onChange={urls => setFormData(f => ({ ...f, imageUrls: urls, imageUrl: urls[0] || '' }))}
-                />
-                <Input
-                  label="Price (₹)"
-                  type="number"
-                  value={formData.price}
-                  onChange={e => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="e.g., 80"
                 />
                 <Input
                   label="Stock Quantity"

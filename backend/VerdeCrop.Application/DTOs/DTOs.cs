@@ -120,7 +120,8 @@ namespace VerdeCrop.Application.DTOs
         string? FarmStory = null,
         string? StorageInstructions = null,
         string? PackagingDetails = null,
-        List<string>? QuantityOptions = null);
+        List<string>? QuantityOptions = null,
+        string? VariantPrices = null);
 
     public record ProductQueryParams(
         string? Search, int? CategoryId, string? CategorySlug, int? FarmerId,
@@ -158,7 +159,8 @@ namespace VerdeCrop.Application.DTOs
         [StringLength(5000)] string? NutritionInfo = null,
         [StringLength(5000)] string? FarmStory = null,
         [StringLength(1000)] string? StorageInstructions = null,
-        [StringLength(500)] string? PackagingDetails = null
+        [StringLength(500)] string? PackagingDetails = null,
+        string? VariantPrices = null
     );
 
     // ── FIX: Added CategoryId, ImageUrl, ImageUrls — were missing, updates couldn't change these fields
@@ -192,7 +194,8 @@ namespace VerdeCrop.Application.DTOs
         string? NutritionInfo = null,
         string? FarmStory = null,
         string? StorageInstructions = null,
-        string? PackagingDetails = null
+        string? PackagingDetails = null,
+        string? VariantPrices = null
     );
 
     // ── Seller Product ─────────────────────────────────────────────────────────

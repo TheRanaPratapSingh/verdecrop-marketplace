@@ -242,13 +242,27 @@ export const ProductsPage: React.FC = () => {
 }
 
 // ── Product Detail Page ───────────────────────────────────────────────────────
+
+function parseVariantPrices(variantPrices?: string): Record<string, number> {
+  if (!variantPrices) return {}
+  try { return JSON.parse(variantPrices) as Record<string, number> } catch { return {} }
+}
+
+function getVariantPrice(product: Product, selectedVariant: string | null): number {
+  const vp = parseVariantPrices(product.variantPrices)
+  const labels = product.quantityOptions?.length ? product.quantityOptions : Object.keys(vp)
+  const active = selectedVariant ?? labels[0] ?? null
+  if (active && vp[active] != null) return vp[active]
+  return product.price
+}
+
 export const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [qty, setQty] = useState(1)
-  const [unitPack, setUnitPack] = useState(1)
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [buyingNow, setBuyingNow] = useState(false)
   const [activeImg, setActiveImg] = useState(0)
@@ -286,15 +300,16 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleAddToCart = async () => {
     if (!product) return
+    const variantPrice = getVariantPrice(product, selectedVariant)
     if (!isAuthenticated) {
       addGuestItem({
         productId: product.id,
         productName: product.name,
-        price: product.price,
+        price: variantPrice,
         originalPrice: product.originalPrice,
         imageUrl: product.imageUrl,
-        unit: product.unit,
-        quantity: qty * unitPack,
+        unit: selectedVariant ?? product.unit,
+        quantity: qty,
         stockQuantity: product.stockQuantity,
         slug: product.slug,
       })
@@ -306,13 +321,13 @@ export const ProductDetailPage: React.FC = () => {
     }
     setAdding(true)
     try {
-      const cart = await cartApi.addItem(product.id, qty * unitPack)
+      const cart = await cartApi.addItem(product.id, qty)
       setCart(cart)
       trackEvent('add_to_cart', {
         product_id: product.id,
         product_name: product.name,
-        quantity: qty * unitPack,
-        value: product.price * qty * unitPack,
+        quantity: qty,
+        value: variantPrice * qty,
       })
       toast.success('Added to cart!', { icon: '🛒' })
       openCart()
@@ -323,15 +338,16 @@ export const ProductDetailPage: React.FC = () => {
   const handleBuyNow = async () => {
     if (!product) return
     if (!isAuthenticated) { navigate('/login'); return }
+    const variantPrice = getVariantPrice(product, selectedVariant)
     setBuyingNow(true)
     try {
-      const cart = await cartApi.addItem(product.id, qty * unitPack)
+      const cart = await cartApi.addItem(product.id, qty)
       setCart(cart)
       trackEvent('buy_now', {
         product_id: product.id,
         product_name: product.name,
-        quantity: qty * unitPack,
-        value: product.price * qty * unitPack,
+        quantity: qty,
+        value: variantPrice * qty,
       })
       toast.success('Ready to checkout', { icon: '⚡' })
       navigate('/checkout')
