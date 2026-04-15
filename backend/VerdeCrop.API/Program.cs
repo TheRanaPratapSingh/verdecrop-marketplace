@@ -175,23 +175,25 @@ builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IFirebaseService, FirebaseService>();
 
 // ── Storage Service (Azure Blob Storage) ─────────────────────────────────────
-// When Azure:BlobStorage:ConnectionString is set, blobs are used for all uploads.
-// Without it the app still starts — only image upload endpoints will fail gracefully.
-// Set the connection string in Azure App Service → Configuration → Application settings.
+// IMPORTANT: Do NOT set Azure:BlobStorage:ConnectionString to an empty string in
+// appsettings.json — an explicit empty string silently shadows the env var
+// Azure__BlobStorage__ConnectionString in ASP.NET Core's config layering.
+// Leave the key absent so the env var wins.
 var azureConnStr = builder.Configuration["Azure:BlobStorage:ConnectionString"];
+Log.Information("Storage config check — Azure:BlobStorage:ConnectionString present={Present}, length={Len}",
+    azureConnStr != null, azureConnStr?.Length ?? 0);
+
 if (!string.IsNullOrWhiteSpace(azureConnStr))
 {
     builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
-    Log.Information("Storage: Azure Blob Storage (container: {Container})",
+    Log.Information("Storage: ✅ AzureBlobStorageService active (container: {Container})",
         builder.Configuration["Azure:BlobStorage:ContainerName"] ?? "graamo-images");
 }
 else
 {
     builder.Services.AddScoped<IStorageService, LocalFileStorageService>();
-    Log.Warning("Storage: Azure:BlobStorage:ConnectionString is not set — " +
-                "falling back to LocalFileStorageService. " +
-                "Image uploads will use local disk. " +
-                "Set the connection string in App Service Configuration for production.");
+    Log.Warning("Storage: ⚠️ LocalFileStorageService active — Azure:BlobStorage:ConnectionString is null/empty. " +
+                "Image uploads will use local disk. Set Azure__BlobStorage__ConnectionString env var in Azure App Service.");
 }
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -361,6 +363,26 @@ app.MapGet("/health/db", async (AppDbContext db) =>
             detail: ex.Message,
             statusCode: 503);
     }
+});
+
+// ── Storage diagnostic endpoint ───────────────────────────────────────────────
+app.MapGet("/health/storage", (IConfiguration cfg, IStorageService storage) =>
+{
+    var connStr    = cfg["Azure:BlobStorage:ConnectionString"];
+    var container  = cfg["Azure:BlobStorage:ContainerName"] ?? "graamo-images";
+    var backend    = storage.GetType().Name;
+    var connPresent = !string.IsNullOrWhiteSpace(connStr);
+    return Results.Ok(new
+    {
+        backend,
+        containerName  = container,
+        connectionStringPresent = connPresent,
+        connectionStringLength  = connStr?.Length ?? 0,
+        usingAzureBlob = storage is AzureBlobStorageService,
+        hint = connPresent
+            ? "✅ Azure Blob Storage is active."
+            : "⚠️ ConnectionString missing — using LocalFileStorageService. Set Azure__BlobStorage__ConnectionString in App Service Configuration."
+    });
 });
 
 Log.Information("Graamo API started");

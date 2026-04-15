@@ -976,7 +976,13 @@ namespace VerdeCrop.API.Controllers
     {
         private readonly IAdminService _admin;
         private readonly IOrderService _orders;
-        public AdminController(IAdminService admin, IOrderService orders) { _admin = admin; _orders = orders; }
+        private readonly IUnitOfWork _uow;
+        public AdminController(IAdminService admin, IOrderService orders, IUnitOfWork uow)
+        {
+            _admin = admin;
+            _orders = orders;
+            _uow = uow;
+        }
 
         [HttpGet("dashboard")]
         public async Task<IActionResult> Dashboard()
@@ -996,6 +1002,51 @@ namespace VerdeCrop.API.Controllers
                 InputValidator.ClampPageSize(pageSize, 100),
                 status);
             return Ok(ApiResponse.Ok(result));
+        }
+
+        /// <summary>
+        /// Clears stale /uploads/ paths from Products.ImageUrl and Products.ImageUrls.
+        /// Call this once after switching to Azure Blob Storage to remove broken local paths.
+        /// Products will fall back to the frontend placeholder image until re-uploaded.
+        /// POST /api/admin/repair-image-urls
+        /// </summary>
+        [HttpPost("repair-image-urls")]
+        public async Task<IActionResult> RepairImageUrls()
+        {
+            var products = await _uow.Products.GetAllAsync();
+            int fixed_ = 0;
+
+            foreach (var p in products)
+            {
+                bool changed = false;
+
+                // Clear ImageUrl if it's a local /uploads/ path
+                if (!string.IsNullOrEmpty(p.ImageUrl) && p.ImageUrl.StartsWith("/uploads/"))
+                {
+                    p.ImageUrl = null;
+                    changed = true;
+                }
+
+                // Remove any /uploads/ entries from ImageUrls list
+                var stale = p.ImageUrls.Where(u => u.StartsWith("/uploads/")).ToList();
+                if (stale.Any())
+                {
+                    foreach (var s in stale) p.ImageUrls.Remove(s);
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    p.UpdatedAt = DateTime.UtcNow;
+                    await _uow.Products.UpdateAsync(p);
+                    fixed_++;
+                }
+            }
+
+            await _uow.SaveChangesAsync();
+            Log.Information("RepairImageUrls: cleared stale /uploads/ paths from {Count} products", fixed_);
+            return Ok(ApiResponse.Ok(new { productsFixed = fixed_ },
+                $"Cleared stale local paths from {fixed_} products. Re-upload images to restore them."));
         }
     }
 

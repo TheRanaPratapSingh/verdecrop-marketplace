@@ -1,8 +1,6 @@
 
 
-
-
-const CDN_BASE_URL = import.meta.env.VITE_CDN_BASE_URL ||"https://graamo-cwb0f0g8hdbghkbq.centralindia-01.azurewebsites.net";
+const CDN_BASE_URL = import.meta.env.VITE_CDN_BASE_URL || "https://graamo-cwb0f0g8hdbghkbq.centralindia-01.azurewebsites.net";
 
 const normalizeRelative = (path: string) => {
   if (!path) return undefined
@@ -33,9 +31,14 @@ export const resolveAssetUrl = (src?: string | null): string | undefined => {
   const trimmed = src.trim()
   if (!trimmed) return undefined
 
+  // Stale local-storage paths from before Azure Blob migration — treat as missing
+  // so the frontend falls back to the product placeholder image instead of a broken URL
+  if (trimmed.startsWith('/uploads/')) return undefined
+
   // Blob/data URLs are already fully qualified — use as-is
   if (/^blob:/i.test(trimmed) || /^data:/i.test(trimmed)) return trimmed
 
+  // Full Azure Blob URL or any https URL — use directly
   if (/^https?:\/\//i.test(trimmed)) return trimmed
   if (/^\/\//.test(trimmed)) return `https:${trimmed}`
 
@@ -51,6 +54,7 @@ export const resolveLocalUrl = (src?: string | null): string | undefined => {
   if (!src) return undefined
   const trimmed = src.trim()
   if (!trimmed) return undefined
+  if (trimmed.startsWith('/uploads/')) return undefined
   if (/^https?:\/\//i.test(trimmed) || /^\/\//.test(trimmed)) return trimmed
   return normalizeRelative(trimmed)
 }
