@@ -27,8 +27,37 @@ namespace VerdeCrop.Infrastructure.Services
             var product = await _uow.Products.GetByIdAsync(req.ProductId);
             if (product == null || !product.IsActive) return null;
 
+            // Resolve variant price: look up in VariantPrices JSON, fallback to product.Price
+            decimal variantPrice = product.Price;
+            string? variantLabel = req.VariantLabel;
+            if (!string.IsNullOrWhiteSpace(variantLabel) && !string.IsNullOrWhiteSpace(product.VariantPrices))
+            {
+                try
+                {
+                    var vpMap = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, decimal>>(product.VariantPrices);
+                    if (vpMap != null && vpMap.TryGetValue(variantLabel, out var vp))
+                        variantPrice = vp;
+                }
+                catch { /* fallback to product.Price */ }
+            }
+            else if (string.IsNullOrWhiteSpace(variantLabel) && !string.IsNullOrWhiteSpace(product.VariantPrices))
+            {
+                // No variant explicitly chosen — default to first variant
+                try
+                {
+                    var vpMap = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, decimal>>(product.VariantPrices);
+                    if (vpMap != null && vpMap.Count > 0)
+                    {
+                        var first = System.Linq.Enumerable.First(vpMap);
+                        variantLabel = first.Key;
+                        variantPrice = first.Value;
+                    }
+                }
+                catch { /* fallback */ }
+            }
+
             var existing = await _uow.CartItems.FirstOrDefaultAsync(
-                i => i.CartId == cart.Id && i.ProductId == req.ProductId);
+                i => i.CartId == cart.Id && i.ProductId == req.ProductId && i.SelectedVariant == variantLabel);
             if (existing != null)
                 existing.Quantity += req.Quantity;
             else
@@ -36,7 +65,9 @@ namespace VerdeCrop.Infrastructure.Services
                 {
                     CartId = cart.Id,
                     ProductId = req.ProductId,
-                    Quantity = req.Quantity
+                    Quantity = req.Quantity,
+                    SelectedVariant = variantLabel,
+                    VariantPrice = variantPrice
                 });
 
             await _uow.SaveChangesAsync();
@@ -86,7 +117,7 @@ namespace VerdeCrop.Infrastructure.Services
             foreach (var item in items)
             {
                 if (item.Quantity > 0)
-                    await AddItemAsync(userId, new AddToCartRequest(item.ProductId, item.Quantity));
+                    await AddItemAsync(userId, new AddToCartRequest(item.ProductId, item.Quantity, item.VariantLabel));
             }
             return await GetCartAsync(userId);
         }
@@ -107,10 +138,15 @@ namespace VerdeCrop.Infrastructure.Services
         {
             var items = cart.Items?
                 .Where(i => i.Product != null)
-                .Select(i => new CartItemDto(
-                    i.Id, i.ProductId, i.Product.Name, i.Product.ImageUrl,
-                    i.Product.Price, i.Quantity, i.Product.Unit,
-                    i.Product.Price * i.Quantity, i.Product.StockQuantity))
+                .Select(i =>
+                {
+                    var unitPrice = i.VariantPrice ?? i.Product.Price;
+                    return new CartItemDto(
+                        i.Id, i.ProductId, i.Product.Name, i.Product.ImageUrl,
+                        unitPrice, i.Quantity, i.SelectedVariant ?? i.Product.Unit,
+                        unitPrice * i.Quantity, i.Product.StockQuantity,
+                        i.SelectedVariant);
+                })
                 .ToList() ?? new();
             return new CartDto(cart.Id, items, items.Sum(i => i.Total), items.Count);
         }

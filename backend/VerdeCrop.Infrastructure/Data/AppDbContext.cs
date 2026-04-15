@@ -144,6 +144,7 @@ namespace VerdeCrop.Infrastructure.Data
 
             mb.Entity<CartItem>(e => {
                 e.Property(i => i.Quantity).HasPrecision(8, 3);
+                e.Property(i => i.VariantPrice).HasPrecision(10, 2);
             });
 
             mb.Entity<Review>(e => {

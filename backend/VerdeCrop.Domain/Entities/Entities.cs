@@ -166,6 +166,8 @@ namespace VerdeCrop.Domain.Entities
         public int CartId { get; set; }
         public int ProductId { get; set; }
         public decimal Quantity { get; set; }
+        public string? SelectedVariant { get; set; }  // e.g. "100g"
+        public decimal? VariantPrice { get; set; }   // price for the selected variant
         public Cart Cart { get; set; } = null!;
         public Product Product { get; set; } = null!;
     }
