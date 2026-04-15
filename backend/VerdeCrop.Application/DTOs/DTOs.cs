@@ -119,7 +119,8 @@ namespace VerdeCrop.Application.DTOs
         string? NutritionInfo = null,
         string? FarmStory = null,
         string? StorageInstructions = null,
-        string? PackagingDetails = null);
+        string? PackagingDetails = null,
+        List<string>? QuantityOptions = null);
 
     public record ProductQueryParams(
         string? Search, int? CategoryId, string? CategorySlug, int? FarmerId,

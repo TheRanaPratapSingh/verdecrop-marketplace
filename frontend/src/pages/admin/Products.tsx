@@ -388,12 +388,26 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
   )
 }
 
+const UNIT_OPTIONS = [
+  { value: 'g',  label: 'Gram (g)' },
+  { value: 'kg', label: 'Kilogram (kg)' },
+  { value: 'L',  label: 'Liter (L)' },
+] as const
+
+const QUANTITY_PRESETS: Record<string, { label: string; value: number }[]> = {
+  g:  [{ label: '50g',   value: 50  }, { label: '100g',  value: 100 }, { label: '200g', value: 200 }, { label: '500g', value: 500  }],
+  kg: [{ label: '1kg',   value: 1   }, { label: '2kg',   value: 2   }, { label: '5kg',  value: 5   }],
+  L:  [{ label: '500ml', value: 0.5 }, { label: '1L',    value: 1   }, { label: '2L',   value: 2   }, { label: '5L',   value: 5   }],
+}
+
 const emptyFormState = {
   name: '',
   categoryId: 0,
   categoryName: '',
   price: '',
   stock: '',
+  unit: 'kg',
+  quantityOptions: [] as string[],
   status: 'active',
   description: '',
   imageUrl: '',
@@ -530,6 +544,16 @@ export const AdminProducts: React.FC = () => {
       return
     }
 
+    if (!formData.unit) {
+      toast.error('Please select a unit')
+      return
+    }
+
+    if (!formData.quantityOptions || formData.quantityOptions.length === 0) {
+      toast.error('Please select at least one quantity option')
+      return
+    }
+
     const targetFarmerId = sellerId || (user?.role === 'farmer' ? user.id : undefined)
 
     const payload = {
@@ -539,7 +563,7 @@ export const AdminProducts: React.FC = () => {
       categoryName: formData.categoryName,
       price: Number(formData.price),
       originalPrice: Number(formData.price),
-      unit: 'kg',
+      unit: formData.unit,
       minOrderQty: 1,
       stockQuantity: Number(formData.stock),
       imageUrl: formData.imageUrl || formData.imageUrls?.[0],
@@ -548,6 +572,7 @@ export const AdminProducts: React.FC = () => {
       farmerId: targetFarmerId,
       isOrganic: !!formData.isOrganic,
       isFeatured: !!formData.isFeatured,
+      quantityOptions: formData.quantityOptions,
       keyFeatures: formData.keyFeatures?.length ? formData.keyFeatures : undefined,
       nutritionInfo: formData.nutritionInfo || undefined,
       farmStory: formData.farmStory || undefined,
@@ -596,6 +621,8 @@ export const AdminProducts: React.FC = () => {
         categoryName: detail.categoryName,
         price: String(detail.price),
         stock: String(detail.stockQuantity),
+        unit: detail.unit || 'kg',
+        quantityOptions: detail.quantityOptions ?? [],
         status: detail.isActive ? 'active' : 'inactive',
         description: detail.description ?? '',
         imageUrl: detail.imageUrl ?? '',
@@ -1057,6 +1084,63 @@ export const AdminProducts: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* ── Unit & Quantity Options ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-label font-medium text-gray-700 mb-1">
+                      Unit <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      aria-label="Unit"
+                      value={formData.unit}
+                      onChange={e => setFormData({ ...formData, unit: e.target.value, quantityOptions: [] })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-500"
+                    >
+                      {UNIT_OPTIONS.map(u => (
+                        <option key={u.value} value={u.value}>{u.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-label font-medium text-gray-700 mb-1">
+                      Quantity Options <span className="text-red-500">*</span>
+                      <span className="ml-1 text-xs text-gray-400 font-normal">(select one or more)</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(QUANTITY_PRESETS[formData.unit] ?? []).map(opt => {
+                        const selected = formData.quantityOptions?.includes(opt.label)
+                        return (
+                          <button
+                            key={opt.label}
+                            type="button"
+                            onClick={() => {
+                              const current = formData.quantityOptions ?? []
+                              setFormData({
+                                ...formData,
+                                quantityOptions: selected
+                                  ? current.filter(q => q !== opt.label)
+                                  : [...current, opt.label],
+                              })
+                            }}
+                            className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                              selected
+                                ? 'bg-forest-600 border-forest-600 text-white shadow-sm'
+                                : 'bg-white border-gray-300 text-gray-700 hover:border-forest-400 hover:text-forest-700'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {formData.quantityOptions && formData.quantityOptions.length > 0 && (
+                      <p className="text-xs text-forest-600 mt-1.5 font-medium">
+                        Selected: {formData.quantityOptions.join(', ')}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <ProductImageUploader
                   urls={formData.imageUrls || []}

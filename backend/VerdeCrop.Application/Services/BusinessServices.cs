@@ -340,7 +340,7 @@ namespace VerdeCrop.Application.Services
                             r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
                         )).ToList(),
                         p.KeyFeatures, p.NutritionInfo, p.FarmStory,
-                        p.StorageInstructions, p.PackagingDetails))
+                        p.StorageInstructions, p.PackagingDetails, p.QuantityOptions))
                     .FirstOrDefaultAsync();
                 return result;
             }
@@ -370,18 +370,18 @@ namespace VerdeCrop.Application.Services
                             r.User != null ? r.User.AvatarUrl : null,
                             r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
                         )).ToList(),
-                        p.KeyFeatures, p.NutritionInfo, p.FarmStory,
-                        p.StorageInstructions, p.PackagingDetails))
-                    .FirstOrDefaultAsync();
-                return result;
-            }
-            catch
-            {
-                return null;
-            }
-        }
+                                         p.KeyFeatures, p.NutritionInfo, p.FarmStory,
+                                         p.StorageInstructions, p.PackagingDetails, p.QuantityOptions))
+                                    .FirstOrDefaultAsync();
+                                return result;
+                            }
+                            catch
+                            {
+                                return null;
+                            }
+                        }
 
-        public async Task<List<ProductListDto>> GetFeaturedAsync(int count = 8)
+                        public async Task<List<ProductListDto>> GetFeaturedAsync(int count = 8)
         {
             try
             {
@@ -633,7 +633,7 @@ namespace VerdeCrop.Application.Services
                         p.Rating, p.ReviewCount, p.IsActive,
                         new List<ReviewDto>(),
                         p.KeyFeatures, p.NutritionInfo, p.FarmStory,
-                        p.StorageInstructions, p.PackagingDetails))
+                        p.StorageInstructions, p.PackagingDetails, p.QuantityOptions))
                     .FirstOrDefaultAsync();
             }
             catch { return null; }

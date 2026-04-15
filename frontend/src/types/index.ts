@@ -84,6 +84,7 @@ export interface Product {
   farmStory?: string
   storageInstructions?: string
   packagingDetails?: string
+  quantityOptions?: string[]
 }
 
 export type WishlistItem = Product
