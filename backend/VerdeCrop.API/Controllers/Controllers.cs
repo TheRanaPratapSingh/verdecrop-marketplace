@@ -643,7 +643,15 @@ namespace VerdeCrop.API.Controllers
         public async Task<IActionResult> GetMyProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var farmerProfile = await _farmers.GetByUserIdAsync(CurrentUserId);
-            if (farmerProfile == null) return NotFound(ApiResponse.Fail("Seller profile not found"));
+            if (farmerProfile == null)
+            {
+                // No farmer profile yet — return empty list instead of 404
+                var empty = new PagedResult<SellerProductDto>(
+                    new List<SellerProductDto>(), 0,
+                    InputValidator.ClampPage(page),
+                    InputValidator.ClampPageSize(pageSize, 50), 0);
+                return Ok(ApiResponse.Ok(empty));
+            }
             var result = await _products.GetSellerProductsAsync(
                 farmerProfile.Id,
                 InputValidator.ClampPage(page),
