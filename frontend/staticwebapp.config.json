@@ -5,6 +5,12 @@
       "rewrite": "https://graamo-cwb0f0g8hdbghkbq.centralindia-01.azurewebsites.net/api/*"
     },
     {
+      "route": "/index.html",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
+    },
+    {
       "route": "/sitemap.xml",
       "headers": {
         "Content-Type": "application/xml; charset=utf-8",
