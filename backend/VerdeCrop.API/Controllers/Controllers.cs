@@ -444,6 +444,14 @@ namespace VerdeCrop.API.Controllers
                 return created == null ? BadRequest(ApiResponse.Fail("Failed to create farmer")) : Ok(ApiResponse.Ok(created, "Farmer created"));
             }
 
+            // Prevent re-registration: users who are already farmers already have a profile
+            if (string.Equals(CurrentUserRole, "farmer", StringComparison.OrdinalIgnoreCase))
+            {
+                var existing = await _farmers.GetByUserIdAsync(CurrentUserId);
+                if (existing != null)
+                    return Conflict(ApiResponse.Fail("You are already registered as a seller."));
+            }
+
             var f = await _farmers.RegisterAsync(CurrentUserId, req);
             return Ok(ApiResponse.Ok(f, "Farmer registration submitted for approval"));
         }

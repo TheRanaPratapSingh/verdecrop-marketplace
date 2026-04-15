@@ -13,6 +13,7 @@ import { SEO } from '../components/SEO'
 import type { Category, Product } from '../types'
 import toast from 'react-hot-toast'
 import { HeroSlider } from '../components/HeroSlider'
+import { useAuthStore } from '../store'
 
 // Category highlight cards (static, curated)
 // nameKeyword is matched against real category names loaded from the API
@@ -86,6 +87,8 @@ const getCategoryStyle = (slug?: string) => {
 const HomePage: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isFarmer = user?.role?.toString().trim().toLowerCase() === 'farmer'
   const [categories, setCategories] = useState<Category[]>([])
   const [featured, setFeatured] = useState<Product[]>([])
   const [categoryProducts, setCategoryProducts] = useState<Record<string, Product[]>>({})
@@ -354,17 +357,32 @@ const HomePage: React.FC = () => {
               <span className="text-xs font-label font-semibold text-forest-300 tracking-widest uppercase">For Organic Farmers</span>
             </div>
             <h2 className="font-display text-4xl md:text-5xl font-semibold text-white leading-tight mb-4">
-              Sell directly to<br />5000+ families
+              {isFarmer ? <>Welcome back,<br />Seller!</> : <>Sell directly to<br />5000+ families</>}
             </h2>
             <p className="text-stone-400 font-body text-base leading-relaxed max-w-md">
-              Join Graamo and reach health-conscious consumers who pay fair prices for quality organic produce. Zero commission on your first 100 orders.
+              {isFarmer
+                ? 'Manage your products, track orders, and grow your farm business on Graamo.'
+                : 'Join Graamo and reach health-conscious consumers who pay fair prices for quality organic produce. Zero commission on your first 100 orders.'}
             </p>
           </div>
           <div className="relative z-10 flex flex-col items-center gap-3 flex-shrink-0">
-            <Link to="/become-a-seller" className="inline-flex items-center gap-2.5 px-8 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 whitespace-nowrap">
-              Start Selling Free <ArrowRight className="w-4 h-4" />
-            </Link>
-            <p className="text-xs text-stone-500 font-body text-center">No setup fee · Instant approval · 24/7 support</p>
+            {isFarmer ? (
+              <>
+                <Link to="/seller/products" className="inline-flex items-center gap-2.5 px-8 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 whitespace-nowrap">
+                  Manage Products <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link to="/seller/orders" className="text-xs text-forest-300 hover:text-white transition-colors font-body">
+                  View Seller Orders →
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/become-a-seller" className="inline-flex items-center gap-2.5 px-8 py-4 bg-white text-stone-900 font-label font-semibold text-sm rounded-2xl shadow-lg hover:bg-stone-50 active:scale-[0.98] transition-all duration-200 whitespace-nowrap">
+                  Start Selling Free <ArrowRight className="w-4 h-4" />
+                </Link>
+                <p className="text-xs text-stone-500 font-body text-center">No setup fee · Instant approval · 24/7 support</p>
+              </>
+            )}
           </div>
         </div>
       </section>

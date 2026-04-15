@@ -1,6 +1,7 @@
-﻿import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ChevronLeft, ChevronRight, Heart, Leaf, Sprout } from 'lucide-react'
+import { useAuthStore } from '../store'
 
 type BadgeIconType = 'sprout' | 'leaf' | 'heart'
 
@@ -177,6 +178,22 @@ const SlideLayer: React.FC<LayerProps> = ({ slide, animKey, visible, isTop }) =>
   )
 }
 export const HeroSlider: React.FC = () => {
+  const { user } = useAuthStore()
+  const isFarmer = user?.role?.toString().trim().toLowerCase() === 'farmer'
+
+  // For farmers: replace 'Start Selling Free' CTA with seller dashboard links
+  const slides = useMemo(() => SLIDES.map(slide => {
+    if (!isFarmer) return slide
+    return {
+      ...slide,
+      cta: slide.cta.map(c =>
+        c.to === '/become-a-seller'
+          ? { label: 'Manage Products', to: '/seller/products', primary: c.primary }
+          : c
+      ),
+    }
+  }), [isFarmer])
+
   const [current,  setCurrent]  = useState(0)
   const [incoming, setIncoming] = useState<number | null>(null)
   const [paused,   setPaused]   = useState(false)
