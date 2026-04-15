@@ -42,6 +42,7 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
     }))
   )
   const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const [isCompressing, setIsCompressing] = useState(false)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -100,7 +101,9 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
       // ── Compress before upload ────────────────────────────────────────────
       let file = rawFile
       try {
+        if (rawFile.size > MAX_SIZE_MB * 1024 * 1024) setIsCompressing(true)
         file = await compressImage(rawFile)
+        setIsCompressing(false)
         if (rawFile.size !== file.size) {
           const before = (rawFile.size / 1024 / 1024).toFixed(1)
           const after  = (file.size  / 1024 / 1024).toFixed(1)
@@ -108,6 +111,7 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
             toast.success(`"${rawFile.name}" compressed ${before}MB → ${after}MB`, { duration: 2500 })
         }
       } catch {
+        setIsCompressing(false)
         toast.error(`"${rawFile.name}" — Compression failed. Try a different file.`)
         continue
       }
@@ -271,13 +275,17 @@ const ProductImageUploader: React.FC<ProductImageUploaderProps> = ({ urls, onCha
               : 'border-gray-200 bg-gray-50 hover:border-forest-300 hover:bg-forest-50/40'}`}
         >
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isDraggingOver ? 'bg-forest-100' : 'bg-white shadow-sm border border-gray-100'}`}>
-            <Upload className={`w-5 h-5 ${isDraggingOver ? 'text-forest-600' : 'text-gray-400'}`} />
+            {isCompressing
+              ? <span className="animate-spin w-5 h-5 border-2 border-forest-500 border-t-transparent rounded-full inline-block" />
+              : <Upload className={`w-5 h-5 ${isDraggingOver ? 'text-forest-600' : 'text-gray-400'}`} />}
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-700">
-              {isDraggingOver ? 'Drop images here' : 'Drag & drop images or click to upload'}
+              {isCompressing
+                ? 'Optimizing image...'
+                : isDraggingOver ? 'Drop images here' : 'Drag & drop images or click to upload'}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP · Max {MAX_SIZE_MB}MB each · Up to {MAX_IMAGES} images</p>
+            <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP · Auto-compressed to {MAX_SIZE_MB}MB · Up to {MAX_IMAGES} images</p>
           </div>
           <input
             ref={fileInputRef}

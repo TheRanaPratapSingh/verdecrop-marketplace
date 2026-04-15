@@ -144,8 +144,8 @@ namespace VerdeCrop.API.Controllers
         {
             if (file == null || file.Length == 0)
                 return BadRequest(ApiResponse.Fail("No file provided."));
-            if (file.Length > 5 * 1024 * 1024)
-                return BadRequest(ApiResponse.Fail("File size must not exceed 5 MB."));
+            if (file.Length > 10 * 1024 * 1024)
+                return BadRequest(ApiResponse.Fail("File size must not exceed 10 MB."));
 
             var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
             if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
@@ -520,8 +520,8 @@ namespace VerdeCrop.API.Controllers
 
             if (file == null || file.Length == 0)
                 return BadRequest(ApiResponse.Fail("No file provided."));
-            if (file.Length > 5 * 1024 * 1024)
-                return BadRequest(ApiResponse.Fail("File size must not exceed 5 MB."));
+            if (file.Length > 10 * 1024 * 1024)
+                return BadRequest(ApiResponse.Fail("File size must not exceed 10 MB."));
 
             var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
             if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
@@ -698,12 +698,13 @@ namespace VerdeCrop.API.Controllers
 
         [HttpPost("{id}/images")]
         [Authorize(Roles = "farmer")]
+        [RequestSizeLimit(10 * 1024 * 1024)]
         public async Task<IActionResult> UploadImage(int id, IFormFile file)
         {
             if (file == null)
                 return BadRequest(ApiResponse.Fail("No file provided."));
-            if (file.Length > 5 * 1024 * 1024)
-                return BadRequest(ApiResponse.Fail("File size must not exceed 5 MB."));
+            if (file.Length > 10 * 1024 * 1024)
+                return BadRequest(ApiResponse.Fail("File size must not exceed 10 MB."));
 
             var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
             if (!allowed.Contains(file.ContentType.ToLowerInvariant()))
@@ -715,12 +716,13 @@ namespace VerdeCrop.API.Controllers
 
         [HttpPost("admin/images")]
         [Authorize(Roles = "admin")]
+        [RequestSizeLimit(10 * 1024 * 1024)]
         public async Task<IActionResult> AdminUploadImage(IFormFile file)
         {
             if (file == null)
                 return BadRequest(ApiResponse.Fail("No file provided."));
-            if (file.Length > 5 * 1024 * 1024)
-                return BadRequest(ApiResponse.Fail("File size must not exceed 5 MB."));
+            if (file.Length > 10 * 1024 * 1024)
+                return BadRequest(ApiResponse.Fail("File size must not exceed 10 MB."));
 
             var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
             if (!allowed.Contains(file.ContentType.ToLowerInvariant()))

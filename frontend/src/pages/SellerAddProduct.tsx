@@ -77,6 +77,7 @@ export const SellerAddProductPage: React.FC = () => {
   const [qtyInput, setQtyInput] = useState('')
   const [hasDraft, setHasDraft] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [isCompressing, setIsCompressing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -182,12 +183,15 @@ export const SellerAddProductPage: React.FC = () => {
       }
       let file = rawFile
       try {
+        if (rawFile.size > MAX_MB * 1024 * 1024) setIsCompressing(true)
         file = await compressImage(rawFile)
+        setIsCompressing(false)
         const before = (rawFile.size / 1024 / 1024).toFixed(1)
         const after  = (file.size  / 1024 / 1024).toFixed(1)
         if (parseFloat(before) > parseFloat(after))
           toast.success(`"${rawFile.name}" compressed ${before}MB → ${after}MB`, { duration: 2500 })
       } catch {
+        setIsCompressing(false)
         toast.error(`${rawFile.name}: compression failed`)
         continue
       }
@@ -532,9 +536,13 @@ export const SellerAddProductPage: React.FC = () => {
                     ${isDragging ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'}
                     ${images.length >= 8 ? 'opacity-50 pointer-events-none' : ''}`}>
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Upload className="w-6 h-6 text-green-600" />
+                    {isCompressing
+                      ? <span className="animate-spin w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full inline-block" />
+                      : <Upload className="w-6 h-6 text-green-600" />}
                   </div>
-                  <p className="text-gray-700 font-medium text-sm">Drag & drop images here</p>
+                  <p className="text-gray-700 font-medium text-sm">
+                    {isCompressing ? 'Optimizing image...' : 'Drag & drop images here'}
+                  </p>
                   <p className="text-gray-400 text-xs mt-1">or click to browse • JPEG, PNG, WebP • auto-compressed to 2MB</p>
                   <p className="text-gray-400 text-xs mt-0.5">{images.length}/8 images</p>
                   <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
