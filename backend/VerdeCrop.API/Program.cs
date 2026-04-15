@@ -175,9 +175,9 @@ builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IFirebaseService, FirebaseService>();
 
 // ── Storage Service (Azure Blob Storage) ─────────────────────────────────────
-// In production Azure Blob Storage is REQUIRED — set Azure:BlobStorage:ConnectionString
-// in Azure App Service → Settings → Configuration → Application settings.
-// In local Development only, falls back to wwwroot/uploads/ so you can run without Azure.
+// When Azure:BlobStorage:ConnectionString is set, blobs are used for all uploads.
+// Without it the app still starts — only image upload endpoints will fail gracefully.
+// Set the connection string in Azure App Service → Configuration → Application settings.
 var azureConnStr = builder.Configuration["Azure:BlobStorage:ConnectionString"];
 if (!string.IsNullOrWhiteSpace(azureConnStr))
 {
@@ -185,18 +185,13 @@ if (!string.IsNullOrWhiteSpace(azureConnStr))
     Log.Information("Storage: Azure Blob Storage (container: {Container})",
         builder.Configuration["Azure:BlobStorage:ContainerName"] ?? "graamo-images");
 }
-else if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddScoped<IStorageService, LocalFileStorageService>();
-    Log.Warning("Storage: LocalFileStorageService (dev fallback). " +
-                "Set Azure:BlobStorage:ConnectionString for production.");
-}
 else
 {
-    throw new InvalidOperationException(
-        "FATAL: Azure:BlobStorage:ConnectionString is not configured. " +
-        "This is required in non-Development environments. " +
-        "Set it in Azure App Service → Configuration → Application settings.");
+    builder.Services.AddScoped<IStorageService, LocalFileStorageService>();
+    Log.Warning("Storage: Azure:BlobStorage:ConnectionString is not set — " +
+                "falling back to LocalFileStorageService. " +
+                "Image uploads will use local disk. " +
+                "Set the connection string in App Service Configuration for production.");
 }
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -328,15 +323,15 @@ app.UseSwaggerUI(c =>
 });
 app.UseHttpsRedirection();
 
-// ── Static files (dev-only: serves wwwroot/uploads/ for locally-stored images) ─
-if (app.Environment.IsDevelopment())
-{
-    var wwwRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
-    if (!Directory.Exists(wwwRoot)) Directory.CreateDirectory(wwwRoot);
-    var uploadsDir = Path.Combine(wwwRoot, "uploads");
-    if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
-    app.UseStaticFiles();
-}
+// ── Static files (serves wwwroot/uploads/ for locally-stored images) ──────────
+// Kept unconditionally so existing /uploads/* URLs continue to work when
+// Azure Blob is not yet configured. Safe to leave in production — the folder
+// simply won't exist there, so no files are served.
+var wwwRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+if (!Directory.Exists(wwwRoot)) Directory.CreateDirectory(wwwRoot);
+var uploadsDir = Path.Combine(wwwRoot, "uploads");
+if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+app.UseStaticFiles();
 
 app.UseCors("AllowFrontend");  // ← Must be before UseAuthentication
 app.UseAuthentication();
