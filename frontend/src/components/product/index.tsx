@@ -89,23 +89,37 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault()
+    // Resolve first variant label and price for quick-add from card
+    let variantLabel: string | undefined
+    let variantPrice = product.price
+    if (product.variantPrices) {
+      try {
+        const vp = JSON.parse(product.variantPrices) as Record<string, number>
+        const firstKey = product.quantityOptions?.[0] ?? Object.keys(vp)[0]
+        if (firstKey) {
+          variantLabel = firstKey
+          if (vp[firstKey] != null) variantPrice = vp[firstKey]
+        }
+      } catch { /* fallback */ }
+    }
     if (!isAuthenticated) {
       addGuestItem({
         productId: product.id,
         productName: product.name,
-        price: product.price,
+        price: variantPrice,
         originalPrice: product.originalPrice,
         imageUrl: product.imageUrl,
-        unit: product.unit,
+        unit: variantLabel ?? product.unit,
         quantity: 1,
         stockQuantity: product.stockQuantity,
         slug: product.slug,
+        variantLabel,
       })
       return
     }
     setAdding(true)
     try {
-      const updated = await cartApi.addItem(product.id, 1)
+      const updated = await cartApi.addItem(product.id, 1, variantLabel)
       setCart(updated)
     } catch { toast.error('Could not add to cart') }
     finally { setAdding(false) }
@@ -212,13 +226,30 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
           {/* Price + CTA — pushed to bottom */}
           <div className="mt-auto pt-3">
-            <div className="flex items-baseline gap-1.5 mb-2.5">
-              <span className="text-lg font-display font-bold text-forest-700">₹{product.price}</span>
-              {product.originalPrice && product.originalPrice > product.price && (
-                <span className="text-xs text-stone-400 line-through font-body">₹{product.originalPrice}</span>
-              )}
-              <span className="text-[10px] text-stone-400 font-body">/{product.unit}</span>
-            </div>
+            {(() => {
+              // Show first variant label if available, otherwise fallback to unit
+              let displayPrice = product.price
+              let displayLabel = product.unit
+              if (product.variantPrices) {
+                try {
+                  const vp = JSON.parse(product.variantPrices) as Record<string, number>
+                  const firstKey = product.quantityOptions?.[0] ?? Object.keys(vp)[0]
+                  if (firstKey) {
+                    displayLabel = firstKey
+                    if (vp[firstKey] != null) displayPrice = vp[firstKey]
+                  }
+                } catch { /* fallback */ }
+              }
+              return (
+                <div className="flex items-baseline gap-1.5 mb-2.5">
+                  <span className="text-lg font-display font-bold text-forest-700">₹{displayPrice}</span>
+                  {product.originalPrice && product.originalPrice > displayPrice && (
+                    <span className="text-xs text-stone-400 line-through font-body">₹{product.originalPrice}</span>
+                  )}
+                  <span className="text-[10px] text-stone-400 font-body">/{displayLabel}</span>
+                </div>
+              )
+            })()}
 
             <div className="h-[42px]">
               {currentQty > 0 ? (

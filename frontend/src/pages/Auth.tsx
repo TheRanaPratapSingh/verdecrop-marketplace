@@ -464,7 +464,7 @@ export const LoginPage: React.FC = () => {
       if (guestItems.length > 0) {
         try {
           const mergedCart = await cartApi.merge(
-            guestItems.map(i => ({ productId: i.productId, quantity: i.quantity }))
+            guestItems.map(i => ({ productId: i.productId, quantity: i.quantity, variantLabel: i.variantLabel }))
           )
           if (mergedCart) setCart(mergedCart)
           clearGuestCart()

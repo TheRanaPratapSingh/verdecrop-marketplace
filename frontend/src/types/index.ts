@@ -100,6 +100,7 @@ export interface CartItem {
   unit: string
   total: number
   stockQuantity: number
+  variantLabel?: string
 }
 
 export interface Cart {

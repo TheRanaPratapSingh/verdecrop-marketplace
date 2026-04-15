@@ -139,6 +139,7 @@ export interface GuestCartItem {
   quantity: number
   stockQuantity: number
   slug?: string
+  variantLabel?: string
 }
 
 interface GuestCartState {
@@ -154,9 +155,9 @@ export const useGuestCartStore = create<GuestCartState>()(
     (set, get) => ({
       items: [],
       addItem: (item) => {
-        const existing = get().items.find((i: GuestCartItem) => i.productId === item.productId)
+        const existing = get().items.find((i: GuestCartItem) => i.productId === item.productId && i.variantLabel === item.variantLabel)
         if (existing) {
-          set({ items: get().items.map((i: GuestCartItem) => i.productId === item.productId ? { ...i, quantity: i.quantity + item.quantity } : i) })
+          set({ items: get().items.map((i: GuestCartItem) => i.productId === item.productId && i.variantLabel === item.variantLabel ? { ...i, quantity: i.quantity + item.quantity } : i) })
         } else {
           set({ items: [...get().items, item] })
         }

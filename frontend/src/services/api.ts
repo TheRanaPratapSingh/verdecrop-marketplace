@@ -181,11 +181,12 @@ export const productApi = {
 // ── Cart ─────────────────────────────────────────────────────────────────────
 export const cartApi = {
   get: () => unwrap<Cart>(api.get('/cart')),
-  addItem: (productId: number, quantity: number) => unwrap<Cart>(api.post('/cart/items', { productId, quantity })),
+  addItem: (productId: number, quantity: number, variantLabel?: string) =>
+    unwrap<Cart>(api.post('/cart/items', { productId, quantity, variantLabel })),
   updateItem: (id: number, quantity: number) => unwrap<Cart>(api.put(`/cart/items/${id}`, { quantity })),
   removeItem: (id: number) => unwrap<Cart>(api.delete(`/cart/items/${id}`)),
   clear: () => unwrap<boolean>(api.delete('/cart')),
-  merge: (items: { productId: number; quantity: number }[]) =>
+  merge: (items: { productId: number; quantity: number; variantLabel?: string }[]) =>
     unwrap<Cart>(api.post('/cart/merge', { items })),
 }
 

@@ -302,6 +302,9 @@ export const ProductDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (!product) return
+    // Set default selected variant to first quantityOption
+    const firstVariant = product.quantityOptions?.[0] ?? null
+    setSelectedVariant(firstVariant)
     trackEvent('view_product', {
       product_id: product.id,
       product_name: product.name,
@@ -333,7 +336,7 @@ export const ProductDetailPage: React.FC = () => {
     }
     setAdding(true)
     try {
-      const cart = await cartApi.addItem(product.id, qty)
+      const cart = await cartApi.addItem(product.id, qty, selectedVariant ?? undefined)
       setCart(cart)
       trackEvent('add_to_cart', {
         product_id: product.id,
@@ -353,7 +356,7 @@ export const ProductDetailPage: React.FC = () => {
     const variantPrice = getVariantPrice(product, selectedVariant)
     setBuyingNow(true)
     try {
-      const cart = await cartApi.addItem(product.id, qty)
+      const cart = await cartApi.addItem(product.id, qty, selectedVariant ?? undefined)
       setCart(cart)
       trackEvent('buy_now', {
         product_id: product.id,
@@ -416,10 +419,12 @@ export const ProductDetailPage: React.FC = () => {
 
   const discount = product.originalPrice && product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0
-  const unitOptions = [1, 5, 10]
-  const finalPrice = product.price * unitPack
-  const finalOriginalPrice = product.originalPrice ? product.originalPrice * unitPack : undefined
-  const saveAmount = finalOriginalPrice ? Math.max(0, finalOriginalPrice - finalPrice) : 0
+  const variantPriceMap = parseVariantPrices(product.variantPrices)
+  const quantityOpts = product.quantityOptions?.length ? product.quantityOptions : Object.keys(variantPriceMap)
+  const activeVariant = selectedVariant ?? quantityOpts[0] ?? null
+  const finalPrice = activeVariant && variantPriceMap[activeVariant] != null
+    ? variantPriceMap[activeVariant]
+    : product.price
   const hasReviews = (product.reviewCount || 0) > 0
   const farmInitial = product.farmerName?.[0]?.toUpperCase() || 'F'
 
@@ -565,28 +570,34 @@ export const ProductDetailPage: React.FC = () => {
             <div className="bg-gradient-to-r from-forest-50 to-sage-50 border border-forest-100 rounded-3xl p-5 mb-5">
               <div className="flex items-end gap-3 flex-wrap">
                 <p className="text-4xl font-display font-semibold text-stone-900">₹{finalPrice.toFixed(0)}</p>
-                {finalOriginalPrice && finalOriginalPrice > finalPrice && <p className="text-lg text-stone-400 line-through">₹{finalOriginalPrice.toFixed(0)}</p>}
-                <p className="text-sm text-stone-600 mb-1">for {unitPack} {product.unit}</p>
+                {product.originalPrice && product.originalPrice > finalPrice && (
+                  <p className="text-lg text-stone-400 line-through">₹{product.originalPrice.toFixed(0)}</p>
+                )}
+                {activeVariant && (
+                  <p className="text-sm text-stone-600 mb-1">for {activeVariant}</p>
+                )}
               </div>
-              {saveAmount > 0 && (
-                <p className="mt-2 text-sm text-forest-700 font-medium">You save ₹{saveAmount.toFixed(0)}</p>
+              {product.originalPrice && product.originalPrice > finalPrice && (
+                <p className="mt-2 text-sm text-forest-700 font-medium">You save ₹{(product.originalPrice - finalPrice).toFixed(0)}</p>
               )}
 
-              <div className="mt-4">
-                <p className="text-xs uppercase tracking-wide text-stone-500 font-label mb-2">Select Pack</p>
-                <div className="flex gap-2 flex-wrap">
-                  {unitOptions.map(u => (
-                    <button
-                      key={u}
-                      title={`Select ${u} ${product.unit}`}
-                      onClick={() => setUnitPack(u)}
-                      className={`px-3.5 py-2 rounded-xl text-sm font-medium transition ${unitPack === u ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-300'}`}
-                    >
-                      {u}{product.unit}
-                    </button>
-                  ))}
+              {quantityOpts.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs uppercase tracking-wide text-stone-500 font-label mb-2">Select Pack</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {quantityOpts.map(opt => (
+                      <button
+                        key={opt}
+                        title={`Select ${opt}`}
+                        onClick={() => setSelectedVariant(opt)}
+                        className={`px-3.5 py-2 rounded-xl text-sm font-medium transition ${activeVariant === opt ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-300'}`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3 mb-4">
