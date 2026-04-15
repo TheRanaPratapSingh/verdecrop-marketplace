@@ -423,6 +423,7 @@ export const AdminProducts: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [currentProductId, setCurrentProductId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editLoading, setEditLoading] = useState(false)
   const [formData, setFormData] = useState({ ...emptyFormState })
 
   const fetchProducts = async () => {
@@ -583,29 +584,39 @@ export const AdminProducts: React.FC = () => {
     }
   }
 
-  const startEdit = (product: Product) => {
+  const startEdit = async (product: Product) => {
+    setEditLoading(true)
     setCurrentProductId(product.id)
     setIsEditing(true)
-    setFormData({
-      name: product.name,
-      categoryId: product.categoryId,
-      categoryName: product.categoryName,
-      price: String(product.price),
-      stock: String(product.stockQuantity),
-      status: product.isActive ? 'active' : 'inactive',
-      description: product.description ?? '',
-      imageUrl: product.imageUrl ?? '',
-      imageUrls: product.imageUrls?.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : []),
-      isOrganic: product.isOrganic ?? true,
-      isFeatured: product.isFeatured ?? false,
-      keyFeatures: product.keyFeatures ?? [],
-      nutritionInfo: product.nutritionInfo ?? '',
-      farmStory: product.farmStory ?? '',
-      storageInstructions: product.storageInstructions ?? '',
-      packagingDetails: product.packagingDetails ?? '',
-    })
-    setSellerId(product.farmerId ?? sellerId)
-    setShowModal(true)
+    try {
+      const detail = await productApi.getById(product.id)
+      setFormData({
+        name: detail.name,
+        categoryId: detail.categoryId,
+        categoryName: detail.categoryName,
+        price: String(detail.price),
+        stock: String(detail.stockQuantity),
+        status: detail.isActive ? 'active' : 'inactive',
+        description: detail.description ?? '',
+        imageUrl: detail.imageUrl ?? '',
+        imageUrls: detail.imageUrls?.length ? detail.imageUrls : (detail.imageUrl ? [detail.imageUrl] : []),
+        isOrganic: detail.isOrganic ?? true,
+        isFeatured: detail.isFeatured ?? false,
+        keyFeatures: detail.keyFeatures ?? [],
+        nutritionInfo: detail.nutritionInfo ?? '',
+        farmStory: detail.farmStory ?? '',
+        storageInstructions: detail.storageInstructions ?? '',
+        packagingDetails: detail.packagingDetails ?? '',
+      })
+      setSellerId(detail.farmerId ?? sellerId)
+      setShowModal(true)
+    } catch {
+      toast.error('Failed to load product details')
+      setIsEditing(false)
+      setCurrentProductId(null)
+    } finally {
+      setEditLoading(false)
+    }
   }
 
   const handleDelete = async (id: number) => {
@@ -743,10 +754,13 @@ export const AdminProducts: React.FC = () => {
                       <td className="py-4 px-6 flex gap-2">
                         <button
                           aria-label="Edit product"
-                          className="p-1.5 text-gray-600 hover:text-white hover:bg-green-600 rounded-lg transition-all"
+                          className="p-1.5 text-gray-600 hover:text-white hover:bg-green-600 rounded-lg transition-all disabled:opacity-50"
                           onClick={() => startEdit(product)}
+                          disabled={editLoading}
                         >
-                          <Edit2 className="w-4 h-4" />
+                          {editLoading && currentProductId === product.id
+                            ? <Spinner size="sm" />
+                            : <Edit2 className="w-4 h-4" />}
                         </button>
                         <button
                           aria-label="Delete product"
