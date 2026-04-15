@@ -147,7 +147,7 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0
 
   return (
-    <Link to={`/products/${product.slug}`} className="group block h-full">
+    <Link to={`/products/${encodeURIComponent(product.slug)}`} className="group block h-full">
       <div className="bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden hover:-translate-y-1 h-full flex flex-col">
         {/* Image */}
         <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-stone-50 aspect-[4/3]">

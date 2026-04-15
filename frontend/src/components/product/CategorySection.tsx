@@ -121,7 +121,7 @@ const GridProductCard: React.FC<{ product: Product }> = ({ product }) => {
 
   return (
     <Link
-      to={`/products/${product.slug}`}
+      to={`/products/${encodeURIComponent(product.slug)}`}
       className="group w-full bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden flex flex-col border border-stone-100/80 hover:border-forest-200 hover:-translate-y-1"
     >
       {/* ── Product image ── */}

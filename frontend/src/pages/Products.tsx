@@ -285,7 +285,19 @@ export const ProductDetailPage: React.FC = () => {
         setProduct(p)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(async () => {
+        // Fallback: if the slug contains special characters that the URL encoded but the
+        // backend still couldn't match, try fetching by the numeric ID embedded in the URL
+        // (some legacy product cards link by ID directly)
+        const idMatch = /^(\d+)$/.exec(slug)
+        if (idMatch) {
+          try {
+            const p = await productApi.getById(Number(idMatch[1]))
+            setProduct(p)
+          } catch { /* not found */ }
+        }
+        setLoading(false)
+      })
   }, [slug])
 
   useEffect(() => {

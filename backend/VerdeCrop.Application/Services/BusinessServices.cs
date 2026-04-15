@@ -354,6 +354,7 @@ namespace VerdeCrop.Application.Services
         {
             try
             {
+                // 1. Try exact slug match first (fast path for well-formed slugs)
                 var result = await _uow.Products.Query()
                     .Where(x => x.Slug == slug && x.IsActive)
                     .Select(p => new ProductDetailDto(
@@ -370,16 +371,46 @@ namespace VerdeCrop.Application.Services
                             r.User != null ? r.User.AvatarUrl : null,
                             r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
                         )).ToList(),
-                                                          p.KeyFeatures, p.NutritionInfo, p.FarmStory,
-                                                          p.StorageInstructions, p.PackagingDetails, p.QuantityOptions, p.VariantPrices))
-                                                     .FirstOrDefaultAsync();
-                                                 return result;
-                                             }
-                                             catch
-                                             {
-                                                 return null;
-                                             }
-                                         }
+                        p.KeyFeatures, p.NutritionInfo, p.FarmStory,
+                        p.StorageInstructions, p.PackagingDetails, p.QuantityOptions, p.VariantPrices))
+                    .FirstOrDefaultAsync();
+
+                if (result != null) return result;
+
+                // 2. Fallback: extract the 6-char hex suffix appended by GenerateSlug and look up by slug suffix
+                //    Handles legacy slugs that had special characters (e.g. "desi-khand-(natural-sugar)-04d24e")
+                var suffixMatch = System.Text.RegularExpressions.Regex.Match(slug, @"-([a-f0-9]{6})$");
+                if (suffixMatch.Success)
+                {
+                    var suffix = suffixMatch.Groups[1].Value;
+                    result = await _uow.Products.Query()
+                        .Where(x => x.Slug.EndsWith("-" + suffix) && x.IsActive)
+                        .Select(p => new ProductDetailDto(
+                            p.Id, p.Name, p.Slug, p.Description,
+                            p.CategoryId, p.Category != null ? p.Category.Name : "",
+                            p.FarmerId, p.Farmer != null ? p.Farmer.FarmName : "",
+                            p.Farmer != null ? p.Farmer.Location : "",
+                            p.Price, p.OriginalPrice, p.Unit, p.MinOrderQty, p.StockQuantity,
+                            p.ImageUrl, p.ImageUrls, p.IsOrganic, p.IsFeatured,
+                            p.Rating, p.ReviewCount, p.IsActive,
+                            p.Reviews.Select(r => new ReviewDto(
+                                r.Id, r.UserId,
+                                r.User != null ? r.User.Name : "",
+                                r.User != null ? r.User.AvatarUrl : null,
+                                r.Rating, r.Comment, r.IsVerifiedPurchase, r.CreatedAt
+                            )).ToList(),
+                            p.KeyFeatures, p.NutritionInfo, p.FarmStory,
+                            p.StorageInstructions, p.PackagingDetails, p.QuantityOptions, p.VariantPrices))
+                        .FirstOrDefaultAsync();
+                }
+
+                return result;
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
                                          public async Task<List<ProductListDto>> GetFeaturedAsync(int count = 8)
         {
@@ -610,12 +641,17 @@ namespace VerdeCrop.Application.Services
         // ── Helpers ───────────────────────────────────────────────────────────
         private static string GenerateSlug(string name)
         {
-            var slug = name.ToLower()
-                .Replace(" ", "-")
-                .Replace("/", "-")
+            var slug = name.ToLowerInvariant()
                 .Replace("&", "and")
-                .Replace("'", "")
-                .Replace(",", "");
+                .Replace(" ", "-")
+                .Replace("/", "-");
+            // Remove ALL characters that are not lowercase letters, digits, or hyphens
+            slug = System.Text.RegularExpressions.Regex.Replace(slug, @"[^a-z0-9\-]", "");
+            // Collapse multiple consecutive hyphens into one
+            slug = System.Text.RegularExpressions.Regex.Replace(slug, @"-{2,}", "-");
+            // Trim leading/trailing hyphens
+            slug = slug.Trim('-');
+            if (string.IsNullOrEmpty(slug)) slug = "product";
             return slug + "-" + Guid.NewGuid().ToString("N")[..6];
         }
 

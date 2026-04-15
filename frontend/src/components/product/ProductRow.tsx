@@ -95,7 +95,7 @@ const CompactProductCard: React.FC<{ product: Product }> = ({ product }) => {
   }
 
   return (
-    <Link to={`/products/${product.slug}`} className="group flex-shrink-0 w-[140px] sm:w-[156px] bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden flex flex-col border border-stone-100/80 hover:border-forest-200 hover:-translate-y-1">
+    <Link to={`/products/${encodeURIComponent(product.slug)}`} className="group flex-shrink-0 w-[140px] sm:w-[156px] bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden flex flex-col border border-stone-100/80 hover:border-forest-200 hover:-translate-y-1">
       {/* ── Product image ── */}
       <div className="relative w-full aspect-square bg-gradient-to-br from-emerald-50 to-stone-50 overflow-hidden">
         {imgSrc ? (

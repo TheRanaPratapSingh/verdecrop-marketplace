@@ -156,7 +156,7 @@ export const productApi = {
   getAll: (params?: object) => unwrap<PagedResult<Product>>(api.get('/products', { params })),
   getFeatured: (count = 8) => unwrap<Product[]>(api.get('/products/featured', { params: { count } })),
   getById: (id: number) => unwrap<Product>(api.get(`/products/${id}`)),
-  getBySlug: (slug: string) => unwrap<Product>(api.get(`/products/${slug}`)),
+  getBySlug: (slug: string) => unwrap<Product>(api.get(`/products/${encodeURIComponent(slug)}`)),
   create: (data: object) => unwrap<Product>(api.post('/products', data)),
   createAdmin: (farmerId: number, data: object) =>
     unwrap<Product>(api.post('/products/admin', data, { params: { farmerId } })),

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using VerdeCrop.API.Security;
 using VerdeCrop.Application.DTOs;
@@ -569,10 +570,19 @@ namespace VerdeCrop.API.Controllers
         [HttpGet("{slug}")]
         public async Task<IActionResult> GetBySlug(string slug)
         {
-            if (!InputValidator.IsValidSlug(slug))
+            if (string.IsNullOrWhiteSpace(slug) || slug.Length > 200)
                 return BadRequest(ApiResponse.Fail("Invalid product slug."));
 
-            var p = await _products.GetBySlugAsync(slug);
+            // Sanitize: strip any characters that aren't lowercase letters, digits, or hyphens
+            // This handles legacy slugs stored in the DB that contain special characters like ()
+            var sanitized = System.Text.RegularExpressions.Regex.Replace(
+                slug.ToLowerInvariant(), @"[^a-z0-9\-]", "");
+            sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"-{2,}", "-").Trim('-');
+
+            if (string.IsNullOrEmpty(sanitized))
+                return BadRequest(ApiResponse.Fail("Invalid product slug."));
+
+            var p = await _products.GetBySlugAsync(sanitized);
             return p == null ? NotFound() : Ok(ApiResponse.Ok(p));
         }
 
@@ -1055,6 +1065,57 @@ namespace VerdeCrop.API.Controllers
             Log.Information("RepairImageUrls: cleared stale /uploads/ paths from {Count} products", fixed_);
             return Ok(ApiResponse.Ok(new { productsFixed = fixed_ },
                 $"Cleared stale local paths from {fixed_} products. Re-upload images to restore them."));
+        }
+
+        /// POST /api/admin/repair-slugs
+        /// Fixes any product slugs that contain characters outside [a-z0-9-]
+        [HttpPost("repair-slugs")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> RepairSlugs()
+        {
+            var products = await _uow.Products.Query().ToListAsync();
+            int fixed_ = 0;
+            var slugRegex = new System.Text.RegularExpressions.Regex(@"[^a-z0-9\-]");
+            var collapseRegex = new System.Text.RegularExpressions.Regex(@"-{2,}");
+            var usedSlugs = new HashSet<string>(
+                products.Select(p => p.Slug).Where(s => s != null));
+
+            foreach (var product in products)
+            {
+                var original = product.Slug ?? "";
+                if (!slugRegex.IsMatch(original)) continue; // already clean
+
+                // Extract the existing 6-char suffix if present, otherwise generate a new one
+                var suffixMatch = System.Text.RegularExpressions.Regex.Match(original, @"([a-f0-9]{6})$");
+                var suffix = suffixMatch.Success
+                    ? suffixMatch.Groups[1].Value
+                    : Guid.NewGuid().ToString("N")[..6];
+
+                // Rebuild clean slug from name
+                var clean = product.Name.ToLowerInvariant()
+                    .Replace("&", "and").Replace(" ", "-").Replace("/", "-");
+                clean = slugRegex.Replace(clean, "");
+                clean = collapseRegex.Replace(clean, "-").Trim('-');
+                if (string.IsNullOrEmpty(clean)) clean = "product";
+
+                var newSlug = clean + "-" + suffix;
+                // Ensure uniqueness
+                var attempt = newSlug;
+                int counter = 1;
+                while (usedSlugs.Contains(attempt) && attempt != original)
+                    attempt = clean + "-" + suffix + "-" + counter++;
+                newSlug = attempt;
+
+                product.Slug = newSlug;
+                usedSlugs.Add(newSlug);
+                await _uow.Products.UpdateAsync(product);
+                fixed_++;
+                Log.Information("RepairSlugs: '{Old}' → '{New}'", original, newSlug);
+            }
+
+            if (fixed_ > 0) await _uow.SaveChangesAsync();
+            return Ok(ApiResponse.Ok(new { productsFixed = fixed_ },
+                $"Repaired {fixed_} product slugs."));
         }
     }
 

@@ -84,7 +84,7 @@ export const WishlistPage: React.FC = () => {
             {items.map(item => (
               <Card key={item.id} className="p-5 rounded-3xl border border-stone-200 bg-white">
                 <div className="flex items-start gap-4">
-                  <Link to={`/products/${item.slug}`} className="w-24 h-24 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
+                  <Link to={`/products/${encodeURIComponent(item.slug)}`} className="w-24 h-24 rounded-2xl bg-stone-100 overflow-hidden flex-shrink-0">
                     {item.imageUrl ? (
                       <img src={resolveAssetUrl(item.imageUrl)} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
@@ -96,7 +96,7 @@ export const WishlistPage: React.FC = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-xs uppercase tracking-wider text-stone-400 font-semibold">{item.farmerName}</p>
-                        <Link to={`/products/${item.slug}`} className="block mt-1 text-base font-semibold text-stone-900 hover:text-forest-700 transition-colors">
+                        <Link to={`/products/${encodeURIComponent(item.slug)}`} className="block mt-1 text-base font-semibold text-stone-900 hover:text-forest-700 transition-colors">
                           {item.name}
                         </Link>
                       </div>
