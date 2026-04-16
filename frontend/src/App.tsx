@@ -2,7 +2,8 @@
 import React, { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { useAuthStore } from './store'
+import { useAuthStore, useWishlistStore } from './store'
+import { wishlistApi } from './services/api'
 import { Spinner } from './components/ui'
 import { trackPageView } from './lib/analytics'
 
@@ -85,6 +86,19 @@ const RequireGuest: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // ── This inner component can safely use useLocation ──────────────────────────
 const AppRoutes: React.FC = () => {
   const location = useLocation()
+  const { isAuthenticated } = useAuthStore()
+  const { setWishlist } = useWishlistStore()
+
+  // Initialize wishlist store from backend whenever auth state changes
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setWishlist([])
+      return
+    }
+    wishlistApi.getAll()
+      .then(items => setWishlist(items.map(p => p.id)))
+      .catch(() => { /* non-critical — wishlist state stays empty */ })
+  }, [isAuthenticated])
 
   useEffect(() => {
     trackPageView(location.pathname)

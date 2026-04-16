@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, Leaf, Star, Minus, Plus } from 'lucide-react'
+import { Leaf, Star, Minus, Plus } from 'lucide-react'
 import { useAuthStore, useCartStore, useGuestCartStore } from '../../store'
 import { cartApi } from '../../services/api'
 import { Spinner } from '../ui'
+import { WishlistButton } from './WishlistButton'
 import type { Product, Category } from '../../types'
 import toast from 'react-hot-toast'
 import { resolveAssetUrl, resolveLocalUrl, resolveCategoryIcon, resolveProductImage } from '../../lib/image'
@@ -65,7 +66,6 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const { items: guestItems, addItem: addGuestItem, updateItem: updateGuestItem } = useGuestCartStore()
   const [adding, setAdding] = useState(false)
   const [updating, setUpdating] = useState(false)
-  const [wishlisted, setWishlisted] = useState(false)
   const productBaseImage = resolveAssetUrl(product.imageUrl) || resolveLocalUrl(product.imageUrl) || resolveProductImage(product.slug, product.name)
   const [imageSrc, setImageSrc] = useState<string | undefined>(productBaseImage)
   const [imageFallbacked, setImageFallbacked] = useState(false)
@@ -191,14 +191,12 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
           </div>
 
           {/* Wishlist */}
-          {isAuthenticated && (
-            <button
-              onClick={e => { e.preventDefault(); setWishlisted(v => !v) }}
-              className="absolute top-2.5 right-2.5 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
-            >
-              <Heart className={`w-4 h-4 transition-colors ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} strokeWidth={1.8} />
-            </button>
-          )}
+          <WishlistButton
+            productId={product.id}
+            productName={product.name}
+            className="absolute top-2.5 right-2.5 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+            size="sm"
+          />
 
           {/* Out of stock */}
           {product.stockQuantity === 0 && (

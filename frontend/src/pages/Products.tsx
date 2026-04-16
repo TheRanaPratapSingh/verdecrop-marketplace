@@ -5,6 +5,7 @@ import { productApi, categoryApi, cartApi, reviewApi } from '../services/api'
 import { resolveAssetUrl, resolveLocalUrl, resolveProductImage } from '../lib/image'
 import { PageLayout } from '../components/layout'
 import { ProductGrid, CategoryIcon } from '../components/product'
+import { WishlistButton } from '../components/product/WishlistButton'
 import { SEO } from '../components/SEO'
 import { Button, Badge, Spinner, Pagination, PriceDisplay, StarRating, EmptyState } from '../components/ui'
 import { useCartStore, useAuthStore, useGuestCartStore } from '../store'
@@ -266,7 +267,6 @@ export const ProductDetailPage: React.FC = () => {
   const [adding, setAdding] = useState(false)
   const [buyingNow, setBuyingNow] = useState(false)
   const [activeImg, setActiveImg] = useState(0)
-  const [wishlisted, setWishlisted] = useState(false)
   const [openSection, setOpenSection] = useState<'overview' | 'features' | 'nutrition' | 'story' | 'additional'>('overview')
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [reviewRating, setReviewRating] = useState(0)
@@ -537,15 +537,12 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-display font-semibold text-stone-900 tracking-tight">{product.name}</h1>
               </div>
-              {isAuthenticated && (
-                <button
-                  title="Add to wishlist"
-                  onClick={() => setWishlisted(v => !v)}
-                  className="w-11 h-11 rounded-2xl border border-stone-200 hover:border-red-300 hover:bg-red-50 transition"
-                >
-                  <Heart className={`w-5 h-5 mx-auto transition-colors ${wishlisted ? 'fill-red-500 text-red-500' : 'text-stone-400'}`} />
-                </button>
-              )}
+              <WishlistButton
+                productId={product.id}
+                productName={product.name}
+                className="w-11 h-11 rounded-2xl border border-stone-200 hover:border-red-300 hover:bg-red-50"
+                size="md"
+              />
             </div>
 
             <div className="flex items-center gap-2 text-sm mb-4">
