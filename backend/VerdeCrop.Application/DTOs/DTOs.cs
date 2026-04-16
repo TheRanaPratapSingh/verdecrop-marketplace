@@ -19,6 +19,7 @@ namespace VerdeCrop.Application.DTOs
     public record AuthResponse(string AccessToken, string RefreshToken, UserDto User);
     public record RefreshTokenRequest([Required][StringLength(500)] string Token);
     public record LogoutRequest([Required][StringLength(500)] string RefreshToken);
+    public record ActivityRequest(string? RefreshToken);
 
     public record VerifyOtpOnlyRequest(
         [Required][StringLength(200, MinimumLength = 5)] string Identifier,

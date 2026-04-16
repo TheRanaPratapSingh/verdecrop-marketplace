@@ -87,6 +87,15 @@ namespace VerdeCrop.API.Controllers
             return Ok(ApiResponse.Ok(true));
         }
 
+        [HttpPost("activity")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Activity([FromBody] ActivityRequest req)
+        {
+            if (!string.IsNullOrWhiteSpace(req?.RefreshToken))
+                await _auth.UpdateActivityAsync(req.RefreshToken);
+            return Ok(ApiResponse.Ok(true));
+        }
+
         [HttpPost("verify-otp-only")]
         [AllowAnonymous]
         public async Task<IActionResult> VerifyOtpOnly([FromBody] VerifyOtpOnlyRequest req)

@@ -42,6 +42,7 @@ namespace VerdeCrop.Domain.Entities
         public DateTime ExpiresAt { get; set; }
         public bool IsRevoked { get; set; } = false;
         public string? ReplacedByToken { get; set; }
+        public DateTime LastActivityAt { get; set; } = DateTime.UtcNow;
         public User User { get; set; } = null!;
     }
 

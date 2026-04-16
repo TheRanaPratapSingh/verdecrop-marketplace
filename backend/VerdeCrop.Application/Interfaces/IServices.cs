@@ -14,6 +14,7 @@ namespace VerdeCrop.Application.Interfaces
         Task<AuthResponse?> RegisterWithDualVerificationAsync(DualOtpRegisterRequest request);
         Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
         Task<bool> LogoutAsync(string refreshToken);
+        Task UpdateActivityAsync(string refreshToken);
     }
     public interface IRepository<T> where T : BaseEntity
     {

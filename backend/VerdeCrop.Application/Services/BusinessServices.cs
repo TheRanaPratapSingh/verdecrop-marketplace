@@ -155,6 +155,17 @@ namespace VerdeCrop.Application.Services
         {
             var token = await _uow.RefreshTokens.FirstOrDefaultAsync(t => t.Token == refreshToken && !t.IsRevoked);
             if (token == null || token.ExpiresAt < DateTime.UtcNow) return null;
+
+            // Enforce inactivity: if no activity recorded for >30 min, treat session as expired
+            var inactivityLimit = int.TryParse(_config["Session:InactivityTimeoutMinutes"], out var im) ? im : 30;
+            if ((DateTime.UtcNow - token.LastActivityAt).TotalMinutes > inactivityLimit)
+            {
+                token.IsRevoked = true;
+                await _uow.RefreshTokens.UpdateAsync(token);
+                await _uow.SaveChangesAsync();
+                return null;
+            }
+
             var user = await _uow.Users.GetByIdAsync(token.UserId);
             if (user == null || !user.IsActive) return null;
 
@@ -171,6 +182,16 @@ namespace VerdeCrop.Application.Services
             await _uow.RefreshTokens.UpdateAsync(token);
             await _uow.SaveChangesAsync();
             return true;
+        }
+
+        public async Task UpdateActivityAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken)) return;
+            var token = await _uow.RefreshTokens.FirstOrDefaultAsync(t => t.Token == refreshToken && !t.IsRevoked);
+            if (token == null || token.ExpiresAt < DateTime.UtcNow) return;
+            token.LastActivityAt = DateTime.UtcNow;
+            await _uow.RefreshTokens.UpdateAsync(token);
+            await _uow.SaveChangesAsync();
         }
 
         public async Task<bool> VerifyOtpOnlyAsync(VerifyOtpOnlyRequest req)
@@ -240,11 +261,13 @@ namespace VerdeCrop.Application.Services
         {
             var accessToken = _jwt.GenerateAccessToken(user);
             var refreshTokenStr = _jwt.GenerateRefreshToken();
+            var refreshDays = int.TryParse(_config["Session:RefreshTokenExpiryDays"], out var rd) ? rd : 1;
             var rt = new RefreshToken
             {
                 UserId = user.Id,
                 Token = refreshTokenStr,
-                ExpiresAt = DateTime.UtcNow.AddDays(7)
+                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays),
+                LastActivityAt = DateTime.UtcNow
             };
             await _uow.RefreshTokens.AddAsync(rt);
             await _uow.SaveChangesAsync();
