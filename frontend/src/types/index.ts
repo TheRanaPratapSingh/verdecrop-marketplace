@@ -248,6 +248,7 @@ export interface SellerProductDetail extends SellerProduct {
   village?: string
   certificationType?: string
   quantityOptions: string[]
+  variantPrices?: string   // JSON: {"100g":80,"200g":150,"1kg":700}
   harvestDate?: string
   shelfLifeDays?: number
   freshnessGuarantee?: string

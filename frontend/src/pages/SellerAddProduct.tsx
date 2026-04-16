@@ -24,7 +24,7 @@ interface FormData {
   name: string; description: string; categoryId: number; subcategory: string; tags: string[]
   farmName: string; farmerName: string; village: string; state: string
   organicCertified: boolean; certificationType: string
-  price: string; originalPrice: string; unit: string; quantityOptions: string[]
+  price: string; originalPrice: string; unit: string; quantityOptions: string[]; variantPrices: Record<string, string>
   stockQuantity: string; minOrderQty: string
   harvestDate: string; shelfLifeDays: string; freshnessGuarantee: string
   deliveryTime: string; availableCities: string[]
@@ -50,7 +50,7 @@ const initialForm: FormData = {
   name: '', description: '', categoryId: 0, subcategory: '', tags: [],
   farmName: '', farmerName: '', village: '', state: '',
   organicCertified: true, certificationType: 'None',
-  price: '', originalPrice: '', unit: 'kg', quantityOptions: [],
+  price: '', originalPrice: '', unit: 'kg', quantityOptions: [], variantPrices: {},
   stockQuantity: '', minOrderQty: '1',
   harvestDate: '', shelfLifeDays: '', freshnessGuarantee: '',
   deliveryTime: '1-2 days', availableCities: [],
@@ -103,6 +103,13 @@ export const SellerAddProductPage: React.FC = () => {
       setLoading(true)
       productApi.getSellerById(Number(id)).then(p => {
         const detail = p as SellerProductDetail
+        const savedVariantPrices: Record<string, string> = {}
+        if (detail.variantPrices) {
+          try {
+            const parsed = JSON.parse(detail.variantPrices) as Record<string, number>
+            Object.entries(parsed).forEach(([k, v]) => { savedVariantPrices[k] = String(v) })
+          } catch { /* ignore */ }
+        }
         setForm({
           name: detail.name, description: detail.description || '', categoryId: detail.categoryId,
           subcategory: detail.subcategory || '', tags: detail.tags || [],
@@ -111,6 +118,7 @@ export const SellerAddProductPage: React.FC = () => {
           certificationType: detail.certificationType || 'None',
           price: String(detail.price), originalPrice: detail.originalPrice ? String(detail.originalPrice) : '',
           unit: detail.unit, quantityOptions: detail.quantityOptions || [],
+          variantPrices: savedVariantPrices,
           stockQuantity: String(detail.stockQuantity), minOrderQty: String(detail.minOrderQty),
           harvestDate: detail.harvestDate ? detail.harvestDate.split('T')[0] : '',
           shelfLifeDays: detail.shelfLifeDays ? String(detail.shelfLifeDays) : '',
@@ -154,10 +162,16 @@ export const SellerAddProductPage: React.FC = () => {
     const e: typeof errors = {}
     if (!form.name.trim()) e.name = 'Product name is required'
     if (!form.categoryId) e.categoryId = 'Please select a category'
-    if (!form.price || isNaN(+form.price) || +form.price <= 0) e.price = 'Valid price is required'
     if (!form.stockQuantity || isNaN(+form.stockQuantity)) e.stockQuantity = 'Stock quantity is required'
     if (!form.unit) e.unit = 'Unit is required'
     if (images.length === 0) e.images = 'At least one product image is required'
+    // Require at least one quantity option with a valid price
+    if (form.quantityOptions.length === 0) {
+      e.price = 'Add at least one pack size (e.g., 100g)'
+    } else {
+      const missing = form.quantityOptions.some(l => !form.variantPrices[l] || isNaN(+form.variantPrices[l]) || +form.variantPrices[l] <= 0)
+      if (missing) e.price = 'Set a valid price for every pack size'
+    }
     setErrors(e)
     if (Object.keys(e).length > 0) {
       const firstErr = Object.keys(e)[0]
@@ -221,10 +235,14 @@ export const SellerAddProductPage: React.FC = () => {
     setSaving(true)
     try {
       const existingUrls = images.filter(i => i.uploaded).map(i => i.uploaded!)
+      const firstVariantPrice = Number(form.variantPrices[form.quantityOptions[0]] ?? form.price) || 0
+      const variantPricesJson = form.quantityOptions.length > 0
+        ? JSON.stringify(Object.fromEntries(form.quantityOptions.map(l => [l, Number(form.variantPrices[l])])))
+        : undefined
       const payload = {
         name: form.name.trim(), description: form.description.trim() || undefined,
         categoryId: form.categoryId,
-        price: parseFloat(form.price),
+        price: firstVariantPrice,
         originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : undefined,
         unit: form.unit, minOrderQty: parseFloat(form.minOrderQty) || 1,
         stockQuantity: parseInt(form.stockQuantity),
@@ -233,6 +251,7 @@ export const SellerAddProductPage: React.FC = () => {
         subcategory: form.subcategory || undefined, tags: form.tags,
         village: form.village || undefined, certificationType: form.certificationType !== 'None' ? form.certificationType : undefined,
         quantityOptions: form.quantityOptions,
+        variantPrices: variantPricesJson,
         harvestDate: form.harvestDate || undefined,
         shelfLifeDays: form.shelfLifeDays ? parseInt(form.shelfLifeDays) : undefined,
         freshnessGuarantee: form.freshnessGuarantee || undefined,
@@ -457,16 +476,13 @@ export const SellerAddProductPage: React.FC = () => {
             <Section id="product" title="Product Details" icon={Star} ref={el => sectionRefs.current['product'] = el}>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <Input label="Price (₹) *" type="number" min="0" placeholder="e.g., 250"
-                    value={form.price} error={errors.price}
-                    onChange={e => { setF({ price: e.target.value }); clearError('price') }} />
                   <Input label="MRP / Original Price (₹)" type="number" min="0" placeholder="e.g., 300"
                     value={form.originalPrice} hint="Optional"
                     onChange={e => setF({ originalPrice: e.target.value })} />
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-1.5 block">Unit *</label>
                     <select value={form.unit} aria-label="Unit"
-                      onChange={e => { setF({ unit: e.target.value }); clearError('unit') }}
+                      onChange={e => setF({ unit: e.target.value, quantityOptions: [], variantPrices: {} })}
                       className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500">
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
@@ -480,18 +496,46 @@ export const SellerAddProductPage: React.FC = () => {
                     value={form.minOrderQty} hint={`Minimum ${form.unit} per order`}
                     onChange={e => setF({ minOrderQty: e.target.value })} />
                 </div>
+                {/* Pack sizes with per-variant price */}
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">Quantity Options</label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {form.quantityOptions.map(q => (
-                      <span key={q} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-3 py-1 rounded-full border border-blue-200">
-                        {q}
-                        <button onClick={() => removeChip(q, form.quantityOptions, v => setF({ quantityOptions: v }))}><X className="w-3 h-3 hover:text-red-500" /></button>
-                      </span>
-                    ))}
-                  </div>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                    Pack Sizes &amp; Prices *
+                    <span className="ml-1 text-xs text-gray-400 font-normal">(add each pack and its price)</span>
+                  </label>
+                  {errors.price && <p className="text-xs text-red-500 mb-1">{errors.price}</p>}
+                  {/* Existing packs */}
+                  {form.quantityOptions.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {form.quantityOptions.map(label => (
+                        <div key={label} className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-forest-700 w-16 flex-shrink-0 bg-forest-50 border border-forest-200 rounded-lg px-2 py-1.5 text-center">{label}</span>
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">₹</span>
+                            <input
+                              type="number" min="0" placeholder="Price"
+                              value={form.variantPrices[label] ?? ''}
+                              onChange={e => setF({ variantPrices: { ...form.variantPrices, [label]: e.target.value } })}
+                              className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
+                            />
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newOpts = form.quantityOptions.filter(q => q !== label)
+                              const newPrices = { ...form.variantPrices }
+                              delete newPrices[label]
+                              setF({ quantityOptions: newOpts, variantPrices: newPrices })
+                            }}
+                            className="p-1.5 text-red-400 hover:text-red-600 transition"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Add new pack */}
                   <div className="flex gap-2">
-                    <input placeholder="e.g., 250g, 500g, 1kg..."
+                    <input placeholder={`e.g., 100${form.unit}, 500${form.unit}, 1kg…`}
                       value={qtyInput} onChange={e => setQtyInput(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChip(qtyInput, form.quantityOptions, v => setF({ quantityOptions: v }), setQtyInput))}
                       className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500" />
@@ -499,7 +543,7 @@ export const SellerAddProductPage: React.FC = () => {
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Dynamic quantity packs buyers can choose</p>
+                  <p className="text-xs text-gray-400 mt-1">Type a pack size and press + or Enter to add it, then set its price</p>
                 </div>
               </div>
             </Section>

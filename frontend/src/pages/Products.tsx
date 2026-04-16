@@ -571,7 +571,7 @@ export const ProductDetailPage: React.FC = () => {
                   <p className="text-lg text-stone-400 line-through">₹{product.originalPrice.toFixed(0)}</p>
                 )}
                 {activeVariant && (
-                  <p className="text-sm text-stone-600 mb-1">for {activeVariant}</p>
+                  <p className="text-sm text-stone-600 mb-1 font-medium bg-stone-100 px-2 py-0.5 rounded-lg">per {activeVariant} pack</p>
                 )}
               </div>
               {product.originalPrice && product.originalPrice > finalPrice && (
@@ -1003,7 +1003,7 @@ export const ProductDetailPage: React.FC = () => {
 
       <div className="md:hidden fixed bottom-4 left-3 right-3 z-40 rounded-2xl bg-white/95 backdrop-blur border border-stone-200 shadow-modal p-3 flex items-center gap-3">
         <div className="min-w-0">
-          <p className="text-xs text-stone-500">{qty * unitPack}{product.unit}</p>
+          <p className="text-xs text-stone-500">{activeVariant ? `${qty} × ${activeVariant}` : `Qty: ${qty}`}</p>
           <p className="text-base font-display font-semibold text-stone-900">₹{(finalPrice * qty).toFixed(0)}</p>
         </div>
         <Button
